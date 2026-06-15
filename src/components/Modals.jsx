@@ -1,7 +1,6 @@
-import React from "react";
 import { TILES, GROUPS, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { playClick } from "../lib/audio";
-import { CloseIcon, HouseIcon, HotelIcon, ManageIcon, UtilityIcon, RailroadIcon, DollarIcon, BankruptcyIcon } from "../lib/icons";
+import { CloseIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon } from "../lib/icons";
 import { calcNetWorth } from "../lib/gameEngine";
 
 /* 1. Property Details Inspect Modal */
@@ -232,7 +231,7 @@ export function ManageModal({ gameState, myPlayerId, onAction, onClose }) {
       borderBottom: "1px solid rgba(255,255,255,0.05)",
       flexShrink: 0,
     },
-    nwCell: (accent) => ({
+    nwCell: () => ({
       padding: "8px 14px", borderRight: "1px solid rgba(255,255,255,0.05)",
       display: "flex", flexDirection: "column", gap: "2px",
     }),

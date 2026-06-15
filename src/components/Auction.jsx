@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { TILES } from "../boardData";
 import { playClick } from "../lib/audio";
 import { GavelIcon, DollarIcon, CloseIcon, PlayIcon } from "../lib/icons";

@@ -14,11 +14,17 @@ A full-featured Monopoly clone with a retro CRT / glassmorphism aesthetic. Multi
 ## Features
 
 - **Retro CRT UI** — bloom glow, vignette, scanline overlay, Press Start 2P font
+- **Responsive** — desktop board+panel layout collapses to a stacked, touch-friendly
+  layout on phones/tablets; clamp-based typography stays legible at any size
 - **Full Monopoly rules** — rent, houses/hotels (even-build), mortgages, auctions, trading, bankruptcy
-- **House Rules** — 12 toggleable settings (Free Parking jackpot, no rent in jail, double GO salary, custom taxes, etc.)
+- **House Rules** — 14 toggleable settings (Free Parking jackpot, no rent in jail, double GO salary, custom taxes, turn timer, etc.)
 - **Game Modes** — Classic, Speed Die (3rd die unlocks after passing GO), Quick (ends after N rounds by net worth)
-- **AI Bots** — host can add CPU players; engine drives their turns with realistic delays
-- **Host migration** — if host disconnects, a guest automatically claims host after 15s
+- **Turn timer** — optional per-decision countdown; the host auto-resolves idle turns
+- **AI Bots** — host adds CPU players with **Easy / Normal / Hard** difficulty; engine drives turns with realistic delays
+- **Chat & Emotes** — lobby + in-game chat plus floating emoji reactions (Realtime broadcast)
+- **End-game stats** — net-worth-over-time chart, peak cash, final standings, and host "Play Again"
+- **Host migration** — if host disconnects, a guest automatically claims host
+- **Fast initial load** — code-split bundle (main app chunk ~124 kB) with lazy-loaded modals
 
 ## Local setup
 

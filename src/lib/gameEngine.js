@@ -25,6 +25,8 @@ export const DEFAULT_HOUSE_RULES = {
   auction_minimum:       1,      // minimum bid at auction
   jail_fine:             50,     // fine to pay out of jail
   bank_errors_favored:   false,  // bank error Community Chest card gives $400 not $200
+  turn_timer_enabled:    false,  // host auto-resolves a player's turn after a countdown
+  turn_timer_seconds:    60,     // seconds allowed per turn before auto-action
 };
 
 // ── Card Decks ────────────────────────────────────────────────────────────────
@@ -79,7 +81,11 @@ function shuffle(arr) {
 function roll() { return Math.floor(Math.random() * 6) + 1; }
 function rollSpeedDie() { return Math.floor(Math.random() * 6) + 1; }
 
-function deepClone(s) { return JSON.parse(JSON.stringify(s)); }
+// structuredClone is ~2-4x faster than JSON round-tripping and is called on nearly
+// every action; fall back to JSON for very old runtimes.
+function deepClone(s) {
+  return typeof structuredClone === 'function' ? structuredClone(s) : JSON.parse(JSON.stringify(s));
+}
 
 function hr(state) { return { ...DEFAULT_HOUSE_RULES, ...(state.house_rules || {}) }; }
 
@@ -110,6 +116,8 @@ export function createInitialState(houseRules = {}, gameMode = 'classic', quickM
     debt_creditor_id: null,
     restore_phase: null,
     net_worth_history: {},
+    chat_log: [],             // [{ name, text, color, ts }] — player chat, separate from event log
+    turn_deadline: null,      // epoch ms set by host when turn timer is enabled
     round_counter: 0,
     free_parking_pot: 0,
     chance_deck: shuffle([...Array(16).keys()]),
@@ -546,7 +554,7 @@ function mrMonopolyMove(state, pid) {
 
 // ── Public action handlers ────────────────────────────────────────────────────
 
-export function addPlayer(state, { id, name, token_shape, token_color, token, slot, seat_index, is_bot }) {
+export function addPlayer(state, { id, name, token_shape, token_color, token, slot, seat_index, is_bot, difficulty }) {
   if (state.phase !== 'lobby') return { state, error: 'Game already in progress.' };
   if (state.players.length >= 6) return { state, error: 'Lobby is full.' };
 
@@ -569,6 +577,7 @@ export function addPlayer(state, { id, name, token_shape, token_color, token, sl
     jail_cards: 0,
     bankrupt: false,
     is_bot: is_bot ?? false,
+    difficulty: is_bot ? (difficulty || 'normal') : null,
   };
 
   const s = deepClone(state);
@@ -578,7 +587,7 @@ export function addPlayer(state, { id, name, token_shape, token_color, token, sl
   return { state: s };
 }
 
-export function startGame(state, { hostId }) {
+export function startGame(state) {
   if (state.phase !== 'lobby') return { state, error: 'Not in lobby.' };
   if (state.players.length < 2) return { state, error: 'Need at least 2 players.' };
 
@@ -819,7 +828,7 @@ export function payJailFine(state, { playerId }) {
   return { state: s };
 }
 
-export function useJailCard(state, { playerId }) {
+export function redeemJailCard(state, { playerId }) {
   if (state.phase !== 'turn') return { state, error: 'Not in turn phase.' };
   if (playerId !== getCurrentPlayerId(state)) return { state, error: 'Not your turn.' };
   const p = getPlayer(state, playerId);
@@ -1050,17 +1059,43 @@ export function cancelTrade(state, { playerId }) {
 }
 
 // ── AI Decision Engine ────────────────────────────────────────────────────────
+// Tunable strategy profiles per difficulty. Higher tiers buy/build more aggressively,
+// bid higher at auction, and spend to escape jail when they own developable property.
+const AI_PROFILES = {
+  easy:   { buyNwFrac: 0.18, reserve: 250, auctionFrac: 0.6,  bidStep: 10, maxHouses: 2, buildCostMult: 4,   buildMinNw: 2200, jailPay: 'never' },
+  normal: { buyNwFrac: 0.30, reserve: 120, auctionFrac: 0.85, bidStep: 10, maxHouses: 4, buildCostMult: 2,   buildMinNw: 1500, jailPay: 'afford' },
+  hard:   { buyNwFrac: 0.50, reserve: 80,  auctionFrac: 1.1,  bidStep: 15, maxHouses: 5, buildCostMult: 1.5, buildMinNw: 1100, jailPay: 'strategic' },
+};
+
+function aiProfile(bot) { return AI_PROFILES[bot?.difficulty] || AI_PROFILES.normal; }
+
+// Does the bot own at least one complete, build-eligible color group?
+function botHasMonopoly(state, botId) {
+  return Object.keys(GROUPS).some(grp =>
+    GROUPS[grp].every(sid => state.owner[sid] === botId && !state.mortgaged.includes(sid)));
+}
+
 // Returns { type, payload } for the host to dispatch, or null if no action needed.
 export function getAIDecision(state, botId) {
   const bot = getPlayer(state, botId);
   if (!bot || bot.bankrupt) return null;
   const phase = state.phase;
   const isCurrentPlayer = getCurrentPlayerId(state) === botId;
+  const prof = aiProfile(bot);
 
   if (phase === 'turn' && isCurrentPlayer) {
     if (bot.in_jail) {
-      if (bot.jail_cards > 0) return { type: 'use_jail_card', payload: { playerId: botId } };
-      if (bot.money >= (hr(state).jail_fine ?? 50)) return { type: 'pay_jail_fine', payload: { playerId: botId } };
+      const fine = hr(state).jail_fine ?? 50;
+      // Strategic bots leave jail early only when they have property to develop;
+      // otherwise jail is a safe place to sit while opponents pay rent.
+      const wantOut =
+        prof.jailPay === 'afford' ? bot.money >= fine :
+        prof.jailPay === 'strategic' ? (bot.money >= fine + prof.reserve && botHasMonopoly(state, botId)) :
+        false;
+      if (bot.jail_cards > 0 && (wantOut || prof.jailPay === 'strategic')) {
+        return { type: 'use_jail_card', payload: { playerId: botId } };
+      }
+      if (wantOut) return { type: 'pay_jail_fine', payload: { playerId: botId } };
     }
     return { type: 'roll_dice', payload: { playerId: botId } };
   }
@@ -1075,11 +1110,13 @@ export function getAIDecision(state, botId) {
     const tileId = state.can_buy;
     const tile = TILES.find(t => t.id === tileId);
     const nw = calcNetWorth(state, botId);
-    // Buy if tile price is less than 30% of net worth, or if it completes a color group
     const grp = tile?.group;
     const completesGroup = grp && GROUPS[grp] &&
       GROUPS[grp].filter(sid => sid !== tileId).every(sid => state.owner[sid] === botId);
-    const shouldBuy = completesGroup || (tile && bot.money >= tile.price && tile.price <= nw * 0.3);
+    // Railroads/utilities are reliably valuable; hard bots grab them readily.
+    const strategicType = (tile?.type === 'railroad' || tile?.type === 'utility') && prof.maxHouses >= 4;
+    const affordable = tile && bot.money - tile.price >= prof.reserve;
+    const shouldBuy = affordable && (completesGroup || strategicType || tile.price <= nw * prof.buyNwFrac);
     return { type: shouldBuy ? 'buy_property' : 'decline_buy', payload: { playerId: botId } };
   }
 
@@ -1087,15 +1124,19 @@ export function getAIDecision(state, botId) {
     const { active, turn_idx, current_bid } = state.auction;
     if (active[turn_idx] !== botId) return null;
     const tile = TILES.find(t => t.id === state.auction.tile);
-    const maxWilling = tile ? Math.min(bot.money, Math.floor(tile.price * 0.85)) : 0;
-    if (current_bid + 10 <= maxWilling) {
-      return { type: 'auction_bid', payload: { playerId: botId, amount: current_bid + 10 } };
+    const grp = tile?.group;
+    const completesGroup = grp && GROUPS[grp] &&
+      GROUPS[grp].filter(sid => sid !== state.auction.tile).every(sid => state.owner[sid] === botId);
+    const valueFrac = completesGroup ? prof.auctionFrac + 0.3 : prof.auctionFrac;
+    const maxWilling = tile ? Math.min(bot.money - Math.floor(prof.reserve / 2), Math.floor(tile.price * valueFrac)) : 0;
+    if (current_bid + prof.bidStep <= maxWilling) {
+      return { type: 'auction_bid', payload: { playerId: botId, amount: current_bid + prof.bidStep } };
     }
     return { type: 'auction_pass', payload: { playerId: botId } };
   }
 
   if (phase === 'debt' && state.debtor_id === botId) {
-    // Try to sell houses, then mortgage, then declare bankruptcy
+    // Raise cash least-painfully: sell houses, then mortgage, then bankruptcy.
     for (const propId of bot.properties) {
       if ((state.houses[propId] || 0) > 0) {
         return { type: 'sell_house', payload: { playerId: botId, tileId: propId } };
@@ -1110,16 +1151,23 @@ export function getAIDecision(state, botId) {
   }
 
   if (phase === 'post_roll' && isCurrentPlayer) {
-    // Consider building houses before ending turn
-    for (const propId of bot.properties) {
-      const tile = TILES.find(t => t.id === propId);
-      if (!tile || tile.type !== 'property' || state.mortgaged.includes(propId)) continue;
-      const grp = tile.group;
-      if (!GROUPS[grp]?.every(sid => state.owner[sid] === botId && !state.mortgaged.includes(sid))) continue;
-      const currH = state.houses[propId] || 0;
-      if (currH < 4 && bot.money >= tile.houseCost * 2 && calcNetWorth(state, botId) > 1500) {
-        return { type: 'build_house', payload: { playerId: botId, tileId: propId } };
+    const nw = calcNetWorth(state, botId);
+    if (nw > prof.buildMinNw) {
+      // Build on the lowest-developed property of an owned group first (keeps even-build),
+      // up to this profile's cap, while preserving a cash reserve.
+      let bestTile = null, bestH = 99;
+      for (const propId of bot.properties) {
+        const tile = TILES.find(t => t.id === propId);
+        if (!tile || tile.type !== 'property' || state.mortgaged.includes(propId)) continue;
+        const grp = tile.group;
+        if (!GROUPS[grp]?.every(sid => state.owner[sid] === botId && !state.mortgaged.includes(sid))) continue;
+        const currH = state.houses[propId] || 0;
+        if (currH >= prof.maxHouses) continue;
+        if (bot.money - tile.houseCost < prof.reserve) continue;
+        if (bot.money < tile.houseCost * prof.buildCostMult) continue;
+        if (currH < bestH) { bestH = currH; bestTile = propId; }
       }
+      if (bestTile !== null) return { type: 'build_house', payload: { playerId: botId, tileId: bestTile } };
     }
     return { type: 'end_turn', payload: { playerId: botId } };
   }
@@ -1140,7 +1188,7 @@ export function applyAction(state, action) {
     case 'auction_bid':         return auctionBid(state, payload);
     case 'auction_pass':        return auctionPass(state, payload);
     case 'pay_jail_fine':       return payJailFine(state, payload);
-    case 'use_jail_card':       return useJailCard(state, payload);
+    case 'use_jail_card':       return redeemJailCard(state, payload);
     case 'build_house':         return buildHouse(state, payload);
     case 'sell_house':          return sellHouse(state, payload);
     case 'mortgage':            return mortgageProperty(state, payload);
@@ -1152,7 +1200,9 @@ export function applyAction(state, action) {
     case 'cancel_trade':        return cancelTrade(state, payload);
     case 'chat': {
       const s = deepClone(state);
-      addLog(s, `${payload.name}: ${payload.text}`);
+      const entry = { name: payload.name, text: payload.text, color: payload.color || null, ts: Date.now() };
+      s.chat_log = [...(s.chat_log || []), entry];
+      if (s.chat_log.length > 100) s.chat_log = s.chat_log.slice(-100);
       return { state: s };
     }
     default: return { state, error: `Unknown action: ${type}` };

@@ -167,6 +167,11 @@ export async function startRoomGame(roomId) {
   await supabase.from('rooms').update({ status: 'playing' }).eq('id', roomId);
 }
 
+// Reset a finished/won room back to the lobby keeping the same player rows.
+export async function resetRoomToLobby(roomId) {
+  await supabase.from('rooms').update({ status: 'lobby', game_state: {} }).eq('id', roomId);
+}
+
 export async function endRoom(roomId) {
   await supabase.from('rooms').update({ status: 'finished' }).eq('id', roomId);
   // Delete all player rows so human user.id can be reused in a new game
@@ -186,7 +191,7 @@ export async function updateGameMode(roomId, gameMode, quickModeRounds) {
 }
 
 // ── Bot management (host only) ────────────────────────────────────────────────
-export async function addBot(roomId, hostPlayerId, name, tokenShape, tokenColor) {
+export async function addBot(roomId, hostPlayerId, name, tokenShape, tokenColor, difficulty = 'normal') {
   const existingPlayers = await fetchPlayers(roomId);
   if (existingPlayers.length >= 6) throw new Error('Lobby is full.');
   const seat = existingPlayers.length;
@@ -200,13 +205,32 @@ export async function addBot(roomId, hostPlayerId, name, tokenShape, tokenColor)
     token_color: tokenColor,
     is_bot:      true,
     is_connected: true,
+    bot_difficulty: difficulty,
   });
   if (error) throw new Error(error.message);
   return botId;
 }
 
+export async function updateBotDifficulty(botId, difficulty) {
+  await supabase.from('players').update({ bot_difficulty: difficulty }).eq('id', botId).eq('is_bot', true);
+}
+
 export async function removeBot(botId) {
   await supabase.from('players').delete().eq('id', botId).eq('is_bot', true);
+}
+
+// ── Ephemeral live channel (emotes + lobby chat) ──────────────────────────────
+// Realtime broadcast — no DB writes, works before game_state exists (lobby).
+export function subscribeToLive(roomId, { onEmote, onChat } = {}) {
+  const channel = supabase.channel(`live:${roomId}`, { config: { broadcast: { self: true } } });
+  if (onEmote) channel.on('broadcast', { event: 'emote' }, ({ payload }) => onEmote(payload));
+  if (onChat) channel.on('broadcast', { event: 'chat' }, ({ payload }) => onChat(payload));
+  channel.subscribe();
+  return {
+    sendEmote: (payload) => channel.send({ type: 'broadcast', event: 'emote', payload }),
+    sendChat: (payload) => channel.send({ type: 'broadcast', event: 'chat', payload }),
+    unsubscribe: () => supabase.removeChannel(channel),
+  };
 }
 
 // ── Heartbeat RPCs ────────────────────────────────────────────────────────────

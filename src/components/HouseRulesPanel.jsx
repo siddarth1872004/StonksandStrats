@@ -1,4 +1,3 @@
-import React from "react";
 import { DEFAULT_HOUSE_RULES } from "../lib/gameEngine";
 
 const RULE_DEFS = [
@@ -14,6 +13,8 @@ const RULE_DEFS = [
   { key: "luxury_tax",            label: "Luxury Tax ($)",          type: "number", desc: "Amount paid when landing on Luxury Tax.", min: 25, max: 300, step: 25 },
   { key: "auction_minimum",       label: "Auction Minimum ($)",     type: "number", desc: "Minimum opening bid at auction.", min: 1, max: 50, step: 1 },
   { key: "jail_fine",             label: "Jail Fine ($)",           type: "number", desc: "Cost to pay out of jail.", min: 25, max: 200, step: 25 },
+  { key: "turn_timer_enabled",    label: "Turn Timer",              type: "bool",   desc: "Auto-resolves a player's turn if they idle too long." },
+  { key: "turn_timer_seconds",    label: "Turn Timer (sec)",        type: "number", desc: "Seconds allowed per decision before auto-action.", min: 15, max: 180, step: 15 },
 ];
 
 export default function HouseRulesPanel({ rules = {}, onChange, isHost }) {

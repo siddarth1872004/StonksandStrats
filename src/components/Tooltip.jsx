@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 
 export default function Tooltip({ text, children, position = "top", className = "" }) {
   const [visible, setVisible] = useState(false);

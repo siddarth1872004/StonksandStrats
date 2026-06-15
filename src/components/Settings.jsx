@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import { setMuted, getMuted } from "../lib/audio";
 import { SettingsIcon, SoundIcon, MuteIcon, PlayIcon } from "../lib/icons";
 

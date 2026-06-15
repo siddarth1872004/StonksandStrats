@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { AlertIcon, CloseIcon } from "../lib/icons";
 
 export default function Toast({ message, type = "info", duration = 3000, onClose }) {

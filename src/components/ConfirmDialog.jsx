@@ -1,4 +1,3 @@
-import React from "react";
 import { AlertIcon, PlayIcon, CloseIcon } from "../lib/icons";
 
 export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, confirmText = "YES", cancelText = "NO" }) {

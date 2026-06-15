@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { TILES } from "../boardData";
 import { playClick } from "../lib/audio";
-import { TradeIcon, DollarIcon, PlayIcon, CloseIcon, TokenIcon } from "../lib/icons";
+import { TradeIcon, DollarIcon, PlayIcon, CloseIcon } from "../lib/icons";
 
 export default function TradeBroker({ gameState, myPlayerId, onAction }) {
   const [targetPid, setTargetPid] = useState("");

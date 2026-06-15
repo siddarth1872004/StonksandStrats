@@ -1,22 +1,28 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import Board from "./components/Board";
 import Sidebar from "./components/Sidebar";
 import RoomMenu from "./components/RoomMenu";
 import RoomLobby from "./components/RoomLobby";
-import Diagnostics from "./components/Diagnostics";
-import Auction from "./components/Auction";
-import Settings from "./components/Settings";
 import Toast from "./components/Toast";
 import ConfirmDialog from "./components/ConfirmDialog";
-import { PropertyDetailModal, ManageModal } from "./components/Modals";
+import { EmoteOverlay } from "./components/Emotes";
+import { useViewport } from "./lib/useViewport";
+
+// Heavy / rarely-mounted UI is code-split so the initial bundle stays small.
+const Diagnostics = lazy(() => import("./components/Diagnostics"));
+const Auction = lazy(() => import("./components/Auction"));
+const Settings = lazy(() => import("./components/Settings"));
+const StatsScreen = lazy(() => import("./components/StatsScreen"));
+const PropertyDetailModal = lazy(() => import("./components/Modals").then(m => ({ default: m.PropertyDetailModal })));
+const ManageModal = lazy(() => import("./components/Modals").then(m => ({ default: m.ManageModal })));
 
 import { ensureAuth } from "./lib/supabase";
 import {
   createRoom, joinRoom, rejoinRoom, clearSession,
   subscribeToRoom, subscribeToActions, fetchPlayers, fetchRoom,
   sendAction, updateGameState, startRoomGame, endRoom, leaveRoom,
-  updateHouseRules, updateGameMode, addBot, removeBot,
-  touchHeartbeat, claimHost, markActionProcessed,
+  updateHouseRules, updateGameMode, addBot, removeBot, updateBotDifficulty,
+  touchHeartbeat, claimHost, markActionProcessed, subscribeToLive, resetRoomToLobby,
 } from "./lib/roomClient";
 
 import {
@@ -30,7 +36,7 @@ import {
 import {
   ConfettiCanvas, diffStates, ANIM, animateDice, animateHop, AnimationQueue,
 } from "./lib/animation";
-import { PlayIcon, CloseIcon, SettingsIcon, BankruptcyIcon, AlertIcon } from "./lib/icons";
+import { PlayIcon, CloseIcon, BankruptcyIcon } from "./lib/icons";
 
 const HEARTBEAT_INTERVAL_MS = 5000;
 const AI_MIN_DELAY_MS = 800;
@@ -67,8 +73,18 @@ export default function App() {
   const actionsUnsubRef = useRef(null);
   const heartbeatRef = useRef(null);
   const aiTimerRef = useRef(null);
+  const turnTimerRef = useRef(null);
+  const timerKeyRef = useRef(null);
+  const liveRef = useRef(null);
 
   const [toast, setToast] = useState(null);
+
+  // Responsive layout
+  const { isCompact } = useViewport();
+
+  // Ephemeral live channel state (emotes + lobby chat via Realtime broadcast)
+  const [emotes, setEmotes] = useState([]);
+  const [lobbyChat, setLobbyChat] = useState([]);
 
   // Animation state
   const [renderedPositions, setRenderedPositions] = useState({});
@@ -232,6 +248,7 @@ export default function App() {
   const commitState = useCallback((newState) => {
     syncGameState(newState);
     if (roomId) updateGameState(roomId, newState).catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   // ── Supabase subscriptions ─────────────────────────────────────────────────
@@ -271,6 +288,11 @@ export default function App() {
         if (roomRow.game_state && Object.keys(roomRow.game_state).length > 0) {
           syncGameState(roomRow.game_state);
           navigateForState(roomRow.game_state);
+        } else {
+          // Empty state (lobby or host "play again" reset) → back to lobby.
+          gameStateRef.current = null;
+          setGameState(null);
+          navigateForState(null);
         }
       },
       (ps) => setPlayers(ps || [])
@@ -327,6 +349,87 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, isHost, playerId]);
 
+  // ── Live channel: emotes + lobby chat (ephemeral Realtime broadcast) ────────
+  useEffect(() => {
+    if (!roomId) return;
+    const live = subscribeToLive(roomId, {
+      onEmote: (p) => {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        setEmotes(e => [...e, { id, emoji: p.emoji, name: p.name, x: p.x }]);
+        setTimeout(() => setEmotes(e => e.filter(x => x.id !== id)), 2500);
+      },
+      onChat: (p) => setLobbyChat(c => [...c.slice(-40), p]),
+    });
+    liveRef.current = live;
+    return () => { live.unsubscribe(); liveRef.current = null; setEmotes([]); setLobbyChat([]); };
+  }, [roomId]);
+
+  const sendEmote = useCallback((emoji) => {
+    if (!liveRef.current) return;
+    liveRef.current.sendEmote({ emoji, name: playerName || "Player", x: 8 + Math.random() * 84 });
+  }, [playerName]);
+
+  const sendLobbyChat = useCallback((text) => {
+    if (!liveRef.current || !text.trim()) return;
+    liveRef.current.sendChat({ name: playerName || "Player", text: text.trim() });
+  }, [playerName]);
+
+  // ── Host turn timer ─────────────────────────────────────────────────────────
+  // When enabled, the host stamps game_state.turn_deadline for the human whose
+  // segment it is (bots are driven by the AI loop) and auto-resolves on expiry.
+  const autoResolveTurn = useCallback((actorId) => {
+    const s = gameStateRef.current;
+    if (!s) return;
+    const curId = s.phase === "auction" ? s.auction?.active?.[s.auction?.turn_idx]
+      : s.phase === "debt" ? s.debtor_id
+      : s.order?.[s.current];
+    if (curId !== actorId) return;
+    let act = null;
+    if (s.phase === "turn") act = { type: "roll_dice", payload: { playerId: actorId } };
+    else if (s.phase === "buy_decision") act = { type: "decline_buy", payload: { playerId: actorId } };
+    else if (s.phase === "post_roll") act = { type: "end_turn", payload: { playerId: actorId } };
+    else if (s.phase === "speed_bus") act = { type: "choose_bus_route", payload: { playerId: actorId, steps: Math.max(...(s.speed_die_choice || [0])) } };
+    else if (s.phase === "auction") act = { type: "auction_pass", payload: { playerId: actorId } };
+    else if (s.phase === "debt") act = getAIDecision(s, actorId); // sell → mortgage → bankrupt
+    if (!act) return;
+    const result = applyAction(s, act);
+    if (result.error) return;
+    timerKeyRef.current = null;
+    commitState(result.state);
+  }, [commitState]);
+
+  useEffect(() => {
+    if (!isHost) return;
+    const s = gameState;
+    if (!s || s.phase === "lobby" || s.phase === "game_over" || s.winner !== null) return;
+    const rules = { ...DEFAULT_HOUSE_RULES, ...(s.house_rules || {}) };
+    if (!rules.turn_timer_enabled) return;
+    if (animationsBusy) return;
+
+    const actorId = s.phase === "auction" ? s.auction?.active?.[s.auction?.turn_idx]
+      : s.phase === "debt" ? s.debtor_id
+      : s.order?.[s.current];
+    const actor = s.players?.find(p => p.id === actorId);
+    if (!actor || actor.is_bot || actor.bankrupt) return; // bots handled elsewhere
+
+    const key = `${s.phase}:${actorId}`;
+    if (timerKeyRef.current === key) return; // already armed for this segment
+    timerKeyRef.current = key;
+
+    const seconds = rules.turn_timer_seconds || 60;
+    const deadline = Date.now() + seconds * 1000;
+    const withDeadline = { ...s, turn_deadline: deadline };
+    gameStateRef.current = withDeadline;
+    setGameState(withDeadline);
+    if (roomId) updateGameState(roomId, withDeadline).catch(console.error);
+
+    if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
+    turnTimerRef.current = setTimeout(() => autoResolveTurn(actorId), seconds * 1000 + 400);
+
+    return () => { if (turnTimerRef.current) clearTimeout(turnTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, animationsBusy, gameState?.phase, gameState?.current, gameState?.debtor_id, gameState?.auction?.turn_idx]);
+
   // ── AI turn processor (host only) ─────────────────────────────────────────
   // Determines which bot (if any) needs to act in the current state and applies
   // one decision. If the same bot still needs to act after the action (e.g.
@@ -381,6 +484,7 @@ export default function App() {
     aiTimerRef.current = setTimeout(processAITurn, randomAIDelay());
 
     return () => { if (aiTimerRef.current) clearTimeout(aiTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.phase, gameState?.current, gameState?.auction?.turn_idx, gameState?.debtor_id, isHost, processAITurn]);
 
   // ── Action dispatch ────────────────────────────────────────────────────────
@@ -400,6 +504,7 @@ export default function App() {
     } else {
       sendAction(roomId, playerId, type, payload);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, playerId, isHost, commitState]);
 
   const handleAction = useCallback((type, payload = {}) => {
@@ -440,6 +545,7 @@ export default function App() {
         token_color: p.token_color,
         seat_index: p.seat_index,
         is_bot: p.is_bot,
+        difficulty: p.bot_difficulty,
       });
       if (result.error) { setToast({ message: result.error, type: "error" }); return; }
       state = result.state;
@@ -460,6 +566,8 @@ export default function App() {
     playClick();
     stopHeartbeat();
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
+    timerKeyRef.current = null;
     if (playerId) await leaveRoom(playerId);
     clearSession();
     setRoomId(null);
@@ -487,10 +595,10 @@ export default function App() {
     if (roomId) await updateGameMode(roomId, mode, rounds ?? quickModeRounds).catch(console.error);
   };
 
-  const handleAddBot = async (name, shape, color) => {
+  const handleAddBot = async (name, shape, color, difficulty = "normal") => {
     if (!isHost || !roomId) return;
     try {
-      await addBot(roomId, playerId, name, shape, color);
+      await addBot(roomId, playerId, name, shape, color, difficulty);
       const ps = await fetchPlayers(roomId);
       setPlayers(ps);
     } catch (err) {
@@ -505,6 +613,25 @@ export default function App() {
     setPlayers(ps);
   };
 
+  const handleBotDifficulty = async (botId, difficulty) => {
+    if (!isHost || !roomId) return;
+    await updateBotDifficulty(botId, difficulty);
+    const ps = await fetchPlayers(roomId);
+    setPlayers(ps);
+  };
+
+  // Play again: host resets the room back to the lobby with the same players.
+  const handlePlayAgain = useCallback(async () => {
+    playClick();
+    if (!isHost || !roomId) return;
+    gameStateRef.current = null;
+    setGameState(null);
+    timerKeyRef.current = null;
+    await resetRoomToLobby(roomId).catch(console.error);
+    setScreen("LOBBY");
+  }, [isHost, roomId]);
+
+  const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
   const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
   const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
@@ -633,96 +760,134 @@ export default function App() {
               onLeave={handleLeaveRoom}
               onAddBot={handleAddBot}
               onRemoveBot={handleRemoveBot}
+              onBotDifficulty={handleBotDifficulty}
+              lobbyChat={lobbyChat}
+              onLobbyChat={sendLobbyChat}
+              onEmote={sendEmote}
             />
           )}
 
-          {screen === "GAME" && gameState && (
-            <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
-              {/* Board column — square sized by height, no centering gaps */}
-              <div style={{ flexShrink: 0, height: "100%", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                {isBankrupt && (
-                  <div style={{ flexShrink: 0, padding: "5px 10px", background: "rgba(69,10,10,0.3)", borderBottom: "1px solid rgba(239,68,68,0.3)", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#f87171", textAlign: "center", letterSpacing: "0.1em" }}>
-                    <BankruptcyIcon size={10} color="#EF4444" /> YOU ARE BANKRUPT — SPECTATING
+          {screen === "GAME" && gameState && (() => {
+            const spectatorBanner = isBankrupt && (
+              <div style={{ flexShrink: 0, padding: "5px 10px", background: "rgba(69,10,10,0.3)", borderBottom: "1px solid rgba(239,68,68,0.3)", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#f87171", textAlign: "center", letterSpacing: "0.1em" }}>
+                <BankruptcyIcon size={10} color="#EF4444" /> YOU ARE BANKRUPT — SPECTATING
+              </div>
+            );
+            const board = (
+              <Board
+                gameState={gameState}
+                myPlayerId={playerId}
+                onTileClick={handleTileClick}
+                renderedPositions={renderedPositions}
+              />
+            );
+            const sidebar = (
+              <Sidebar
+                gameState={gameState}
+                myPlayerId={playerId}
+                playerName={playerName}
+                animDice={animDice}
+                animationsBusy={animationsBusy}
+                isHost={isHost}
+                stacked={isCompact}
+                onEndGame={handleEndGame}
+                onEmote={sendEmote}
+                onAction={(act, pay) => {
+                  if (act === "declare_bankruptcy") handleBankruptcyClick();
+                  else handleAction(act, pay);
+                }}
+                onOpenManage={() => setShowManage(true)}
+                onOpenSettings={() => setShowSettings(true)}
+                onSkipAnimations={handleSkipAnimations}
+              />
+            );
+
+            // Mobile/portrait: stack a width-bound square board over a scrolling panel.
+            if (isCompact) {
+              return (
+                <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
+                  {spectatorBanner}
+                  <div style={{ width: "min(100%, 62vh)", maxWidth: "100%", aspectRatio: "1 / 1", flexShrink: 0, alignSelf: "center", padding: "4px" }}>
+                    {board}
                   </div>
-                )}
-                <div style={{ flex: 1, overflow: "hidden" }}>
-                  <Board
-                    gameState={gameState}
-                    myPlayerId={playerId}
-                    onTileClick={tid => setSelectedTileId(tid)}
-                    renderedPositions={renderedPositions}
-                    animationsBusy={animationsBusy}
-                    onSkipAnimations={handleSkipAnimations}
-                  />
+                  {sidebar}
+                </div>
+              );
+            }
+            // Desktop: square board (sized by height) beside a full-height sidebar.
+            return (
+              <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
+                <div style={{ flexShrink: 0, height: "100%", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  {spectatorBanner}
+                  <div style={{ flex: 1, overflow: "hidden" }}>{board}</div>
+                </div>
+                <div style={{ flex: 1, minWidth: "260px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  {sidebar}
                 </div>
               </div>
-              {/* Sidebar — fills remaining width */}
-              <div style={{ flex: 1, minWidth: "260px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <Sidebar
-                  gameState={gameState}
-                  myPlayerId={playerId}
-                  playerName={playerName}
-                  animDice={animDice}
-                  animationsBusy={animationsBusy}
-                  isHost={isHost}
-                  onEndGame={handleEndGame}
-                  onAction={(act, pay) => {
-                    if (act === "declare_bankruptcy") handleBankruptcyClick();
-                    else handleAction(act, pay);
-                  }}
-                  onOpenManage={() => setShowManage(true)}
-                  onOpenSettings={() => setShowSettings(true)}
-                  onSkipAnimations={handleSkipAnimations}
-                />
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {screen === "GAME_OVER" && gameState && (
-            <div className="relative glass-card w-full max-w-md p-6 flex flex-col gap-5 border-t-2 border-green-500 text-center font-mono text-[10px]">
-              <canvas ref={confettiCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none rounded" />
-              <h2 className="text-xs text-green-500 font-bold tracking-widest uppercase mb-1 flex items-center justify-center gap-1.5">
-                <PlayIcon size={12} color="#10B981" /> SESSION CONCLUDED
-              </h2>
-              <div>
-                <span className="text-[8px] text-slate-500">WINNING COMMANDER:</span>
-                <div className="text-base font-bold text-green-400 glow-green mt-1">
-                  {gameState.players.find(p => p.id === gameState.winner)?.name || "SYSTEM"}
+            <div className="relative w-full overflow-y-auto" style={{ maxHeight: "100%", maxWidth: "640px", padding: "8px" }}>
+              <div className="relative glass-card w-full p-6 flex flex-col gap-5 border-t-2 border-green-500 text-center font-mono text-[10px]">
+                <canvas ref={confettiCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none rounded" />
+                <h2 className="text-xs text-green-500 font-bold tracking-widest uppercase mb-1 flex items-center justify-center gap-1.5">
+                  <PlayIcon size={12} color="#10B981" /> SESSION CONCLUDED
+                </h2>
+                <div>
+                  <span className="text-[8px] text-slate-500">WINNING COMMANDER:</span>
+                  <div className="text-base font-bold text-green-400 glow-green mt-1">
+                    {gameState.players.find(p => p.id === gameState.winner)?.name || "SYSTEM"}
+                  </div>
+                </div>
+
+                <Suspense fallback={<div className="text-[8px] text-slate-500 py-4">LOADING STATS…</div>}>
+                  <StatsScreen gameState={gameState} />
+                </Suspense>
+
+                <div className="flex flex-col gap-2 mt-1">
+                  {isHost && (
+                    <button onClick={handlePlayAgain} className="btn-retro btn-retro-green w-full font-bold tracking-wider py-2.5">
+                      <PlayIcon size={11} className="mr-1" /> PLAY AGAIN (SAME PLAYERS)
+                    </button>
+                  )}
+                  <button onClick={handleLeaveRoom} className="btn-retro btn-retro-red w-full font-bold tracking-wider py-2.5">
+                    <CloseIcon size={11} className="mr-1" /> RETURN TO MENU
+                  </button>
                 </div>
               </div>
-              <div className="text-left flex flex-col gap-2 mt-2">
-                <div className="text-[8px] text-slate-500 tracking-wider border-b border-slate-900 pb-1">STANDINGS LIST:</div>
-                {gameState.players.slice().sort((a, b) => a.bankrupt === b.bankrupt ? b.money - a.money : a.bankrupt ? 1 : -1).map((p, idx) => (
-                  <div key={p.id} className="flex justify-between border-b border-slate-900/30 pb-0.5 text-slate-300">
-                    <span>{idx + 1}. {p.name}</span>
-                    <span className="font-bold text-green-400">{p.bankrupt ? "BANKRUPT" : `$${p.money}`}</span>
-                  </div>
-                ))}
-              </div>
-              <button onClick={handleLeaveRoom} className="btn-retro btn-retro-green w-full font-bold tracking-wider py-2.5 mt-2">
-                <CloseIcon size={11} className="mr-1" /> RETURN TO MENU
-              </button>
             </div>
           )}
         </div>
       </div>
 
-      {selectedTileId !== null && (
-        <PropertyDetailModal tileId={selectedTileId} gameState={gameState} onClose={() => setSelectedTileId(null)} />
-      )}
-      {showManage && (
-        <ManageModal gameState={gameState} myPlayerId={playerId} onAction={handleAction} onClose={() => setShowManage(false)} />
-      )}
-      <Auction gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
-      <Settings
-        isOpen={showSettings} onClose={() => setShowSettings(false)}
-        scanlinesActive={scanlinesActive} setScanlinesActive={setScanlinesActive}
-        bloomSetting={bloomSetting} setBloomSetting={setBloomSetting}
-      />
-      <Diagnostics
-        visible={showDiagnostics} onClose={() => setShowDiagnostics(false)}
-        gameState={gameState} isHost={isHost} roomId={roomId} playerId={playerId}
-      />
+      <EmoteOverlay emotes={emotes} />
+
+      <Suspense fallback={null}>
+        {selectedTileId !== null && (
+          <PropertyDetailModal tileId={selectedTileId} gameState={gameState} onClose={() => setSelectedTileId(null)} />
+        )}
+        {showManage && (
+          <ManageModal gameState={gameState} myPlayerId={playerId} onAction={handleAction} onClose={() => setShowManage(false)} />
+        )}
+        {gameState?.phase === "auction" && (
+          <Auction gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
+        )}
+        {showSettings && (
+          <Settings
+            isOpen={showSettings} onClose={() => setShowSettings(false)}
+            scanlinesActive={scanlinesActive} setScanlinesActive={setScanlinesActive}
+            bloomSetting={bloomSetting} setBloomSetting={setBloomSetting}
+          />
+        )}
+        {showDiagnostics && (
+          <Diagnostics
+            visible={showDiagnostics} onClose={() => setShowDiagnostics(false)}
+            gameState={gameState} isHost={isHost} roomId={roomId} playerId={playerId}
+          />
+        )}
+      </Suspense>
       <ConfirmDialog
         isOpen={showConfirmBankruptcy}
         title="DECLARATION OF BANKRUPTCY"

@@ -1,4 +1,3 @@
-import React from "react";
 import { TOKEN_COLORS } from "../boardData";
 
 export default function StatsScreen({ gameState }) {
@@ -55,8 +54,9 @@ export default function StatsScreen({ gameState }) {
             <tr className="border-b border-slate-800 text-slate-500 text-[8px] pb-1">
               <th className="pb-1.5">PLAYER NAME</th>
               <th className="pb-1.5 text-right">CASH</th>
-              <th className="pb-1.5 text-right">PROPERTIES</th>
+              <th className="pb-1.5 text-right">PROPS</th>
               <th className="pb-1.5 text-right">NET WORTH</th>
+              <th className="pb-1.5 text-right">PEAK</th>
               <th className="pb-1.5 text-center">STATUS</th>
             </tr>
           </thead>
@@ -64,7 +64,8 @@ export default function StatsScreen({ gameState }) {
             {players.map(p => {
               const hist = history[p.id.toString()] || [];
               const netWorth = hist.length > 0 ? hist[hist.length - 1] : p.money;
-              const color = TOKEN_COLORS[p.token] || "#fff";
+              const peak = hist.length > 0 ? Math.max(...hist) : p.money;
+              const color = p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#fff";
               
               return (
                 <tr key={p.id} className="border-b border-slate-900/50 hover:bg-slate-950/20">
@@ -78,6 +79,7 @@ export default function StatsScreen({ gameState }) {
                   <td className="py-2 text-right text-emerald-400 font-bold">${p.money}</td>
                   <td className="py-2 text-right text-slate-400">{p.properties.length}</td>
                   <td className="py-2 text-right text-sky-400 font-bold">${netWorth}</td>
+                  <td className="py-2 text-right text-amber-400">${peak}</td>
                   <td className="py-2 text-center">
                     {p.bankrupt ? (
                       <span className="px-1 py-0.5 border border-red-500/30 rounded bg-red-950/20 text-red-500 text-[8px]">BANKRUPT</span>
@@ -157,7 +159,7 @@ export default function StatsScreen({ gameState }) {
 
             {/* Player lines */}
             {players.map(p => {
-              const color = TOKEN_COLORS[p.token] || "#fff";
+              const color = p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#fff";
               const pointsStr = getPointsString(p.id);
               if (!pointsStr) return null;
               

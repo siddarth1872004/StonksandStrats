@@ -1,4 +1,3 @@
-import React from "react";
 
 // Crisp pixel-art SVGs for the retro theme
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { CloseIcon } from "../lib/icons";
 
 export default function Diagnostics({ visible, onClose, gameState, isHost, roomId, playerId }) {

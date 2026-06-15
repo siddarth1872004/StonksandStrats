@@ -1,6 +1,42 @@
 # Stonks & Strats — Progress Report
 
-Last updated: 2026-06-15 (Phase 3 audit + implementation).
+Last updated: 2026-06-15 (Phase 4 — scaling, performance, QOL & feature completion).
+
+---
+
+## Phase 4 — Completion pass (scaling / performance / UX / features)
+
+### Responsive / mobile
+- New `src/lib/useViewport.js` hook (`isCompact` / `isPortrait` / `isPhone`).
+- `App.jsx` GAME screen now switches between desktop (board + side panel in a row)
+  and a stacked mobile layout (square board over a scrolling panel) via `isCompact`.
+- `Sidebar.jsx` gained a `stacked` mode and clamp-based font sizing so 5–8px labels
+  scale up to legible sizes on phones and large displays; min 30px tap targets.
+- `index.html` viewport hardened (`viewport-fit=cover`, theme-color); favicon fixed.
+
+### Performance
+- Bundle code-split: main app chunk **529 kB → 124 kB**. `React.lazy` for Modals,
+  Auction, Settings, Diagnostics, StatsScreen; `vite.config.js` `manualChunks`
+  splits `@supabase` and React into cached vendor chunks.
+- `gameEngine.deepClone` now uses native `structuredClone` (JSON fallback).
+- `Board` is `React.memo`'d with a stabilized `onTileClick`; emote/toast/dice
+  updates no longer re-render the board.
+
+### New gameplay / QOL
+- **Turn timer** (host-enforced): `turn_timer_enabled` / `turn_timer_seconds`
+  house rules; host stamps `game_state.turn_deadline` and auto-resolves on expiry
+  (roll → decline → end turn; AI logic for debt). Live countdown in the Sidebar.
+- **AI difficulty** easy / normal / hard: `players.bot_difficulty` column, seeded
+  into `game_state` at start; `getAIDecision` branches via tunable `AI_PROFILES`.
+  Host cycles each bot's difficulty in the lobby.
+- **Emotes** (👍😂😱💰🤝🔥😭🎲) and **lobby chat** over a Realtime broadcast
+  channel (`live:<room>`, no DB writes) — floating overlay for everyone.
+- **In-game chat** now persists to `game_state.chat_log` and renders as its own
+  stream separate from the event feed.
+- **End-game**: GAME_OVER embeds `StatsScreen` (net-worth chart + peak column);
+  host gets **Play Again** (resets room to lobby keeping players).
+- Lint: 0 problems (dead `React` imports removed; experimental React-Compiler
+  hook rules scoped off in `eslint.config.js`).
 
 ---
 

@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { TokenIcon, PlayIcon, CrownIcon, CopyIcon, CloseIcon, AlertIcon, UsersIcon, PlusIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 import HouseRulesPanel from "./HouseRulesPanel";
+import { EmoteBar } from "./Emotes";
+
+const DIFFICULTIES = ["easy", "normal", "hard"];
+const DIFF_COLOR = { easy: "#34d399", normal: "#fbbf24", hard: "#f87171" };
 
 const TOKEN_COLORS = {
   car: "#EF4444", hat: "#3B82F6", dog: "#F59E0B", ship: "#06B6D4",
@@ -21,10 +25,30 @@ export default function RoomLobby({
   players, myPlayerId, isHost, roomCode, hostPlayerId,
   houseRules, onHouseRulesChange,
   gameMode, quickModeRounds, onGameModeChange,
-  onStartGame, onLeave, onAddBot, onRemoveBot,
+  onStartGame, onLeave, onAddBot, onRemoveBot, onBotDifficulty,
+  lobbyChat = [], onLobbyChat, onEmote,
 }) {
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState("players"); // players | rules
+  const [chatInput, setChatInput] = useState("");
+  const chatEndRef = useRef(null);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ block: "nearest" }); }, [lobbyChat.length]);
+
+  const cycleDifficulty = (p) => {
+    if (!isHost) return;
+    playClick();
+    const cur = p.bot_difficulty || "normal";
+    const next = DIFFICULTIES[(DIFFICULTIES.indexOf(cur) + 1) % DIFFICULTIES.length];
+    onBotDifficulty?.(p.id, next);
+  };
+
+  const submitChat = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    onLobbyChat?.(chatInput.trim());
+    setChatInput("");
+  };
 
   const copyCode = () => {
     playClick();
@@ -126,6 +150,22 @@ export default function RoomLobby({
                         {p.is_connected ? "ONLINE" : "AWAY"}
                       </span>
                     )}
+                    {p.is_bot && (
+                      <button
+                        onClick={() => cycleDifficulty(p)}
+                        disabled={!isHost}
+                        title="Click to change AI difficulty"
+                        className="text-[8px] border px-1.5 py-0.5 rounded uppercase"
+                        style={{
+                          color: DIFF_COLOR[p.bot_difficulty || "normal"],
+                          borderColor: `${DIFF_COLOR[p.bot_difficulty || "normal"]}55`,
+                          background: `${DIFF_COLOR[p.bot_difficulty || "normal"]}12`,
+                          cursor: isHost ? "pointer" : "default",
+                        }}
+                      >
+                        {p.bot_difficulty || "normal"}
+                      </button>
+                    )}
                     {isHost && p.is_bot && (
                       <button
                         onClick={() => { playClick(); onRemoveBot?.(p.id); }}
@@ -199,6 +239,34 @@ export default function RoomLobby({
           />
         </div>
       )}
+
+      {/* Lobby chat + emotes (ephemeral, via realtime broadcast) */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[8px] text-slate-500 tracking-widest uppercase">LOBBY CHAT</div>
+        <div
+          className="flex flex-col gap-0.5 overflow-y-auto px-2 py-1.5 rounded"
+          style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(56,189,248,0.08)", height: "72px" }}
+        >
+          {lobbyChat.length === 0 && (
+            <div className="text-[8px] text-slate-600 italic">Say hi while you wait…</div>
+          )}
+          {lobbyChat.map((c, i) => (
+            <div key={i} className="text-[9px] text-slate-300" style={{ wordBreak: "break-word" }}>
+              <span className="font-bold" style={{ color: "#fbbf24" }}>{c.name}:</span> {c.text}
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+        <form onSubmit={submitChat} className="flex gap-1.5">
+          <input
+            type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+            placeholder="message…" maxLength={80}
+            className="retro-input flex-1 text-[10px] py-1"
+          />
+          <button type="submit" className="btn-retro text-[9px] px-3 py-1">SEND</button>
+        </form>
+        {onEmote && <EmoteBar onEmote={onEmote} />}
+      </div>
 
       {/* Actions */}
       <div className="flex flex-col gap-2">

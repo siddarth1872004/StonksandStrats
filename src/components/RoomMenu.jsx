@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { TokenIcon, PlayIcon, KeyIcon, CopyIcon, UsersIcon } from "../lib/icons";
+import { useState } from "react";
+import { TokenIcon, PlayIcon, KeyIcon, UsersIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 
 const TOKENS = ["car", "hat", "dog", "ship", "iron", "shoe", "cat", "ring", "wheelbarrow"];

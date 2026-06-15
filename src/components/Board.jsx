@@ -154,7 +154,7 @@ function BoardLogo({ gameState }) {
 }
 
 /* ── Main Board component ────────────────────────────────────────── */
-export default function Board({ gameState, myPlayerId, onTileClick, renderedPositions }) {
+function Board({ gameState, onTileClick, renderedPositions }) {
   const getPlayersOnTile = (tileId) => {
     if (!gameState || !gameState.players) return [];
     return gameState.players.filter(p => {
@@ -364,3 +364,8 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
     </div>
   );
 }
+
+// Memoized: the board only re-renders when game state, the local player, or
+// animated token positions change — not on every App-level update (emotes,
+// toasts, dice ticks, etc.).
+export default React.memo(Board);

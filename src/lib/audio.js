@@ -88,7 +88,7 @@ export const playBuy = () => {
   const ctx = getAudioContext();
   if (!ctx) return;
   let time = ctx.currentTime;
-  notes.forEach((freq, idx) => {
+  notes.forEach((freq) => {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
     osc.type = "triangle";
