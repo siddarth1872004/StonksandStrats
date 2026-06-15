@@ -38,8 +38,11 @@ export function diffStates(prev, next) {
   if (!prev || !next) return [];
   const events = [];
 
-  // Dice changed
-  if (prev.dice[0] !== next.dice[0] || prev.dice[1] !== next.dice[1]) {
+  // Dice rolled — keyed on roll id so identical consecutive values still animate
+  const rolled = next.dice_roll_id !== undefined
+    ? next.dice_roll_id !== prev.dice_roll_id
+    : (prev.dice[0] !== next.dice[0] || prev.dice[1] !== next.dice[1]);
+  if (rolled) {
     events.push({ type: ANIM.DICE, d1: next.dice[0], d2: next.dice[1] });
   }
 

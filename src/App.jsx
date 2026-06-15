@@ -84,6 +84,43 @@ export default function App() {
   // Responsive layout
   const { isCompact } = useViewport();
 
+  // Resizable sidebar (desktop). The board fills whatever space is left of it
+  // (it is NOT constrained to a square — it stretches to fill the area).
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("stonks_sidebar_w"));
+    if (saved) return saved;
+    const w = typeof window !== "undefined" ? window.innerWidth : 1280;
+    return Math.min(Math.max(280, Math.round(w * 0.25)), Math.round(w * 0.5));
+  });
+  const draggingRef = useRef(false);
+  useEffect(() => { localStorage.setItem("stonks_sidebar_w", String(sidebarWidth)); }, [sidebarWidth]);
+
+  const startSidebarDrag = useCallback((e) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (ev) => {
+      if (!draggingRef.current) return;
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const next = Math.min(Math.max(240, window.innerWidth - clientX), Math.round(window.innerWidth * 0.7));
+      setSidebarWidth(next);
+    };
+    const onUp = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+  }, []);
+
   // Ephemeral live channel state (emotes + lobby chat via Realtime broadcast)
   const [emotes, setEmotes] = useState([]);
   const [lobbyChat, setLobbyChat] = useState([]);
@@ -872,17 +909,37 @@ export default function App() {
                 </div>
               );
             }
-            // Desktop: board is a square flush to the left edge filling the full
-            // height (no empty bars); the sidebar fills ALL remaining width.
+            // Desktop: the board FILLS the area left of the sidebar (stretches to
+            // fit, not square); the drag handle resizes the sidebar and the board
+            // reflows to fill the remaining space. No empty bars.
             return (
               <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
-                <div style={{ height: "100%", aspectRatio: "1 / 1", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ flex: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {spectatorBanner}
                   <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
                     {board}
                   </div>
                 </div>
-                <div style={{ flex: 1, minWidth: "260px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* Drag handle — resizes the sidebar; the board reflows to fill */}
+                <div
+                  onMouseDown={startSidebarDrag}
+                  onTouchStart={startSidebarDrag}
+                  title="Drag to resize"
+                  style={{
+                    width: "10px", flexShrink: 0, cursor: "col-resize",
+                    background: "rgba(255,179,0,0.18)",
+                    borderLeft: "1px solid rgba(255,179,0,0.3)",
+                    borderRight: "1px solid rgba(255,179,0,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.4)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,179,0,0.18)"; }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                    {[0, 1, 2].map(i => <div key={i} style={{ width: "3px", height: "3px", borderRadius: "50%", background: "rgba(255,179,0,0.8)" }} />)}
+                  </div>
+                </div>
+                <div style={{ width: `${sidebarWidth}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {sidebar}
                 </div>
               </div>

@@ -102,6 +102,7 @@ export function createInitialState(houseRules = {}, gameMode = 'classic', quickM
     houses,
     mortgaged: [],
     dice: [1, 1],
+    dice_roll_id: 0,          // increments every roll so identical values still animate
     speed_die: null,          // null | { face: 1-6, type: 'move'|'bus'|'mr_monopoly' }
     speed_die_choice: null,   // for bus phase: [die1_total, die2_total] options
     doubles_streak: 0,
@@ -615,6 +616,7 @@ export function rollDice(state, { playerId }) {
   let s = deepClone(state);
   const d1 = roll(), d2 = roll();
   s.dice = [d1, d2];
+  s.dice_roll_id = (s.dice_roll_id || 0) + 1;
   const isDouble = d1 === d2;
   const p = getPlayer(s, playerId);
 

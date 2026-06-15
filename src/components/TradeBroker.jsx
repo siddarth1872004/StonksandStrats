@@ -12,8 +12,9 @@ const tileColor = (tid) => {
   return GROUP_COLORS[t.group] || "#64748b";
 };
 const tileName = (tid) => TILES.find(x => x.id === tid)?.name || `#${tid}`;
+const clampInt = (v, max) => Math.max(0, Math.min(max, parseInt(v, 10) || 0));
 
-// Small property chip toggle
+// Property chip toggle
 function PropChip({ tid, selected, disabled, onClick }) {
   return (
     <button
@@ -37,18 +38,42 @@ function PropChip({ tid, selected, disabled, onClick }) {
   );
 }
 
-// ── Pending-offer modal: always mounted by App so incoming offers are never missed ──
-export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
-  const pending = gameState?.pending_trade;
-  if (!pending) return null;
+// Hoisted to module scope so typing in the inputs doesn't remount/lose focus.
+function TradeColumn({ title, color, player, side, setSide, houses }) {
+  const isImproved = (tid) => (houses?.[tid.toString()] || 0) > 0;
+  const toggleProp = (tid) => setSide(s => ({
+    ...s, props: s.props.includes(tid) ? s.props.filter(x => x !== tid) : [...s.props, tid],
+  }));
+  return (
+    <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color, fontWeight: "bold" }}>{title}</div>
+      <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
+        CASH (max ${player.money.toLocaleString()})
+        <input type="number" value={side.cash} min={0} max={player.money}
+          onChange={e => setSide(s => ({ ...s, cash: clampInt(e.target.value, player.money) }))}
+          className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
+      </label>
+      {player.jail_cards > 0 && (
+        <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
+          JAIL CARDS (max {player.jail_cards})
+          <input type="number" value={side.cards} min={0} max={player.jail_cards}
+            onChange={e => setSide(s => ({ ...s, cards: clampInt(e.target.value, player.jail_cards) }))}
+            className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
+        </label>
+      )}
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>PROPERTIES</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "180px", overflowY: "auto" }}>
+        {player.properties.length ? player.properties.map(tid => (
+          <PropChip key={tid} tid={tid} selected={side.props.includes(tid)} disabled={isImproved(tid)} onClick={() => toggleProp(tid)} />
+        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>none owned</span>}
+      </div>
+    </div>
+  );
+}
 
-  const fromP = gameState.players.find(p => p.id === pending.from);
-  const toP = gameState.players.find(p => p.id === pending.to);
-  const offer = pending.offer || {};
-  const isTarget = pending.to === myPlayerId;
-  const isProposer = pending.from === myPlayerId;
-
-  const Side = ({ title, color, money, cards, props }) => (
+// Display-only side summary for the offer modal.
+function OfferSide({ title, color, money, cards, props }) {
+  return (
     <div style={{ flex: 1, minWidth: "150px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
       <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color, fontWeight: "bold", marginBottom: "8px" }}>{title}</div>
       <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#34d399", marginBottom: "4px" }}>${(money || 0).toLocaleString()}</div>
@@ -62,6 +87,18 @@ export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
       </div>
     </div>
   );
+}
+
+// ── Pending-offer modal: always mounted by App so incoming offers are never missed ──
+export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
+  const pending = gameState?.pending_trade;
+  if (!pending) return null;
+
+  const fromP = gameState.players.find(p => p.id === pending.from);
+  const toP = gameState.players.find(p => p.id === pending.to);
+  const offer = pending.offer || {};
+  const isTarget = pending.to === myPlayerId;
+  const isProposer = pending.from === myPlayerId;
 
   return (
     <div className="fixed inset-0 z-[7500] flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px" }}>
@@ -70,8 +107,8 @@ export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
           <TradeIcon size={13} /> TRADE OFFER
         </h2>
         <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
-          <Side title={`${fromP?.name} GIVES`} color={tokenColor(fromP)} money={offer.from_money} cards={offer.from_cards} props={offer.from_properties} />
-          <Side title={`${toP?.name} GIVES`} color={tokenColor(toP)} money={offer.to_money} cards={offer.to_cards} props={offer.to_properties} />
+          <OfferSide title={`${fromP?.name} GIVES`} color={tokenColor(fromP)} money={offer.from_money} cards={offer.from_cards} props={offer.from_properties} />
+          <OfferSide title={`${toP?.name} GIVES`} color={tokenColor(toP)} money={offer.to_money} cards={offer.to_cards} props={offer.to_properties} />
         </div>
         {isTarget ? (
           <div style={{ display: "flex", gap: "8px" }}>
@@ -102,12 +139,6 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
   const others = gameState?.players?.filter(p => !p.bankrupt && p.id !== myPlayerId) || [];
   const target = gameState?.players?.find(p => p.id === targetPid);
 
-  const isImproved = (tid) => (gameState?.houses?.[tid.toString()] || 0) > 0;
-  const toggle = (side, setSide, tid) => {
-    setSide(s => ({ ...s, props: s.props.includes(tid) ? s.props.filter(x => x !== tid) : [...s.props, tid] }));
-  };
-  const clampCash = (v, max) => Math.max(0, Math.min(max, parseInt(v, 10) || 0));
-
   const hasOffer = give.cash || get.cash || give.cards || get.cards || give.props.length || get.props.length;
 
   const propose = () => {
@@ -124,33 +155,6 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
     onClose?.();
   };
 
-  const Column = ({ title, color, player, side, setSide }) => (
-    <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color, fontWeight: "bold" }}>{title}</div>
-      <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
-        CASH (max ${player.money.toLocaleString()})
-        <input type="number" value={side.cash} min={0} max={player.money}
-          onChange={e => setSide(s => ({ ...s, cash: clampCash(e.target.value, player.money) }))}
-          className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
-      </label>
-      {player.jail_cards > 0 && (
-        <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
-          JAIL CARDS (max {player.jail_cards})
-          <input type="number" value={side.cards} min={0} max={player.jail_cards}
-            onChange={e => setSide(s => ({ ...s, cards: clampCash(e.target.value, player.jail_cards) }))}
-            className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
-        </label>
-      )}
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>PROPERTIES</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "180px", overflowY: "auto" }}>
-        {player.properties.length ? player.properties.map(tid => (
-          <PropChip key={tid} tid={tid} selected={side.props.includes(tid)} disabled={isImproved(tid)}
-            onClick={() => toggle(side, setSide, tid)} />
-        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>none owned</span>}
-      </div>
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-[7400] flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px" }}>
       <div className="glass-card" style={{ width: "min(96vw, 560px)", maxHeight: "90vh", overflowY: "auto", padding: "18px", borderTop: "4px solid #38bdf8" }}>
@@ -164,6 +168,7 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
         {/* Partner picker */}
         <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b", marginBottom: "6px" }}>TRADE WITH</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
+          {others.length === 0 && <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#475569", fontStyle: "italic" }}>No one to trade with.</span>}
           {others.map(p => {
             const sel = p.id === targetPid;
             return (
@@ -184,8 +189,8 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
 
         {target && me && (
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "14px" }}>
-            <Column title="YOU GIVE" color="#38bdf8" player={me} side={give} setSide={setGive} />
-            <Column title={`${target.name} GIVES`} color="#fbbf24" player={target} side={get} setSide={setGet} />
+            <TradeColumn title="YOU GIVE" color="#38bdf8" player={me} side={give} setSide={setGive} houses={gameState?.houses} />
+            <TradeColumn title={`${target.name} GIVES`} color="#fbbf24" player={target} side={get} setSide={setGet} houses={gameState?.houses} />
           </div>
         )}
 
