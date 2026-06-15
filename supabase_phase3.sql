@@ -98,7 +98,6 @@ begin
   where id = p_room_id and host_player_id = auth.uid();
 end;
 $$;
-revoke execute on function public.touch_heartbeat(text) from anon;
 
 create or replace function public.claim_host(p_room_id text, p_candidate_id uuid)
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -113,7 +112,6 @@ begin
   return v_rows > 0;
 end;
 $$;
-revoke execute on function public.claim_host(text, uuid) from anon;
 
 create or replace function public.create_room_fn(
   p_host_id      uuid,
@@ -142,4 +140,14 @@ begin
   end loop;
 end;
 $$;
-revoke execute on function public.create_room_fn(uuid, jsonb, text, int) from anon;
+
+-- ── RPC grants: authenticated only (anon = no JWT at all) ─────────────────────
+-- Revoke the implicit PUBLIC grant, then grant only to authenticated.
+-- Users who called signInAnonymously() get the `authenticated` role.
+revoke execute on function public.touch_heartbeat(text)                  from public;
+revoke execute on function public.claim_host(text, uuid)                 from public;
+revoke execute on function public.create_room_fn(uuid, jsonb, text, int) from public;
+
+grant execute on function public.touch_heartbeat(text)                  to authenticated;
+grant execute on function public.claim_host(text, uuid)                 to authenticated;
+grant execute on function public.create_room_fn(uuid, jsonb, text, int) to authenticated;
