@@ -82,17 +82,19 @@ export default function App() {
   // Responsive layout
   const { isCompact } = useViewport();
 
-  // Resizable sidebar (desktop). Defaults to ~1/4 of the viewport.
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = Number(localStorage.getItem("stonks_sidebar_w"));
+  // Resizable board (desktop). The board is a square flush to the left edge and
+  // the sidebar fills the remaining width. The drag handle resizes the board.
+  const [boardSize, setBoardSize] = useState(() => {
+    const saved = Number(localStorage.getItem("stonks_board_size"));
     if (saved) return saved;
     const w = typeof window !== "undefined" ? window.innerWidth : 1280;
-    return Math.min(Math.max(300, Math.round(w * 0.25)), Math.round(w * 0.45));
+    const h = typeof window !== "undefined" ? window.innerHeight : 800;
+    return Math.max(360, Math.min(h - 44, w - 320));
   });
   const draggingRef = useRef(false);
-  useEffect(() => { localStorage.setItem("stonks_sidebar_w", String(sidebarWidth)); }, [sidebarWidth]);
+  useEffect(() => { localStorage.setItem("stonks_board_size", String(boardSize)); }, [boardSize]);
 
-  const startSidebarDrag = useCallback((e) => {
+  const startBoardResize = useCallback((e) => {
     e.preventDefault();
     draggingRef.current = true;
     document.body.style.cursor = "col-resize";
@@ -100,8 +102,8 @@ export default function App() {
     const onMove = (ev) => {
       if (!draggingRef.current) return;
       const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-      const next = Math.min(Math.max(260, window.innerWidth - clientX), Math.round(window.innerWidth * 0.6));
-      setSidebarWidth(next);
+      const maxBoard = Math.min(window.innerHeight - 44, window.innerWidth - 300);
+      setBoardSize(Math.max(360, Math.min(clientX, maxBoard)));
     };
     const onUp = () => {
       draggingRef.current = false;
@@ -915,8 +917,8 @@ export default function App() {
                 </div>
                 {/* Drag handle to resize the sidebar */}
                 <div
-                  onMouseDown={startSidebarDrag}
-                  onTouchStart={startSidebarDrag}
+                  onMouseDown={startBoardResize}
+                  onTouchStart={startBoardResize}
                   title="Drag to resize"
                   style={{
                     width: "7px", flexShrink: 0, cursor: "col-resize",
@@ -930,7 +932,7 @@ export default function App() {
                 >
                   <div style={{ width: "2px", height: "30px", background: "rgba(255,179,0,0.5)" }} />
                 </div>
-                <div style={{ width: `${sidebarWidth}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ width: `${boardSize}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {sidebar}
                 </div>
               </div>
