@@ -82,6 +82,42 @@ export default function App() {
   // Responsive layout
   const { isCompact } = useViewport();
 
+  // Resizable sidebar (desktop). Defaults to ~1/4 of the viewport.
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("stonks_sidebar_w"));
+    if (saved) return saved;
+    const w = typeof window !== "undefined" ? window.innerWidth : 1280;
+    return Math.min(Math.max(300, Math.round(w * 0.25)), Math.round(w * 0.45));
+  });
+  const draggingRef = useRef(false);
+  useEffect(() => { localStorage.setItem("stonks_sidebar_w", String(sidebarWidth)); }, [sidebarWidth]);
+
+  const startSidebarDrag = useCallback((e) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (ev) => {
+      if (!draggingRef.current) return;
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const next = Math.min(Math.max(260, window.innerWidth - clientX), Math.round(window.innerWidth * 0.6));
+      setSidebarWidth(next);
+    };
+    const onUp = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+  }, []);
+
   // Ephemeral live channel state (emotes + lobby chat via Realtime broadcast)
   const [emotes, setEmotes] = useState([]);
   const [lobbyChat, setLobbyChat] = useState([]);
@@ -717,19 +753,19 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header style={{ height: "26px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px", borderBottom: "2px solid rgba(255,179,0,0.2)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
+        <header style={{ height: "32px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", borderBottom: "2px solid rgba(255,179,0,0.2)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.2em" }}>STONKS &amp; STRATS</span>
+            <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.2em" }}>STONKS &amp; STRATS</span>
             {roomId && <>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "1px 5px" }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "2px 6px" }}>
                 {roomId}
               </span>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: isHost ? "#fbbf24" : "#64748b", border: "1px solid", borderColor: isHost ? "rgba(251,191,36,0.35)" : "rgba(100,116,139,0.2)", padding: "1px 5px" }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: isHost ? "#fbbf24" : "#64748b", border: "1px solid", borderColor: isHost ? "rgba(251,191,36,0.35)" : "rgba(100,116,139,0.2)", padding: "2px 6px" }}>
                 {isHost ? "HOST" : "PLAYER"}{isBankrupt ? " · SPECTATOR" : ""}
               </span>
             </>}
           </div>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "5px", color: "#1e293b", letterSpacing: "0.1em" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#334155", letterSpacing: "0.1em" }}>
             [|] DIAG · [M] PORTFOLIO · ESC CLOSE
           </div>
         </header>
@@ -779,6 +815,9 @@ export default function App() {
                 myPlayerId={playerId}
                 onTileClick={handleTileClick}
                 renderedPositions={renderedPositions}
+                animDice={animDice}
+                animationsBusy={animationsBusy}
+                onSkipAnimations={handleSkipAnimations}
               />
             );
             const sidebar = (
@@ -786,7 +825,6 @@ export default function App() {
                 gameState={gameState}
                 myPlayerId={playerId}
                 playerName={playerName}
-                animDice={animDice}
                 animationsBusy={animationsBusy}
                 isHost={isHost}
                 stacked={isCompact}
@@ -798,7 +836,6 @@ export default function App() {
                 }}
                 onOpenManage={() => setShowManage(true)}
                 onOpenSettings={() => setShowSettings(true)}
-                onSkipAnimations={handleSkipAnimations}
               />
             );
 
@@ -814,14 +851,36 @@ export default function App() {
                 </div>
               );
             }
-            // Desktop: square board (sized by height) beside a full-height sidebar.
+            // Desktop: the board fills the space left of a resizable sidebar; it is
+            // centered as a square that fits whatever room remains (container units).
             return (
               <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
-                <div style={{ flexShrink: 0, height: "100%", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ flex: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {spectatorBanner}
-                  <div style={{ flex: 1, overflow: "hidden" }}>{board}</div>
+                  <div style={{ flex: 1, minHeight: 0, containerType: "size", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: "6px" }}>
+                    <div style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)", flexShrink: 0 }}>
+                      {board}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: "260px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* Drag handle to resize the sidebar */}
+                <div
+                  onMouseDown={startSidebarDrag}
+                  onTouchStart={startSidebarDrag}
+                  title="Drag to resize"
+                  style={{
+                    width: "7px", flexShrink: 0, cursor: "col-resize",
+                    background: "rgba(255,179,0,0.12)",
+                    borderLeft: "1px solid rgba(255,179,0,0.2)",
+                    borderRight: "1px solid rgba(255,179,0,0.2)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.35)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,179,0,0.12)"; }}
+                >
+                  <div style={{ width: "2px", height: "30px", background: "rgba(255,179,0,0.5)" }} />
+                </div>
+                <div style={{ width: `${sidebarWidth}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {sidebar}
                 </div>
               </div>

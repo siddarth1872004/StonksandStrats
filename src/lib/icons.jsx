@@ -167,7 +167,7 @@ export const DiceIcon = ({ value, size = 32, className = "" }) => {
   return (
     <div className={`relative inline-block border-2 border-green-500 rounded bg-black flex items-center justify-center select-none ${className}`} style={{ width: size, height: size }}>
       <div className="absolute inset-0 bg-green-500/10 glow-sm"></div>
-      <svg width={size - 4} height={size - 4} viewBox="0 0 8 8" className="relative z-10">
+      <svg width="86%" height="86%" viewBox="0 0 8 8" className="relative z-10">
         {currentDots.map(([cx, cy], i) => (
           <rect key={i} x={cx - 0.5} y={cy - 0.5} width="1" height="1" fill="#10B981" />
         ))}

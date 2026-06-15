@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { TOKEN_COLORS } from "../boardData";
-import { DiceIcon, ManageIcon, TradeIcon, SettingsIcon } from "../lib/icons";
+import { ManageIcon, TradeIcon, SettingsIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 import TradeBroker from "./TradeBroker";
 import { EmoteBar } from "./Emotes";
@@ -94,7 +94,6 @@ export default function Sidebar({
   gameState,
   myPlayerId,
   playerName,
-  animDice,
   animationsBusy,
   isHost,
   stacked = false,
@@ -103,7 +102,6 @@ export default function Sidebar({
   onEmote,
   onOpenManage,
   onOpenSettings,
-  onSkipAnimations,
 }) {
   const [chatInput, setChatInput] = useState("");
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -118,11 +116,10 @@ export default function Sidebar({
   if (!gameState) return null;
 
   const {
-    players, dice, speed_die, speed_die_choice,
+    players, speed_die_choice,
     phase, current, order, log, winner, debtor_id, extra_roll, turn_deadline,
   } = gameState;
 
-  const displayDice = animDice || dice;
   const currPlayerId = order?.[current] ?? null;
   const isMyTurn = currPlayerId === myPlayerId;
   const inDebt = phase === "debt";
@@ -184,7 +181,7 @@ export default function Sidebar({
                 background: isCurrent ? `${color}0E` : "transparent",
               }}
             >
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#334155", flexShrink: 0, width: "10px", textAlign: "right" }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", flexShrink: 0, width: "10px", textAlign: "right" }}>
                 {idx + 1}
               </span>
               <span style={{
@@ -194,7 +191,7 @@ export default function Sidebar({
               }} />
               <span style={{
                 fontFamily: "var(--font-retro)",
-                fontSize: "clamp(8px, 1.4vw, 11px)",
+                fontSize: "clamp(10px, 1.6vw, 13px)",
                 flex: 1,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -204,12 +201,12 @@ export default function Sidebar({
               }}>
                 {p.name}{isMe ? " ★" : ""}{p.is_bot ? ` [${(p.difficulty || "ai").slice(0,1).toUpperCase()}]` : ""}
               </span>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#334155", flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", flexShrink: 0 }}>
                 {netWorthPropCount}⌂
               </span>
               <span style={{
                 fontFamily: "var(--font-retro)",
-                fontSize: "clamp(8px, 1.4vw, 11px)",
+                fontSize: "clamp(10px, 1.6vw, 13px)",
                 fontWeight: "bold",
                 flexShrink: 0,
                 color: p.bankrupt ? "#EF4444" : p.in_jail ? "#F59E0B" : isCurrent ? "#FFB300" : "#34d399",
@@ -222,40 +219,6 @@ export default function Sidebar({
           );
         })}
       </div>
-
-      {/* ── DICE ──────────────────────────────────────────────── */}
-      {dice && winner === null && phase !== "lobby" && (
-        <>
-          <Section
-            label="DICE"
-            right={animationsBusy ? (
-              <button
-                style={{ fontFamily: "var(--font-retro)", fontSize: "6px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24", padding: "2px 6px", cursor: "pointer" }}
-                onClick={() => { playClick(); onSkipAnimations(); }}
-              >SKIP ▶▶</button>
-            ) : null}
-          />
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "14px", padding: "8px 10px", flexShrink: 0, background: "rgba(0,0,0,0.25)" }}>
-            <DiceIcon value={displayDice[0]} size={40} />
-            <DiceIcon value={displayDice[1]} size={40} />
-            {speed_die && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
-                <div style={{
-                  width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
-                  border: `2px solid ${speed_die.type === "mr_monopoly" ? "#F59E0B" : speed_die.type === "bus" ? "#8B5CF6" : "#38bdf8"}`,
-                  background: "rgba(0,0,0,0.5)",
-                  fontFamily: "var(--font-retro)",
-                  fontSize: speed_die.type === "move" ? "18px" : "8px",
-                  color: speed_die.type === "mr_monopoly" ? "#F59E0B" : speed_die.type === "bus" ? "#8B5CF6" : "#38bdf8",
-                }}>
-                  {speed_die.type === "move" ? speed_die.face : speed_die.type === "bus" ? "BUS" : "MR.M"}
-                </div>
-                <span style={{ fontFamily: "var(--font-retro)", fontSize: "5px", color: "#374151", textTransform: "uppercase" }}>SPEED</span>
-              </div>
-            )}
-          </div>
-        </>
-      )}
 
       {/* ── ACTIONS ───────────────────────────────────────────── */}
       {winner === null && (
@@ -273,8 +236,8 @@ export default function Sidebar({
                         ⚂ ROLL FOR DOUBLES
                       </Btn>
                       <div style={{ display: "flex", gap: "5px" }}>
-                        <Btn style={{ flex: 1, fontSize: "8px" }} disabled={myPlayer?.money < 50} onClick={() => onAction("pay_jail_fine")}>PAY $50</Btn>
-                        <Btn style={{ flex: 1, fontSize: "8px" }} disabled={!myPlayer?.jail_cards} onClick={() => onAction("use_jail_card")}>
+                        <Btn style={{ flex: 1, fontSize: "9px" }} disabled={myPlayer?.money < 50} onClick={() => onAction("pay_jail_fine")}>PAY $50</Btn>
+                        <Btn style={{ flex: 1, fontSize: "9px" }} disabled={!myPlayer?.jail_cards} onClick={() => onAction("use_jail_card")}>
                           GET OUT CARD ({myPlayer?.jail_cards})
                         </Btn>
                       </div>
@@ -288,7 +251,7 @@ export default function Sidebar({
 
                 {phase === "speed_bus" && speed_die_choice && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#8B5CF6", textAlign: "center", padding: "2px 0" }}>
+                    <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#8B5CF6", textAlign: "center", padding: "2px 0" }}>
                       BUS — CHOOSE ROUTE:
                     </div>
                     <div style={{ display: "flex", gap: "5px" }}>
@@ -324,12 +287,12 @@ export default function Sidebar({
 
             {/* Waiting states */}
             {!isMyTurn && !inDebt && phase !== "lobby" && (
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", padding: "7px 8px", border: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#475569", padding: "7px 8px", border: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
                 WAITING FOR {players.find(p => p.id === currPlayerId)?.name?.toUpperCase() || "TURN"}…
               </div>
             )}
             {inDebt && debtor_id !== myPlayerId && (
-              <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#f87171", padding: "7px 8px", border: "1px solid rgba(239,68,68,0.2)", textAlign: "center", background: "rgba(69,10,10,0.15)" }}>
+              <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#f87171", padding: "7px 8px", border: "1px solid rgba(239,68,68,0.2)", textAlign: "center", background: "rgba(69,10,10,0.15)" }}>
                 ⚠ {players.find(p => p.id === debtor_id)?.name} RESOLVING DEBT
               </div>
             )}
@@ -337,11 +300,11 @@ export default function Sidebar({
             {/* Portfolio + Trade row */}
             {!isBankrupt && (
               <div style={{ display: "flex", gap: "5px" }}>
-                <Btn style={{ flex: 1, fontSize: "8px", padding: "8px 4px" }} onClick={() => { playClick(); onOpenManage(); }} disabled={inDebt}>
+                <Btn style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }} onClick={() => { playClick(); onOpenManage(); }} disabled={inDebt}>
                   <ManageIcon size={10} /><span>PORTFOLIO</span>
                 </Btn>
                 <Btn
-                  style={{ flex: 1, fontSize: "8px", padding: "8px 4px", ...(tradeOpen ? { borderColor: "rgba(251,191,36,0.5)", color: "#fbbf24" } : {}) }}
+                  style={{ flex: 1, fontSize: "9px", padding: "8px 4px", ...(tradeOpen ? { borderColor: "rgba(251,191,36,0.5)", color: "#fbbf24" } : {}) }}
                   onClick={() => { playClick(); setTradeOpen(v => !v); }}
                   disabled={activeOpponents.length === 0 || inDebt}
                 >
@@ -354,20 +317,20 @@ export default function Sidebar({
             {isHost && phase !== "game_over" && (
               confirmEnd ? (
                 <div style={{ display: "flex", gap: "4px" }}>
-                  <Btn variant="red" style={{ flex: 1, fontSize: "8px" }} onClick={() => { playClick(); setConfirmEnd(false); onEndGame(); }}>
+                  <Btn variant="red" style={{ flex: 1, fontSize: "9px" }} onClick={() => { playClick(); setConfirmEnd(false); onEndGame(); }}>
                     ✓ CONFIRM END
                   </Btn>
-                  <Btn style={{ fontSize: "8px", padding: "4px 8px" }} onClick={() => { playClick(); setConfirmEnd(false); }}>✕</Btn>
+                  <Btn style={{ fontSize: "9px", padding: "4px 8px" }} onClick={() => { playClick(); setConfirmEnd(false); }}>✕</Btn>
                 </div>
               ) : (
-                <Btn style={{ width: "100%", fontSize: "7px", color: "#ef4444", borderColor: "rgba(239,68,68,0.25)", padding: "6px" }} onClick={() => { playClick(); setConfirmEnd(true); }}>
+                <Btn style={{ width: "100%", fontSize: "9px", color: "#ef4444", borderColor: "rgba(239,68,68,0.25)", padding: "6px" }} onClick={() => { playClick(); setConfirmEnd(true); }}>
                   END GAME (HOST)
                 </Btn>
               )
             )}
 
             {/* Settings */}
-            <Btn style={{ width: "100%", fontSize: "7px", color: "#475569", borderColor: "rgba(255,255,255,0.06)", padding: "5px" }} onClick={() => { playClick(); onOpenSettings(); }}>
+            <Btn style={{ width: "100%", fontSize: "9px", color: "#475569", borderColor: "rgba(255,255,255,0.06)", padding: "5px" }} onClick={() => { playClick(); onOpenSettings(); }}>
               <SettingsIcon size={9} /><span>SETTINGS</span>
             </Btn>
           </div>
@@ -407,7 +370,7 @@ export default function Sidebar({
               key={i}
               style={{
                 fontFamily: "var(--font-retro)",
-                fontSize: "clamp(7px, 1.2vw, 9px)",
+                fontSize: "clamp(9px, 1.3vw, 11px)",
                 color: isLatest ? "#d1d5db" : isRecent ? "#6b7280" : "#374151",
                 lineHeight: "1.7",
                 borderLeft: `2px solid ${isLatest ? color : isRecent ? `${color}40` : "rgba(255,255,255,0.03)"}`,
@@ -435,7 +398,7 @@ export default function Sidebar({
           scrollbarWidth: "thin",
         }}>
           {chatLog.slice(-40).map((c, i) => (
-            <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.2vw,9px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
+            <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3vw,11px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
               <span style={{ color: c.color || "#fbbf24", fontWeight: "bold" }}>{c.name}:</span> {c.text}
             </div>
           ))}

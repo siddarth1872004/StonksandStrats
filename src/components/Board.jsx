@@ -1,12 +1,16 @@
 import React from "react";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
-import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon } from "../lib/icons";
+import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon } from "../lib/icons";
+import { playClick } from "../lib/audio";
 
 /* ── Center logo: pixel-art stock chart + brand ───────────────────── */
-function BoardLogo({ gameState }) {
+function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const currentPlayer = gameState?.players?.find(p => p.id === currentTurnPlayerId);
+  const inPlay = gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over";
+  const displayDice = animDice || gameState?.dice;
+  const speedDie = gameState?.speed_die;
 
   return (
     <div style={{
@@ -84,6 +88,41 @@ function BoardLogo({ gameState }) {
         </div>
       </div>
 
+      {/* Center dice */}
+      {inPlay && displayDice && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "clamp(5px, 1.4cqw, 12px)" }}>
+            <div style={{ width: "clamp(26px, 6.5cqw, 54px)", height: "clamp(26px, 6.5cqw, 54px)" }} className={animationsBusy ? "dice-rolling" : ""}>
+              <DiceIcon value={displayDice[0]} size="100%" />
+            </div>
+            <div style={{ width: "clamp(26px, 6.5cqw, 54px)", height: "clamp(26px, 6.5cqw, 54px)" }} className={animationsBusy ? "dice-rolling" : ""}>
+              <DiceIcon value={displayDice[1]} size="100%" />
+            </div>
+            {speedDie && (
+              <div style={{
+                width: "clamp(26px, 6.5cqw, 54px)", height: "clamp(26px, 6.5cqw, 54px)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: `2px solid ${speedDie.type === "mr_monopoly" ? "#F59E0B" : speedDie.type === "bus" ? "#8B5CF6" : "#38bdf8"}`,
+                background: "rgba(0,0,0,0.6)",
+                fontFamily: "var(--font-retro)",
+                fontSize: speedDie.type === "move" ? "clamp(12px,3cqw,22px)" : "clamp(6px,1.4cqw,10px)",
+                color: speedDie.type === "mr_monopoly" ? "#F59E0B" : speedDie.type === "bus" ? "#8B5CF6" : "#38bdf8",
+              }}>
+                {speedDie.type === "move" ? speedDie.face : speedDie.type === "bus" ? "BUS" : "MR.M"}
+              </div>
+            )}
+          </div>
+          {animationsBusy && onSkipAnimations && (
+            <button
+              onClick={() => { playClick(); onSkipAnimations(); }}
+              style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,8px)", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", padding: "2px 8px", cursor: "pointer" }}
+            >
+              SKIP ▶▶
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Current turn indicator */}
       {gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over" && currentPlayer && (
         <div style={{
@@ -154,7 +193,10 @@ function BoardLogo({ gameState }) {
 }
 
 /* ── Main Board component ────────────────────────────────────────── */
-function Board({ gameState, onTileClick, renderedPositions }) {
+function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations }) {
+  const currentTurnPlayerId = gameState?.order?.[gameState?.current];
+  const isMyTurn = currentTurnPlayerId === myPlayerId && gameState?.winner === null
+    && gameState?.phase !== "lobby" && gameState?.phase !== "game_over";
   const getPlayersOnTile = (tileId) => {
     if (!gameState || !gameState.players) return [];
     return gameState.players.filter(p => {
@@ -165,7 +207,7 @@ function Board({ gameState, onTileClick, renderedPositions }) {
 
   return (
     /* container-type enables cqw units for fluid font sizing inside the board */
-    <div style={{
+    <div className={isMyTurn ? "board-your-turn" : ""} style={{
       containerType: "inline-size",
       /* Fill the parent container (containerType: size) as a square */
       width: "100%",
@@ -174,10 +216,13 @@ function Board({ gameState, onTileClick, renderedPositions }) {
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",
       background: "#080c18",
-      border: "3px solid rgba(255,179,0,0.5)",
-      boxShadow: "0 0 40px rgba(255,179,0,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+      border: `3px solid ${isMyTurn ? "rgba(52,211,153,0.7)" : "rgba(255,179,0,0.5)"}`,
+      boxShadow: isMyTurn
+        ? "0 0 50px rgba(52,211,153,0.25), inset 0 0 20px rgba(0,0,0,0.6)"
+        : "0 0 40px rgba(255,179,0,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
       position: "relative",
       flexShrink: 0,
+      transition: "border-color 0.4s, box-shadow 0.4s",
     }}>
       {/* Board Center Area */}
       <div style={{
@@ -193,7 +238,7 @@ function Board({ gameState, onTileClick, renderedPositions }) {
         overflow: "hidden",
         containerType: "size",
       }}>
-        <BoardLogo gameState={gameState} />
+        <BoardLogo gameState={gameState} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} />
       </div>
 
       {/* Render 40 tiles */}
@@ -347,15 +392,23 @@ function Board({ gameState, onTileClick, renderedPositions }) {
                 padding: "1px",
                 flexShrink: 0,
               }}>
-                {playersHere.map(p => (
-                  <div key={p.id} className="token-hop" style={{ width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0 }}>
-                    <TokenIcon
-                      name={p.token_shape || p.token}
-                      color={p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8"}
-                      size="100%"
-                    />
-                  </div>
-                ))}
+                {playersHere.map(p => {
+                  const isActive = p.id === currentTurnPlayerId && gameState?.winner === null;
+                  const col = p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8";
+                  return (
+                    <div
+                      key={p.id}
+                      className="token-hop"
+                      style={{
+                        width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0,
+                        borderRadius: "50%",
+                        boxShadow: isActive ? `0 0 7px 2px ${col}` : "none",
+                      }}
+                    >
+                      <TokenIcon name={p.token_shape || p.token} color={col} size="100%" />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

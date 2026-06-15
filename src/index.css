@@ -957,7 +957,7 @@ vercel-toolbar { display: none !important; }
 /* Section header strip — amber on near-black */
 .mk-section {
   font-family: var(--font-retro);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: bold;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -1020,12 +1020,29 @@ vercel-toolbar { display: none !important; }
 }
 .your-turn-glow { animation: your-turn-glow 1.6s ease-in-out infinite; }
 
+/* ── Dice roll shake ──────────────────────────────────────────────── */
+@keyframes dice-shake {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%      { transform: translateY(-3px) rotate(-9deg); }
+  75%      { transform: translateY(-2px) rotate(9deg); }
+}
+.dice-rolling { animation: dice-shake 0.28s linear infinite; }
+
+/* ── Board "your turn" breathing glow ─────────────────────────────── */
+@keyframes board-turn-pulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(52,211,153,0.18), inset 0 0 20px rgba(0,0,0,0.6); }
+  50%      { box-shadow: 0 0 65px rgba(52,211,153,0.42), inset 0 0 20px rgba(0,0,0,0.6); }
+}
+.board-your-turn { animation: board-turn-pulse 2.4s ease-in-out infinite; }
+
 /* Honor reduced-motion: kill the looping/decorative animations. */
 @media (prefers-reduced-motion: reduce) {
   .crt-screen.flicker,
   .blink,
   .animate-pulse,
   .your-turn-glow,
+  .board-your-turn,
+  .dice-rolling,
   .news-ticker-track { animation: none !important; }
   .emote-float { animation-duration: 1.2s; }
   * { scroll-behavior: auto !important; }
