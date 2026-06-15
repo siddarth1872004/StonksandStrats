@@ -19,7 +19,7 @@ export async function createRoom(playerName, tokenShape, tokenColor, houseRules 
     .from('players').select('seat_index').eq('room_id', code).order('seat_index');
   const seat = existingPlayers?.length ?? 0;
 
-  const { error: playerErr } = await supabase.from('players').insert({
+  const { error: playerErr } = await supabase.from('players').upsert({
     id:          user.id,
     room_id:     code,
     seat_index:  seat,
@@ -28,7 +28,7 @@ export async function createRoom(playerName, tokenShape, tokenColor, houseRules 
     token_color: tokenColor || '#EF4444',
     is_bot:      false,
     is_connected: true,
-  });
+  }, { onConflict: 'id' });
   if (playerErr) throw new Error(playerErr.message);
 
   localStorage.setItem('stonks_room_id', code);
@@ -61,7 +61,7 @@ export async function joinRoom(code, playerName, tokenShape, tokenColor) {
   }
 
   const seat = existingPlayers.length;
-  const { error: playerErr } = await supabase.from('players').insert({
+  const { error: playerErr } = await supabase.from('players').upsert({
     id:          user.id,
     room_id:     code.toUpperCase(),
     seat_index:  seat,
@@ -70,7 +70,7 @@ export async function joinRoom(code, playerName, tokenShape, tokenColor) {
     token_color: tokenColor || '#3B82F6',
     is_bot:      false,
     is_connected: true,
-  });
+  }, { onConflict: 'id' });
   if (playerErr) throw new Error(playerErr.message);
 
   localStorage.setItem('stonks_room_id', code.toUpperCase());
@@ -169,6 +169,8 @@ export async function startRoomGame(roomId) {
 
 export async function endRoom(roomId) {
   await supabase.from('rooms').update({ status: 'finished' }).eq('id', roomId);
+  // Delete all player rows so human user.id can be reused in a new game
+  await supabase.from('players').delete().eq('room_id', roomId);
 }
 
 export async function leaveRoom(playerId) {
