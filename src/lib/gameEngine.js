@@ -546,7 +546,7 @@ function mrMonopolyMove(state, pid) {
 
 // ── Public action handlers ────────────────────────────────────────────────────
 
-export function addPlayer(state, { id, name, token_shape, token_color, token, slot, seat_index }) {
+export function addPlayer(state, { id, name, token_shape, token_color, token, slot, seat_index, is_bot }) {
   if (state.phase !== 'lobby') return { state, error: 'Game already in progress.' };
   if (state.players.length >= 6) return { state, error: 'Lobby is full.' };
 
@@ -568,7 +568,7 @@ export function addPlayer(state, { id, name, token_shape, token_color, token, sl
     jail_turns: 0,
     jail_cards: 0,
     bankrupt: false,
-    is_bot: false,
+    is_bot: is_bot ?? false,
   };
 
   const s = deepClone(state);

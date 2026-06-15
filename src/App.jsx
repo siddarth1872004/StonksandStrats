@@ -602,7 +602,7 @@ export default function App() {
                     <BankruptcyIcon size={12} color="#EF4444" /> You&apos;re out — spectating
                   </div>
                 )}
-                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", containerType: "size" }}>
                   <Board
                     gameState={gameState}
                     myPlayerId={playerId}

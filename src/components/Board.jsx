@@ -89,7 +89,7 @@ function BoardLogo({ gameState }) {
         <div style={{
           background: "rgba(0,0,0,0.6)",
           border: "1px solid rgba(56,189,248,0.25)",
-          borderLeft: `2px solid ${TOKEN_COLORS[currentPlayer.token] || "#38bdf8"}`,
+          borderLeft: `2px solid ${currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8"}`,
           padding: "5px 8px",
           display: "flex",
           flexDirection: "column",
@@ -104,8 +104,8 @@ function BoardLogo({ gameState }) {
             fontFamily: "var(--font-retro)",
             fontSize: "clamp(6px, 0.9cqw, 8px)",
             fontWeight: "bold",
-            color: TOKEN_COLORS[currentPlayer.token] || "#38bdf8",
-            textShadow: `0 0 6px ${TOKEN_COLORS[currentPlayer.token] || "#38bdf8"}80`,
+            color: currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8",
+            textShadow: `0 0 6px ${currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8"}80`,
             maxWidth: "100%",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -167,9 +167,9 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
     /* container-type enables cqw units for fluid font sizing inside the board */
     <div style={{
       containerType: "inline-size",
-      /* Take up as much of the available space as possible while keeping square */
-      width: "min(100%, calc(100vh - 80px))",
-      aspectRatio: "1 / 1",
+      /* Fill the parent container (containerType: size) as a square */
+      width: "min(100cqw, 100cqh)",
+      height: "min(100cqw, 100cqh)",
       display: "grid",
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",
@@ -207,7 +207,7 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
         const isMortgaged = gameState?.mortgaged?.includes(tid);
 
         const ownerObj = ownerId !== undefined ? gameState.players.find(p => p.id === ownerId) : null;
-        const ownerColor = ownerObj ? TOKEN_COLORS[ownerObj.token] : null;
+        const ownerColor = ownerObj ? (ownerObj.token_color || TOKEN_COLORS[ownerObj.token_shape || ownerObj.token]) : null;
 
         const cellStyle = {
           gridColumnStart: coords.colStart,
@@ -246,7 +246,7 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
             {/* 1. Property group color band */}
             {tile.group && tile.group !== "railroad" && tile.group !== "utility" && (
               <div style={{
-                height: "5px",
+                height: "clamp(5px, 1.2cqw, 10px)",
                 width: "100%",
                 background: GROUP_COLORS[tile.group],
                 flexShrink: 0,
@@ -257,10 +257,10 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
             {houseCount > 0 && !isMortgaged && (
               <div style={{ display: "flex", gap: "1px", justifyContent: "center", flexShrink: 0 }}>
                 {houseCount === 5 ? (
-                  <HotelIcon size={8} color="#EF4444" />
+                  <HotelIcon size={10} color="#EF4444" />
                 ) : (
                   Array.from({ length: houseCount }).map((_, idx) => (
-                    <HouseIcon key={idx} size={7} color="#10B981" />
+                    <HouseIcon key={idx} size={9} color="#10B981" />
                   ))
                 )}
               </div>
@@ -348,12 +348,13 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
                 flexShrink: 0,
               }}>
                 {playersHere.map(p => (
-                  <TokenIcon
-                    key={p.id}
-                    name={p.token}
-                    color={TOKEN_COLORS[p.token]}
-                    size={10}
-                  />
+                  <div key={p.id} style={{ width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0 }}>
+                    <TokenIcon
+                      name={p.token_shape || p.token}
+                      color={p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8"}
+                      size="100%"
+                    />
+                  </div>
                 ))}
               </div>
             )}
