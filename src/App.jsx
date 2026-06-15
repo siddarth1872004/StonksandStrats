@@ -227,6 +227,13 @@ export default function App() {
     }
   }, []);
 
+  // Commit a new state: run animations + persist to DB. Use everywhere instead of
+  // setGameState+updateGameState so the host always gets animations too.
+  const commitState = useCallback((newState) => {
+    syncGameState(newState);
+    if (roomId) updateGameState(roomId, newState).catch(console.error);
+  }, [roomId]);
+
   // ── Supabase subscriptions ─────────────────────────────────────────────────
   useEffect(() => {
     if (!roomId) return;
@@ -292,9 +299,7 @@ export default function App() {
       const result = applyAction(currentState, { type: actionType, payload: enginePayload });
       if (result.error) { console.error("[host] action error:", result.error); return; }
 
-      gameStateRef.current = result.state;
-      setGameState(result.state);
-      updateGameState(roomId, result.state);
+      commitState(result.state);
       markActionProcessed(actionRow.id).catch(console.error);
     });
 
@@ -323,32 +328,60 @@ export default function App() {
   }, [roomId, isHost, playerId]);
 
   // ── AI turn processor (host only) ─────────────────────────────────────────
+  // Determines which bot (if any) needs to act in the current state and applies
+  // one decision. If the same bot still needs to act after the action (e.g.
+  // build_house keeps phase=post_roll), it self-schedules another step.
+  const processAITurn = useCallback(() => {
+    const s = gameStateRef.current;
+    if (!s || s.phase === "lobby" || s.phase === "game_over") return;
+
+    // Determine the bot that should act right now
+    const currentPid = s.order?.[s.current];
+    const currentBot = s.players?.find(p => p.id === currentPid && p.is_bot);
+    const auctionPid = s.phase === "auction" ? s.auction?.active?.[s.auction?.turn_idx] : null;
+    const auctionBot = auctionPid ? s.players?.find(p => p.id === auctionPid && p.is_bot) : null;
+    const debtorBot = s.phase === "debt" ? s.players?.find(p => p.id === s.debtor_id && p.is_bot) : null;
+
+    const botId = currentBot?.id ?? auctionBot?.id ?? debtorBot?.id;
+    if (!botId) return;
+
+    const decision = getAIDecision(s, botId);
+    if (!decision) return;
+
+    const result = applyAction(s, decision);
+    if (result.error) { console.error("[AI]", result.error); return; }
+
+    commitState(result.state);
+
+    // If the same bot still has a move in the same phase (e.g. build_house loop),
+    // self-schedule instead of waiting for the useEffect to notice.
+    const ns = result.state;
+    const nsCurrentPid = ns.order?.[ns.current];
+    const nsAuctionPid = ns.phase === "auction" ? ns.auction?.active?.[ns.auction?.turn_idx] : null;
+    const nsDebtorId = ns.phase === "debt" ? ns.debtor_id : null;
+    const sameBot = nsCurrentPid === botId || nsAuctionPid === botId || nsDebtorId === botId;
+    if (sameBot && ns.phase !== "game_over" && getAIDecision(ns, botId)) {
+      aiTimerRef.current = setTimeout(processAITurn, Math.floor(Math.random() * 300) + 200);
+    }
+  }, [commitState]);
+
   useEffect(() => {
     if (!isHost || !gameState || gameState.phase === "lobby" || gameState.phase === "game_over") return;
+
     const currentPid = gameState.order?.[gameState.current];
-    const currentPlayer = gameState.players?.find(p => p.id === currentPid);
-    if (!currentPlayer?.is_bot) return;
+    const currentBot = gameState.players?.find(p => p.id === currentPid && p.is_bot);
+    const auctionPid = gameState.phase === "auction" ? gameState.auction?.active?.[gameState.auction?.turn_idx] : null;
+    const auctionBot = auctionPid ? gameState.players?.find(p => p.id === auctionPid && p.is_bot) : null;
+    const debtorBot = gameState.phase === "debt"
+      ? gameState.players?.find(p => p.id === gameState.debtor_id && p.is_bot) : null;
+
+    if (!currentBot && !auctionBot && !debtorBot) return;
 
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
-    aiTimerRef.current = setTimeout(() => {
-      const s = gameStateRef.current;
-      if (!s) return;
-      const botId = s.order?.[s.current];
-      const bot = s.players?.find(p => p.id === botId);
-      if (!bot?.is_bot) return;
-      const decision = getAIDecision(s, botId);
-      if (!decision) return;
-      const result = applyAction(s, decision);
-      if (!result.error) {
-        gameStateRef.current = result.state;
-        setGameState(result.state);
-        updateGameState(roomId, result.state);
-      }
-    }, randomAIDelay());
+    aiTimerRef.current = setTimeout(processAITurn, randomAIDelay());
 
     return () => { if (aiTimerRef.current) clearTimeout(aiTimerRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.phase, gameState?.current, isHost]);
+  }, [gameState?.phase, gameState?.current, gameState?.auction?.turn_idx, gameState?.debtor_id, isHost, processAITurn]);
 
   // ── Action dispatch ────────────────────────────────────────────────────────
   const buildEnginePayload = (type, payload) => {
@@ -363,14 +396,11 @@ export default function App() {
       const enginePayload = buildEnginePayload(type, payload);
       const result = applyAction(currentState, { type, payload: enginePayload });
       if (result.error) { setToast({ message: result.error, type: "error" }); return; }
-      gameStateRef.current = result.state;
-      setGameState(result.state);
-      updateGameState(roomId, result.state);
+      commitState(result.state);
     } else {
       sendAction(roomId, playerId, type, payload);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, playerId, isHost]);
+  }, [roomId, playerId, isHost, commitState]);
 
   const handleAction = useCallback((type, payload = {}) => {
     playClick();
@@ -482,12 +512,9 @@ export default function App() {
   const handleEndGame = useCallback(async () => {
     if (!isHost || !roomId || !gameState) return;
     const newState = forceEndGame(gameState);
-    syncGameState(newState);
-    await Promise.all([
-      updateGameState(roomId, newState),
-      endRoom(roomId),
-    ]).catch(console.error);
-  }, [isHost, roomId, gameState]);
+    commitState(newState);
+    await endRoom(roomId).catch(console.error);
+  }, [isHost, roomId, gameState, commitState]);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {

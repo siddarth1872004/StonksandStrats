@@ -348,7 +348,7 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
                 flexShrink: 0,
               }}>
                 {playersHere.map(p => (
-                  <div key={p.id} style={{ width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0 }}>
+                  <div key={p.id} className="token-hop" style={{ width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0 }}>
                     <TokenIcon
                       name={p.token_shape || p.token}
                       color={p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8"}

@@ -903,6 +903,16 @@ body {
 }
 .animate-scale-up { animation: scale-up 0.15s ease-out forwards; }
 
+/* Pixel token hop: discrete steps give a retro sprite-movement feel */
+@keyframes token-hop {
+  0%   { transform: translateY(-6px) scale(0.65); opacity: 0.4; }
+  100% { transform: translateY(0px)  scale(1);    opacity: 1; }
+}
+.token-hop {
+  animation: token-hop 0.13s steps(4, end) forwards;
+  image-rendering: pixelated;
+}
+
 /* Scrollbar class */
 .scrollbar {
   scrollbar-width: thin;
