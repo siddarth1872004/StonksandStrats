@@ -174,8 +174,8 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",
       background: "#080c18",
-      border: "3px solid rgba(56,189,248,0.45)",
-      boxShadow: "0 0 40px rgba(56,189,248,0.18), inset 0 0 20px rgba(0,0,0,0.6)",
+      border: "3px solid rgba(255,179,0,0.5)",
+      boxShadow: "0 0 40px rgba(255,179,0,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
       position: "relative",
       flexShrink: 0,
     }}>

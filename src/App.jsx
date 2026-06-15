@@ -590,16 +590,21 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="flex items-center justify-between px-6 py-3 border-b border-sky-950/40 bg-slate-950/60 z-10 font-mono">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-sky-400 font-bold tracking-widest uppercase">Stonks &amp; Strats Console</span>
-            {roomId && (
-              <span className="text-[8px] border border-green-500/30 bg-green-950/20 text-green-400 px-2 py-0.5 rounded uppercase">
-                {isHost ? "HOST" : "CLIENT"} {isBankrupt ? "(SPECTATOR)" : "(PLAYER)"}
+        <header style={{ height: "26px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px", borderBottom: "2px solid rgba(255,179,0,0.2)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.2em" }}>STONKS &amp; STRATS</span>
+            {roomId && <>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "1px 5px" }}>
+                {roomId}
               </span>
-            )}
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: isHost ? "#fbbf24" : "#64748b", border: "1px solid", borderColor: isHost ? "rgba(251,191,36,0.35)" : "rgba(100,116,139,0.2)", padding: "1px 5px" }}>
+                {isHost ? "HOST" : "PLAYER"}{isBankrupt ? " · SPECTATOR" : ""}
+              </span>
+            </>}
           </div>
-          <div className="text-[8px] text-slate-500 hidden sm:block">PRESS "|" FOR DIAGNOSTICS</div>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "5px", color: "#1e293b", letterSpacing: "0.1em" }}>
+            [|] DIAG · [M] PORTFOLIO · ESC CLOSE
+          </div>
         </header>
 
         <div className={`flex-1 flex items-center justify-center overflow-hidden ${screen === "GAME" ? "p-0" : "p-4"}`}>
@@ -632,42 +637,67 @@ export default function App() {
           )}
 
           {screen === "GAME" && gameState && (
-            <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", gap: "8px", padding: "0 8px 8px 8px", overflow: "hidden" }}>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px", overflow: "hidden", minWidth: 0 }}>
-                {isBankrupt && (
-                  <div className="w-full px-4 py-2 bg-slate-900/80 border border-slate-700/50 font-mono text-[9px] text-slate-400 text-center tracking-widest uppercase flex items-center justify-center gap-2" style={{ flexShrink: 0 }}>
-                    <BankruptcyIcon size={12} color="#EF4444" /> You&apos;re out — spectating
+            <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
+              {/* Main area: board + sidebar */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "row", overflow: "hidden", minHeight: 0 }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+                  {isBankrupt && (
+                    <div style={{ flexShrink: 0, padding: "5px 10px", background: "rgba(69,10,10,0.3)", border: "none", borderBottom: "1px solid rgba(239,68,68,0.3)", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#f87171", textAlign: "center", letterSpacing: "0.1em" }}>
+                      <BankruptcyIcon size={10} color="#EF4444" /> YOU ARE BANKRUPT — SPECTATING
+                    </div>
+                  )}
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", containerType: "size", padding: "4px" }}>
+                    <Board
+                      gameState={gameState}
+                      myPlayerId={playerId}
+                      onTileClick={tid => setSelectedTileId(tid)}
+                      renderedPositions={renderedPositions}
+                      animationsBusy={animationsBusy}
+                      onSkipAnimations={handleSkipAnimations}
+                    />
                   </div>
-                )}
-                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", containerType: "size" }}>
-                  <Board
+                </div>
+                <div style={{ width: "300px", flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <Sidebar
                     gameState={gameState}
                     myPlayerId={playerId}
-                    onTileClick={tid => setSelectedTileId(tid)}
-                    renderedPositions={renderedPositions}
+                    playerName={playerName}
+                    animDice={animDice}
                     animationsBusy={animationsBusy}
+                    isHost={isHost}
+                    onEndGame={handleEndGame}
+                    onAction={(act, pay) => {
+                      if (act === "declare_bankruptcy") handleBankruptcyClick();
+                      else handleAction(act, pay);
+                    }}
+                    onOpenManage={() => setShowManage(true)}
+                    onOpenSettings={() => setShowSettings(true)}
                     onSkipAnimations={handleSkipAnimations}
                   />
                 </div>
               </div>
-              <div style={{ width: "340px", flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <Sidebar
-                  gameState={gameState}
-                  myPlayerId={playerId}
-                  playerName={playerName}
-                  animDice={animDice}
-                  animationsBusy={animationsBusy}
-                  isHost={isHost}
-                  onEndGame={handleEndGame}
-                  onAction={(act, pay) => {
-                    if (act === "declare_bankruptcy") handleBankruptcyClick();
-                    else handleAction(act, pay);
-                  }}
-                  onOpenManage={() => setShowManage(true)}
-                  onOpenSettings={() => setShowSettings(true)}
-                  onSkipAnimations={handleSkipAnimations}
-                />
-              </div>
+              {/* News ticker */}
+              {gameState.log?.length > 0 && (() => {
+                const tickerEntries = gameState.log.slice(-12);
+                const doubled = [...tickerEntries, ...tickerEntries]; // duplicate for seamless loop
+                return (
+                  <div style={{ height: "26px", borderTop: "1px solid rgba(255,179,0,0.15)", background: "#020307", display: "flex", alignItems: "center", overflow: "hidden", flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 8px", borderRight: "1px solid rgba(255,179,0,0.2)", flexShrink: 0 }}>
+                      <span style={{ width: "5px", height: "5px", background: "#22c55e", borderRadius: "50%", display: "inline-block", animation: "pulse-anim 2s infinite", flexShrink: 0 }} />
+                      <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#FFB300", letterSpacing: "0.12em" }}>FEED</span>
+                    </div>
+                    <div className="news-ticker-wrap">
+                      <div key={gameState.log.length} className="news-ticker-track" style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#64748b" }}>
+                        {doubled.map((entry, i) => (
+                          <span key={i} style={{ padding: "0 24px" }}>
+                            <span style={{ color: "#334155" }}>▶</span> {entry}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
