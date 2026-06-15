@@ -422,6 +422,7 @@ export default function App() {
     if (curId !== actorId) return;
     let act = null;
     if (s.phase === "turn") act = { type: "roll_dice", payload: { playerId: actorId } };
+    else if (s.phase === "payment") act = { type: "confirm_payment", payload: { playerId: actorId } };
     else if (s.phase === "buy_decision") act = { type: "decline_buy", payload: { playerId: actorId } };
     else if (s.phase === "post_roll") act = { type: "end_turn", payload: { playerId: actorId } };
     else if (s.phase === "speed_bus") act = { type: "choose_bus_route", payload: { playerId: actorId, steps: Math.max(...(s.speed_die_choice || [0])) } };
@@ -668,6 +669,20 @@ export default function App() {
   }, [isHost, roomId]);
 
   const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
+
+  // 2.5D parallax: the board tilts slightly toward the cursor (Balatro-ish).
+  const boardTiltRef = useRef(null);
+  const handleBoardTilt = useCallback((e) => {
+    const el = boardTiltRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `rotateY(${px * 5}deg) rotateX(${-py * 5}deg)`;
+  }, []);
+  const resetBoardTilt = useCallback(() => {
+    if (boardTiltRef.current) boardTiltRef.current.style.transform = "rotateY(0deg) rotateX(0deg)";
+  }, []);
   const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
   const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
@@ -698,6 +713,7 @@ export default function App() {
           if (currId === playerId && !animationsBusy) {
             const phase = gameState.phase;
             if (phase === "turn") handleAction("roll_dice");
+            else if (phase === "payment") handleAction("confirm_payment");
             else if (phase === "buy_decision") handleAction("buy_property");
             else if (phase === "post_roll") handleAction("end_turn");
           }
@@ -724,6 +740,7 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className={`crt-screen select-none ${scanlinesActive ? "scanlines" : ""} ${scanlinesActive ? "flicker" : ""}`}>
+      <div className="crt-bg" />
       <div className="crt-vignette" />
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -739,6 +756,32 @@ export default function App() {
         </div>
       )}
 
+      {(() => {
+        const pp = gameState?.pending_payment;
+        const curId = gameState?.order?.[gameState?.current];
+        if (!pp || gameState?.phase !== "payment" || curId !== playerId) return null;
+        const me = gameState.players.find(p => p.id === playerId);
+        const creditor = pp.toPid ? gameState.players.find(p => p.id === pp.toPid)?.name : "the Bank";
+        const canAfford = (me?.money ?? 0) >= pp.amount;
+        return (
+          <div className="fixed inset-0 z-[8600] flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.7)" }}>
+            <div className="glass-card animate-scale-up text-center" style={{ width: "min(92vw, 360px)", padding: "26px 24px", borderTop: "4px solid #f87171" }}>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#f87171", letterSpacing: "0.2em", marginBottom: "10px" }}>⚠ PAYMENT DUE</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "26px", color: "#fca5a5", fontWeight: "bold", textShadow: "0 0 12px rgba(248,113,113,0.5)" }}>${pp.amount.toLocaleString()}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#94a3b8", margin: "10px 0 4px" }}>to {creditor}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b", marginBottom: "16px" }}>{pp.reason}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: canAfford ? "#34d399" : "#fbbf24", marginBottom: "14px" }}>
+                YOUR CASH: ${me?.money?.toLocaleString() ?? 0}
+                {!canAfford && <div style={{ color: "#fbbf24", marginTop: "6px" }}>Short — paying will require raising funds.</div>}
+              </div>
+              <button onClick={() => handleAction("confirm_payment")} className="btn-retro btn-retro-red w-full font-bold tracking-wider" style={{ padding: "12px", fontSize: "12px" }}>
+                PAY ${pp.amount.toLocaleString()}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="fixed top-0 right-0 h-full w-[320px] pointer-events-none z-[8400]">
         {moneyDeltas.map(d => {
           const playerIdx = gameState?.players?.findIndex(p => p.id === d.pid) ?? 0;
@@ -752,7 +795,7 @@ export default function App() {
         })}
       </div>
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ position: "relative", zIndex: 1 }}>
         <header style={{ height: "32px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", borderBottom: "2px solid rgba(255,179,0,0.2)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.2em" }}>STONKS &amp; STRATS</span>
@@ -857,8 +900,15 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
                 <div style={{ flex: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {spectatorBanner}
-                  <div style={{ flex: 1, minHeight: 0, containerType: "size", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: "6px" }}>
-                    <div style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)", flexShrink: 0 }}>
+                  <div
+                    onMouseMove={handleBoardTilt}
+                    onMouseLeave={resetBoardTilt}
+                    style={{ flex: 1, minHeight: 0, containerType: "size", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: "10px", perspective: "1400px" }}
+                  >
+                    <div
+                      ref={boardTiltRef}
+                      style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)", flexShrink: 0, transformStyle: "preserve-3d", transition: "transform 0.18s ease-out", willChange: "transform" }}
+                    >
                       {board}
                     </div>
                   </div>

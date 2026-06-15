@@ -108,6 +108,7 @@ export function createInitialState(houseRules = {}, gameMode = 'classic', quickM
     extra_roll: false,
     can_buy: null,
     phase: 'lobby',
+    pending_payment: null,    // { amount, toPid, reason, toJackpot } — shown as a PAY box
     pending_trade: null,
     auction: null,
     log: [],
@@ -272,12 +273,17 @@ function applyLand(state, pid, tileId) {
           const rent = calcRent(s, tileId);
           if (rent > 0) {
             addLog(s, `${p.name} owes $${rent} rent to ${owner.name} for ${tile.name}.`);
-            s = payAmount(s, pid, ownerId, rent);
+            s.pending_payment = { amount: rent, toPid: ownerId, reason: `Rent · ${tile.name}`, toJackpot: false };
+            s.phase = 'payment';
+          } else {
+            s.phase = 'post_roll';
           }
         } else if (s.mortgaged.includes(tileId)) {
           addLog(s, `${tile.name} is mortgaged. No rent owed.`);
+          s.phase = 'post_roll';
+        } else {
+          s.phase = 'post_roll';
         }
-        if (s.phase !== 'debt') s.phase = 'post_roll';
       }
     }
   } else if (ttype === 'tax') {
@@ -285,8 +291,8 @@ function applyLand(state, pid, tileId) {
       ? (hr(s).income_tax_choice ? Math.min(200, Math.floor(calcNetWorth(s, pid) * 0.1)) : 200)
       : (hr(s).luxury_tax ?? tile.price);
     addLog(s, `${p.name} landed on ${tile.name} and owes $${taxAmt}.`);
-    s = payAmount(s, pid, null, taxAmt, true);
-    if (s.phase !== 'debt') s.phase = 'post_roll';
+    s.pending_payment = { amount: taxAmt, toPid: null, reason: tile.name, toJackpot: true };
+    s.phase = 'payment';
   } else if (ttype === 'go_to_jail') {
     addLog(s, `${p.name} landed on Go To Jail!`);
     getPlayer(s, pid).position = 10;
@@ -724,6 +730,19 @@ export function buyProperty(state, { playerId }) {
   return { state: s };
 }
 
+// Player confirms a queued rent/tax payment (the "PAY" box).
+export function confirmPayment(state, { playerId }) {
+  if (state.phase !== 'payment' || !state.pending_payment) return { state, error: 'No payment due.' };
+  if (playerId !== getCurrentPlayerId(state)) return { state, error: 'Not your payment.' };
+
+  let s = deepClone(state);
+  const pp = s.pending_payment;
+  s.pending_payment = null;
+  s.phase = 'post_roll'; // target once paid (payAmount flips to 'debt' if it can't be covered)
+  s = payAmount(s, playerId, pp.toPid, pp.amount, pp.toJackpot);
+  return { state: s };
+}
+
 export function declineBuy(state, { playerId }) {
   if (state.phase !== 'buy_decision') return { state, error: 'Not in buy_decision phase.' };
   if (playerId !== getCurrentPlayerId(state)) return { state, error: 'Not your turn.' };
@@ -980,7 +999,7 @@ export function declareBankruptcy(state, { playerId }) {
 }
 
 export function endTurn(state, { playerId }) {
-  if (['debt', 'auction'].includes(state.phase)) return { state, error: 'Cannot end turn.' };
+  if (['debt', 'auction', 'payment'].includes(state.phase)) return { state, error: 'Cannot end turn.' };
   if (playerId !== getCurrentPlayerId(state)) return { state, error: 'Not your turn.' };
 
   let s = deepClone(state);
@@ -1106,6 +1125,10 @@ export function getAIDecision(state, botId) {
     return { type: 'choose_bus_route', payload: { playerId: botId, steps: maxMove } };
   }
 
+  if (phase === 'payment' && isCurrentPlayer) {
+    return { type: 'confirm_payment', payload: { playerId: botId } };
+  }
+
   if (phase === 'buy_decision' && isCurrentPlayer) {
     const tileId = state.can_buy;
     const tile = TILES.find(t => t.id === tileId);
@@ -1184,6 +1207,7 @@ export function applyAction(state, action) {
     case 'roll_dice':           return rollDice(state, payload);
     case 'choose_bus_route':    return chooseBusRoute(state, payload);
     case 'buy_property':        return buyProperty(state, payload);
+    case 'confirm_payment':     return confirmPayment(state, payload);
     case 'decline_buy':         return declineBuy(state, payload);
     case 'auction_bid':         return auctionBid(state, payload);
     case 'auction_pass':        return auctionPass(state, payload);

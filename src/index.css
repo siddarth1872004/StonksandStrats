@@ -180,6 +180,47 @@ body {
   overflow: hidden;
 }
 
+/* ── Balatro-style living background ──────────────────────────────────
+   Slowly drifting, hue-cycling plasma blobs behind everything for a
+   warm, alive CRT feel. Pure CSS — no canvas/WebGL. */
+@keyframes plasma-drift {
+  0%   { transform: translate(-4%, -3%) scale(1.15) rotate(0deg); }
+  50%  { transform: translate(5%, 4%) scale(1.3) rotate(8deg); }
+  100% { transform: translate(-4%, -3%) scale(1.15) rotate(0deg); }
+}
+@keyframes hue-cycle { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+@keyframes bg-breathe { 0%,100% { opacity: 0.55; } 50% { opacity: 0.85; } }
+
+.crt-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  animation: bg-breathe 9s ease-in-out infinite;
+}
+.crt-bg::before {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  background:
+    radial-gradient(38% 38% at 24% 30%, rgba(255,179,0,0.12), transparent 62%),
+    radial-gradient(44% 44% at 76% 66%, rgba(56,189,248,0.12), transparent 62%),
+    radial-gradient(34% 34% at 62% 18%, rgba(168,85,247,0.10), transparent 62%),
+    radial-gradient(40% 40% at 30% 80%, rgba(16,185,129,0.08), transparent 62%);
+  animation: plasma-drift 22s ease-in-out infinite, hue-cycle 48s linear infinite;
+  will-change: transform, filter;
+}
+/* Faint moving CRT refresh band */
+@keyframes refresh-roll { from { transform: translateY(-20%); } to { transform: translateY(120%); } }
+.crt-bg::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; height: 35%;
+  background: linear-gradient(rgba(255,255,255,0) 0%, rgba(255,255,255,0.025) 50%, rgba(255,255,255,0) 100%);
+  animation: refresh-roll 7s linear infinite;
+}
+
 /* CRT Scanlines Overlay */
 .crt-screen.scanlines::before {
   content: " ";
@@ -187,12 +228,18 @@ body {
   position: fixed;
   top: 0; left: 0; bottom: 0; right: 0;
   background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
+    rgba(18, 16, 16, 0) 50%,
     rgba(0, 0, 0, 0.12) 50%
   );
   background-size: 100% 3px;
   z-index: 9999;
   pointer-events: none;
+  animation: scanline-roll 9s linear infinite;
+}
+
+@keyframes scanline-roll {
+  from { background-position: 0 0; }
+  to   { background-position: 0 100px; }
 }
 
 @keyframes crt-flicker {
@@ -1043,6 +1090,10 @@ vercel-toolbar { display: none !important; }
   .your-turn-glow,
   .board-your-turn,
   .dice-rolling,
+  .crt-bg,
+  .crt-bg::before,
+  .crt-bg::after,
+  .crt-screen.scanlines::before,
   .news-ticker-track { animation: none !important; }
   .emote-float { animation-duration: 1.2s; }
   * { scroll-behavior: auto !important; }
