@@ -2,8 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { TOKEN_COLORS } from "../boardData";
 import { ManageIcon, TradeIcon, SettingsIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
+import { calcNetWorth } from "../lib/gameEngine";
 import TradeBroker from "./TradeBroker";
 import { EmoteBar } from "./Emotes";
+
+// Condense raw log lines into a deduped, concise activity stream for the feed.
+function abstractFeed(log) {
+  const recent = (log || []).slice(-120);
+  const base = log ? log.length - recent.length : 0;
+  const groups = [];
+  for (let i = 0; i < recent.length; i++) {
+    const text = recent[i];
+    const prev = groups[groups.length - 1];
+    if (prev && prev.text === text) { prev.count++; prev.key = base + i; }
+    else groups.push({ text, count: 1, key: base + i });
+  }
+  return groups.slice(-60).reverse();
+}
 
 function feedCategory(entry) {
   const e = entry.toLowerCase();
@@ -168,9 +183,11 @@ export default function Sidebar({
           const color = tokenColor(p);
           const isMe = p.id === myPlayerId;
           const netWorthPropCount = p.properties?.length || 0;
+          const netWorth = p.bankrupt ? 0 : calcNetWorth(gameState, p.id);
           return (
             <div
               key={p.id}
+              className={isCurrent ? "row-active-sheen" : ""}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -178,7 +195,7 @@ export default function Sidebar({
                 padding: "6px 10px 6px 7px",
                 borderBottom: "1px solid rgba(255,179,0,0.05)",
                 borderLeft: `3px solid ${isCurrent ? color : "transparent"}`,
-                background: isCurrent ? `${color}0E` : "transparent",
+                background: isCurrent ? `${color}12` : "transparent",
               }}
             >
               <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", flexShrink: 0, width: "10px", textAlign: "right" }}>
@@ -204,16 +221,20 @@ export default function Sidebar({
               <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", flexShrink: 0 }}>
                 {netWorthPropCount}⌂
               </span>
-              <span style={{
-                fontFamily: "var(--font-retro)",
-                fontSize: "clamp(10px, 1.6vw, 13px)",
-                fontWeight: "bold",
-                flexShrink: 0,
-                color: p.bankrupt ? "#EF4444" : p.in_jail ? "#F59E0B" : isCurrent ? "#FFB300" : "#34d399",
-                minWidth: "50px",
-                textAlign: "right",
-              }}>
-                {p.bankrupt ? "OUT" : p.in_jail ? "⊗JAIL" : `$${p.money.toLocaleString()}`}
+              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, minWidth: "58px" }}>
+                <span style={{
+                  fontFamily: "var(--font-retro)",
+                  fontSize: "clamp(10px, 1.6vw, 13px)",
+                  fontWeight: "bold",
+                  color: p.bankrupt ? "#EF4444" : p.in_jail ? "#F59E0B" : isCurrent ? "#FFB300" : "#34d399",
+                }}>
+                  {p.bankrupt ? "OUT" : p.in_jail ? "⊗JAIL" : `$${p.money.toLocaleString()}`}
+                </span>
+                {!p.bankrupt && (
+                  <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#475569" }}>
+                    NW ${netWorth.toLocaleString()}
+                  </span>
+                )}
               </span>
             </div>
           );
@@ -361,26 +382,31 @@ export default function Sidebar({
         scrollbarColor: "rgba(255,179,0,0.12) transparent",
         minHeight: "80px",
       }}>
-        {log && [...log].reverse().slice(0, 80).map((entry, i) => {
-          const { icon, color } = feedCategory(entry);
+        {abstractFeed(log).map((g, i) => {
+          const { icon, color } = feedCategory(g.text);
           const isLatest = i === 0;
           const isRecent = i < 3;
           return (
             <div
-              key={i}
+              key={g.key}
+              className="feed-in"
               style={{
                 fontFamily: "var(--font-retro)",
                 fontSize: "clamp(9px, 1.3vw, 11px)",
-                color: isLatest ? "#d1d5db" : isRecent ? "#6b7280" : "#374151",
+                color: isLatest ? "#e5e7eb" : isRecent ? "#6b7280" : "#374151",
                 lineHeight: "1.7",
                 borderLeft: `2px solid ${isLatest ? color : isRecent ? `${color}40` : "rgba(255,255,255,0.03)"}`,
                 paddingLeft: "6px",
                 display: "flex",
                 gap: "4px",
+                alignItems: "flex-start",
               }}
             >
               <span style={{ color: isLatest ? color : isRecent ? `${color}60` : "rgba(255,255,255,0.06)", flexShrink: 0 }}>{icon}</span>
-              <span style={{ wordBreak: "break-word" }}>{entry}</span>
+              <span style={{ wordBreak: "break-word", flex: 1 }}>{g.text}</span>
+              {g.count > 1 && (
+                <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "8px" }}>×{g.count}</span>
+              )}
             </div>
           );
         })}

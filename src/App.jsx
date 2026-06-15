@@ -31,12 +31,12 @@ import {
 
 import {
   playClick, playRoll, playMove, playBuy, playRent, playWin, playJail,
-  startChiptune, stopChiptune,
+  startChiptune, stopChiptune, setMuted, getMuted,
 } from "./lib/audio";
 import {
   ConfettiCanvas, diffStates, ANIM, animateDice, animateHop, AnimationQueue,
 } from "./lib/animation";
-import { PlayIcon, CloseIcon, BankruptcyIcon } from "./lib/icons";
+import { PlayIcon, CloseIcon, BankruptcyIcon, SoundIcon, MuteIcon } from "./lib/icons";
 
 const HEARTBEAT_INTERVAL_MS = 5000;
 const AI_MIN_DELAY_MS = 800;
@@ -139,6 +139,13 @@ export default function App() {
   const [bloomSetting, setBloomSetting] = useState(
     () => localStorage.getItem("stonks_bloom") || "low"
   );
+  const [muted, setMutedState] = useState(() => getMuted());
+  const toggleMute = useCallback(() => {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+    if (!next) playClick();
+  }, [muted]);
 
   // Modal visibility
   const [selectedTileId, setSelectedTileId] = useState(null);
@@ -796,8 +803,17 @@ export default function App() {
               </span>
             </>}
           </div>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#334155", letterSpacing: "0.1em" }}>
-            [|] DIAG · [M] PORTFOLIO · ESC CLOSE
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              onClick={toggleMute}
+              title={muted ? "Unmute" : "Mute"}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center" }}
+            >
+              {muted ? <MuteIcon size={13} color="#64748b" /> : <SoundIcon size={13} color="#FFB300" />}
+            </button>
+            <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#334155", letterSpacing: "0.1em" }}>
+              [|] DIAG · [M] PORTFOLIO · ESC CLOSE
+            </div>
           </div>
         </header>
 

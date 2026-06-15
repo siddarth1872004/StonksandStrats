@@ -207,7 +207,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
 
   return (
     /* container-type enables cqw units for fluid font sizing inside the board */
-    <div className={isMyTurn ? "board-your-turn" : ""} style={{
+    <div style={{
       containerType: "inline-size",
       /* Fill the parent container (containerType: size) as a square */
       width: "100%",
@@ -216,13 +216,13 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",
       background: "#080c18",
-      border: `3px solid ${isMyTurn ? "rgba(52,211,153,0.7)" : "rgba(255,179,0,0.5)"}`,
+      border: `3px solid ${isMyTurn ? "rgba(52,211,153,0.75)" : "rgba(255,179,0,0.5)"}`,
       boxShadow: isMyTurn
-        ? "0 0 50px rgba(52,211,153,0.25), inset 0 0 20px rgba(0,0,0,0.6)"
-        : "0 0 40px rgba(255,179,0,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+        ? "0 0 40px rgba(52,211,153,0.25), inset 0 0 20px rgba(0,0,0,0.6)"
+        : "0 0 30px rgba(255,179,0,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+      transition: "border-color 0.4s, box-shadow 0.4s",
       position: "relative",
       flexShrink: 0,
-      transition: "border-color 0.4s, box-shadow 0.4s",
     }}>
       {/* Board Center Area */}
       <div style={{

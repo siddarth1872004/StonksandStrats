@@ -1075,12 +1075,23 @@ vercel-toolbar { display: none !important; }
 }
 .dice-rolling { animation: dice-shake 0.28s linear infinite; }
 
-/* ── Board "your turn" breathing glow ─────────────────────────────── */
-@keyframes board-turn-pulse {
-  0%, 100% { box-shadow: 0 0 40px rgba(52,211,153,0.18), inset 0 0 20px rgba(0,0,0,0.6); }
-  50%      { box-shadow: 0 0 65px rgba(52,211,153,0.42), inset 0 0 20px rgba(0,0,0,0.6); }
+/* ── Live feed: entries slide in as they arrive ───────────────────── */
+@keyframes feed-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: none; }
 }
-.board-your-turn { animation: board-turn-pulse 2.4s ease-in-out infinite; }
+.feed-in { animation: feed-in 0.28s ease-out; }
+
+/* ── Active standings row: soft sweep ─────────────────────────────── */
+@keyframes row-active {
+  0%, 100% { background-position: -150% 0; }
+  100%     { background-position: 150% 0; }
+}
+.row-active-sheen {
+  background-image: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: row-active 3.5s linear infinite;
+}
 
 /* Honor reduced-motion: kill the looping/decorative animations. */
 @media (prefers-reduced-motion: reduce) {
@@ -1088,7 +1099,8 @@ vercel-toolbar { display: none !important; }
   .blink,
   .animate-pulse,
   .your-turn-glow,
-  .board-your-turn,
+  .row-active-sheen,
+  .feed-in,
   .dice-rolling,
   .crt-bg,
   .crt-bg::before,
