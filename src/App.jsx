@@ -80,7 +80,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
 
   // Responsive layout
-  const { isCompact } = useViewport();
+  const { isCompact, width: vpWidth, height: vpHeight } = useViewport();
 
   // Resizable board (desktop). The board is a square flush to the left edge and
   // the sidebar fills the remaining width. The drag handle resizes the board.
@@ -671,20 +671,6 @@ export default function App() {
   }, [isHost, roomId]);
 
   const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
-
-  // 2.5D parallax: the board tilts slightly toward the cursor (Balatro-ish).
-  const boardTiltRef = useRef(null);
-  const handleBoardTilt = useCallback((e) => {
-    const el = boardTiltRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    el.style.transform = `rotateY(${px * 5}deg) rotateX(${-py * 5}deg)`;
-  }, []);
-  const resetBoardTilt = useCallback(() => {
-    if (boardTiltRef.current) boardTiltRef.current.style.transform = "rotateY(0deg) rotateX(0deg)";
-  }, []);
   const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
   const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
@@ -896,43 +882,39 @@ export default function App() {
                 </div>
               );
             }
-            // Desktop: the board fills the space left of a resizable sidebar; it is
-            // centered as a square that fits whatever room remains (container units).
+            // Desktop: the board is a square flush to the left (no empty bars); the
+            // sidebar fills ALL remaining width. The handle resizes the board.
+            const effBoardSize = Math.max(320, Math.min(boardSize, vpHeight - 44, vpWidth - 300));
             return (
               <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
-                <div style={{ flex: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ width: `${effBoardSize}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {spectatorBanner}
-                  <div
-                    onMouseMove={handleBoardTilt}
-                    onMouseLeave={resetBoardTilt}
-                    style={{ flex: 1, minHeight: 0, containerType: "size", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: "10px", perspective: "1400px" }}
-                  >
-                    <div
-                      ref={boardTiltRef}
-                      style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)", flexShrink: 0, transformStyle: "preserve-3d", transition: "transform 0.18s ease-out", willChange: "transform" }}
-                    >
+                  <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <div style={{ width: "100%", aspectRatio: "1 / 1", maxHeight: "100%", flexShrink: 0 }}>
                       {board}
                     </div>
                   </div>
                 </div>
-                {/* Drag handle to resize the sidebar */}
+                {/* Drag handle — resizes the board, sidebar fills the rest */}
                 <div
                   onMouseDown={startBoardResize}
                   onTouchStart={startBoardResize}
-                  title="Drag to resize"
+                  title="Drag to resize the board"
                   style={{
-                    width: "7px", flexShrink: 0, cursor: "col-resize",
-                    background: "rgba(255,179,0,0.12)",
-                    borderLeft: "1px solid rgba(255,179,0,0.2)",
-                    borderRight: "1px solid rgba(255,179,0,0.2)",
+                    width: "10px", flexShrink: 0, cursor: "col-resize",
+                    background: "rgba(255,179,0,0.18)",
+                    borderLeft: "1px solid rgba(255,179,0,0.3)",
+                    borderRight: "1px solid rgba(255,179,0,0.3)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.35)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,179,0,0.12)"; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.4)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,179,0,0.18)"; }}
                 >
-                  <div style={{ width: "2px", height: "30px", background: "rgba(255,179,0,0.5)" }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                    {[0, 1, 2].map(i => <div key={i} style={{ width: "3px", height: "3px", borderRadius: "50%", background: "rgba(255,179,0,0.8)" }} />)}
+                  </div>
                 </div>
-                <div style={{ width: `${boardSize}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ flex: 1, minWidth: "240px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {sidebar}
                 </div>
               </div>
