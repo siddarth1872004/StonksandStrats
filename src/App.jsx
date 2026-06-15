@@ -14,13 +14,13 @@ import { ensureAuth } from "./lib/supabase";
 import {
   createRoom, joinRoom, rejoinRoom, clearSession,
   subscribeToRoom, subscribeToActions, fetchPlayers, fetchRoom,
-  sendAction, updateGameState, startRoomGame, leaveRoom,
+  sendAction, updateGameState, startRoomGame, endRoom, leaveRoom,
   updateHouseRules, updateGameMode, addBot, removeBot,
   touchHeartbeat, claimHost, markActionProcessed,
 } from "./lib/roomClient";
 
 import {
-  createInitialState, addPlayer, startGame, applyAction, getAIDecision, DEFAULT_HOUSE_RULES,
+  createInitialState, addPlayer, startGame, applyAction, getAIDecision, forceEndGame, DEFAULT_HOUSE_RULES,
 } from "./lib/gameEngine";
 
 import {
@@ -479,6 +479,16 @@ export default function App() {
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
   const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
 
+  const handleEndGame = useCallback(async () => {
+    if (!isHost || !roomId || !gameState) return;
+    const newState = forceEndGame(gameState);
+    syncGameState(newState);
+    await Promise.all([
+      updateGameState(roomId, newState),
+      endRoom(roomId),
+    ]).catch(console.error);
+  }, [isHost, roomId, gameState]);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = e => {
@@ -620,6 +630,8 @@ export default function App() {
                   playerName={playerName}
                   animDice={animDice}
                   animationsBusy={animationsBusy}
+                  isHost={isHost}
+                  onEndGame={handleEndGame}
                   onAction={(act, pay) => {
                     if (act === "declare_bankruptcy") handleBankruptcyClick();
                     else handleAction(act, pay);

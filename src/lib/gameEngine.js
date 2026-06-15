@@ -1158,3 +1158,14 @@ export function applyAction(state, action) {
     default: return { state, error: `Unknown action: ${type}` };
   }
 }
+
+export function forceEndGame(state) {
+  const s = deepClone(state);
+  const active = s.players.filter(p => !p.bankrupt);
+  const ranked = active.sort((a, b) => calcNetWorth(s, b.id) - calcNetWorth(s, a.id));
+  const winner = ranked[0] ?? s.players[0];
+  s.phase = 'game_over';
+  s.winner = winner.id;
+  addLog(s, `HOST ENDED GAME. ${winner.name} wins with net worth $${calcNetWorth(s, winner.id)}!`);
+  return s;
+}

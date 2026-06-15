@@ -11,12 +11,15 @@ export default function Sidebar({
   playerName,
   animDice,
   animationsBusy,
+  isHost,
+  onEndGame,
   onAction,
   onOpenManage,
   onOpenSettings,
   onSkipAnimations,
 }) {
   const [chatInput, setChatInput] = useState("");
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const [logMinimized, setLogMinimized] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -318,6 +321,37 @@ export default function Sidebar({
             <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", padding: "7px", background: "rgba(15,23,42,0.15)", border: "1px solid rgba(15,23,42,0.3)", textAlign: "center" }}>
               <AlertIcon size={9} color="#475569" /> Waiting for turn...
             </div>
+          )}
+
+          {/* Host: end game */}
+          {isHost && phase !== "game_over" && (
+            confirmEnd ? (
+              <div style={{ display: "flex", gap: "4px" }}>
+                <button
+                  className="btn-retro"
+                  style={{ flex: 1, fontSize: "8px", color: "#ef4444", borderColor: "rgba(239,68,68,0.5)", background: "rgba(69,10,10,0.3)" }}
+                  onClick={() => { playClick(); setConfirmEnd(false); onEndGame(); }}
+                >
+                  CONFIRM END
+                </button>
+                <button
+                  className="btn-retro"
+                  style={{ fontSize: "8px", color: "#64748b", borderColor: "rgba(15,23,42,0.5)", padding: "4px 8px" }}
+                  onClick={() => { playClick(); setConfirmEnd(false); }}
+                >
+                  CANCEL
+                </button>
+              </div>
+            ) : (
+              <button
+                className="btn-retro"
+                style={{ width: "100%", fontSize: "8px", color: "#ef4444", borderColor: "rgba(239,68,68,0.4)" }}
+                onClick={() => { playClick(); setConfirmEnd(true); }}
+              >
+                <AlertIcon size={10} color="#ef4444" />
+                <span style={{ marginLeft: "4px" }}>END GAME (HOST)</span>
+              </button>
+            )
           )}
 
           {/* Settings button */}
