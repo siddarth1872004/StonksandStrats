@@ -4,87 +4,84 @@ import { getTileGridCoords } from "../lib/animation";
 import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 
-/* ── Center logo: pixel-art stock chart + brand ───────────────────── */
+/* Plain-English description of what's happening right now. */
+function describeStatus(gameState, cur) {
+  const s = gameState;
+  const name = cur?.name || "—";
+  if (s.winner !== null || s.phase === "game_over") {
+    const w = s.players.find(p => p.id === s.winner);
+    return { headline: `${w?.name || "Someone"} wins!`, sub: "Game over" };
+  }
+  if (s.pending_trade) {
+    const f = s.players.find(p => p.id === s.pending_trade.from);
+    const t = s.players.find(p => p.id === s.pending_trade.to);
+    return { headline: "Trade on the table", sub: `${f?.name} → ${t?.name} awaiting reply` };
+  }
+  switch (s.phase) {
+    case "debt": {
+      const d = s.players.find(p => p.id === s.debtor_id);
+      return { headline: `${d?.name} is short on cash`, sub: `Must raise $${Math.max(0, -(d?.money || 0)).toLocaleString()} or go bankrupt` };
+    }
+    case "auction": {
+      const a = s.auction;
+      const tile = TILES.find(t => t.id === a?.tile);
+      const bidder = a?.current_bidder ? s.players.find(p => p.id === a.current_bidder)?.name : null;
+      return { headline: `Auction: ${tile?.name || ""}`, sub: bidder ? `High bid $${a.current_bid} · ${bidder}` : "No bids yet" };
+    }
+    case "payment": {
+      const pp = s.pending_payment;
+      const to = pp?.toPid ? s.players.find(p => p.id === pp.toPid)?.name : "the Bank";
+      return { headline: `${name} owes $${(pp?.amount || 0).toLocaleString()}`, sub: `Paying ${to}${pp?.reason ? ` · ${pp.reason}` : ""}` };
+    }
+    case "buy_decision": {
+      const tile = TILES.find(t => t.id === s.can_buy);
+      return { headline: `${name} can buy ${tile?.name || ""}`, sub: `Price $${tile?.price?.toLocaleString() || "?"}` };
+    }
+    case "speed_bus":
+      return { headline: `${name} caught the bus`, sub: "Choosing how far to ride" };
+    case "post_roll":
+      return { headline: `${name} is set`, sub: "Building or ending the turn" };
+    case "turn":
+    default:
+      if (cur?.in_jail) return { headline: `${name} is in Jail`, sub: "Rolling for doubles or paying out" };
+      return { headline: `${name}'s turn`, sub: "Ready to roll" };
+  }
+}
+
+/* ── Center status card (replaces the brand logo) ─────────────────── */
 function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const currentPlayer = gameState?.players?.find(p => p.id === currentTurnPlayerId);
   const inPlay = gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over";
   const displayDice = animDice || gameState?.dice;
   const speedDie = gameState?.speed_die;
+  const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
+  const status = gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" };
+  const recent = (gameState?.log || []).slice(-3).reverse();
 
   return (
     <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "100%",
-      gap: "10px",
-      padding: "12px",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      height: "100%", width: "100%", gap: "clamp(6px, 1.6cqw, 14px)", padding: "clamp(8px, 2cqw, 18px)",
     }}>
-      {/* SVG Brand logo — candlestick chart */}
-      <svg viewBox="0 0 80 40" style={{ width: "min(90px, 14cqw)", height: "auto", flexShrink: 0 }} fill="none">
-        {/* Grid lines */}
-        <line x1="0" y1="10" x2="80" y2="10" stroke="rgba(56,189,248,0.1)" strokeWidth="0.5"/>
-        <line x1="0" y1="20" x2="80" y2="20" stroke="rgba(56,189,248,0.1)" strokeWidth="0.5"/>
-        <line x1="0" y1="30" x2="80" y2="30" stroke="rgba(56,189,248,0.1)" strokeWidth="0.5"/>
-        {/* Candle wicks */}
-        <line x1="10" y1="5" x2="10" y2="35" stroke="#34d399" strokeWidth="1"/>
-        <line x1="22" y1="8" x2="22" y2="32" stroke="#ef4444" strokeWidth="1"/>
-        <line x1="34" y1="3" x2="34" y2="28" stroke="#34d399" strokeWidth="1"/>
-        <line x1="46" y1="10" x2="46" y2="34" stroke="#ef4444" strokeWidth="1"/>
-        <line x1="58" y1="4" x2="58" y2="25" stroke="#34d399" strokeWidth="1"/>
-        <line x1="70" y1="2" x2="70" y2="22" stroke="#34d399" strokeWidth="1"/>
-        {/* Candle bodies */}
-        <rect x="7" y="10" width="6" height="14" fill="#34d399" rx="0"/>
-        <rect x="19" y="15" width="6" height="12" fill="#ef4444" rx="0"/>
-        <rect x="31" y="8" width="6" height="16" fill="#34d399" rx="0"/>
-        <rect x="43" y="18" width="6" height="12" fill="#ef4444" rx="0"/>
-        <rect x="55" y="6" width="6" height="14" fill="#34d399" rx="0"/>
-        <rect x="67" y="4" width="6" height="14" fill="#34d399" rx="0"/>
-        {/* Trend line overlay */}
-        <polyline
-          points="10,17 22,21 34,16 46,24 58,13 70,11"
-          stroke="#fbbf24"
-          strokeWidth="1.5"
-          fill="none"
-          strokeDasharray="3 2"
-          style={{ filter: "drop-shadow(0 0 2px #fbbf2480)" }}
-        />
-      </svg>
-
-      {/* Brand title */}
-      <div style={{ textAlign: "center" }}>
-        <div style={{
-          fontFamily: "var(--font-retro)",
-          fontSize: "clamp(7px, 1.3cqw, 11px)",
-          color: "#34d399",
-          fontWeight: "bold",
-          letterSpacing: "0.1em",
-          textShadow: "0 0 8px rgba(52,211,153,0.4)",
-          lineHeight: 1.3,
-        }}>
-          STONKS &amp;
+      {/* Headline status */}
+      <div style={{
+        textAlign: "center", background: "rgba(0,0,0,0.45)",
+        border: `1px solid ${accent}55`, borderTop: `2px solid ${accent}`,
+        padding: "clamp(6px,1.4cqw,12px) clamp(10px,2cqw,18px)", maxWidth: "92%",
+      }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.8cqw,7px)", color: "#64748b", letterSpacing: "0.2em", marginBottom: "5px" }}>
+          ◆ LIVE STATUS ◆
         </div>
         <div style={{
-          fontFamily: "var(--font-retro)",
-          fontSize: "clamp(7px, 1.3cqw, 11px)",
-          color: "#34d399",
-          fontWeight: "bold",
-          letterSpacing: "0.1em",
-          textShadow: "0 0 8px rgba(52,211,153,0.4)",
-          lineHeight: 1.3,
+          fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.6cqw,15px)", fontWeight: "bold",
+          color: accent, textShadow: `0 0 8px ${accent}70`, lineHeight: 1.4,
+          overflow: "hidden", textOverflow: "ellipsis",
         }}>
-          STRATS
+          {status.headline}
         </div>
-        <div style={{
-          fontFamily: "var(--font-retro)",
-          fontSize: "clamp(5px, 0.8cqw, 7px)",
-          color: "#475569",
-          letterSpacing: "0.2em",
-          marginTop: "3px",
-        }}>
-          P2P MARKET SIM
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,9px)", color: "#94a3b8", marginTop: "5px", lineHeight: 1.4 }}>
+          {status.sub}
         </div>
       </div>
 
@@ -123,71 +120,27 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
         </div>
       )}
 
-      {/* Current turn indicator */}
-      {gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over" && currentPlayer && (
-        <div style={{
-          background: "rgba(0,0,0,0.6)",
-          border: "1px solid rgba(56,189,248,0.25)",
-          borderLeft: `2px solid ${currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8"}`,
-          padding: "5px 8px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "3px",
-          maxWidth: "90%",
-        }}>
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px, 0.7cqw, 6px)", color: "#64748b", letterSpacing: "0.15em" }}>
-            ACTIVE PLAYER:
-          </span>
-          <span style={{
-            fontFamily: "var(--font-retro)",
-            fontSize: "clamp(6px, 0.9cqw, 8px)",
-            fontWeight: "bold",
-            color: currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8",
-            textShadow: `0 0 6px ${currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8"}80`,
-            maxWidth: "100%",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
-            {currentPlayer.name}
-          </span>
-          <span style={{
-            fontFamily: "var(--font-retro)",
-            fontSize: "clamp(5px, 0.7cqw, 6px)",
-            color: "#10b981",
-            border: "1px solid rgba(16,185,129,0.3)",
-            padding: "1px 5px",
-            background: "rgba(5,46,22,0.3)",
-          }}>
-            {gameState.phase?.toUpperCase()}
-          </span>
+      {/* Recent activity */}
+      {recent.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "94%", width: "100%", alignItems: "center" }}>
+          {recent.map((line, i) => (
+            <div key={i} style={{
+              fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.85cqw,8px)",
+              color: i === 0 ? "#cbd5e1" : i === 1 ? "#64748b" : "#475569",
+              maxWidth: "100%", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", textAlign: "center",
+            }}>
+              {i === 0 ? "▶ " : "· "}{line}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Latest log line */}
-      {gameState?.log?.length > 0 && (
-        <div style={{
-          position: "absolute",
-          bottom: "6px",
-          left: "6px",
-          right: "6px",
-          background: "rgba(0,0,0,0.7)",
-          border: "1px solid rgba(15,23,42,0.8)",
-          padding: "4px 6px",
-          fontFamily: "var(--font-retro)",
-          fontSize: "clamp(4px, 0.65cqw, 6px)",
-          color: "#94a3b8",
-          textAlign: "center",
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-          textOverflow: "ellipsis",
-        }}>
-          <span style={{ color: "#f59e0b" }}>▶ </span>
-          {gameState.log[gameState.log.length - 1]}
+      {/* Lobby branding only (before the game starts) */}
+      {!inPlay && gameState?.phase === "lobby" && (
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.4cqw,12px)", color: "#34d399", fontWeight: "bold", letterSpacing: "0.1em", textShadow: "0 0 8px rgba(52,211,153,0.4)" }}>
+          STONKS &amp; STRATS
         </div>
       )}
-
     </div>
   );
 }

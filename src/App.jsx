@@ -15,6 +15,8 @@ const Settings = lazy(() => import("./components/Settings"));
 const StatsScreen = lazy(() => import("./components/StatsScreen"));
 const PropertyDetailModal = lazy(() => import("./components/Modals").then(m => ({ default: m.PropertyDetailModal })));
 const ManageModal = lazy(() => import("./components/Modals").then(m => ({ default: m.ManageModal })));
+const TradeBroker = lazy(() => import("./components/TradeBroker"));
+const TradeOfferModal = lazy(() => import("./components/TradeBroker").then(m => ({ default: m.TradeOfferModal })));
 
 import { ensureAuth } from "./lib/supabase";
 import {
@@ -31,7 +33,7 @@ import {
 
 import {
   playClick, playRoll, playMove, playBuy, playRent, playWin, playJail,
-  startChiptune, stopChiptune, setMuted, getMuted,
+  stopChiptune, setMuted, getMuted,
 } from "./lib/audio";
 import {
   ConfettiCanvas, diffStates, ANIM, animateDice, animateHop, AnimationQueue,
@@ -80,45 +82,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
 
   // Responsive layout
-  const { isCompact, width: vpWidth, height: vpHeight } = useViewport();
-
-  // Resizable board (desktop). The board is a square flush to the left edge and
-  // the sidebar fills the remaining width. The drag handle resizes the board.
-  const [boardSize, setBoardSize] = useState(() => {
-    const saved = Number(localStorage.getItem("stonks_board_size"));
-    if (saved) return saved;
-    const w = typeof window !== "undefined" ? window.innerWidth : 1280;
-    const h = typeof window !== "undefined" ? window.innerHeight : 800;
-    return Math.max(360, Math.min(h - 44, w - 320));
-  });
-  const draggingRef = useRef(false);
-  useEffect(() => { localStorage.setItem("stonks_board_size", String(boardSize)); }, [boardSize]);
-
-  const startBoardResize = useCallback((e) => {
-    e.preventDefault();
-    draggingRef.current = true;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const onMove = (ev) => {
-      if (!draggingRef.current) return;
-      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-      const maxBoard = Math.min(window.innerHeight - 44, window.innerWidth - 300);
-      setBoardSize(Math.max(360, Math.min(clientX, maxBoard)));
-    };
-    const onUp = () => {
-      draggingRef.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onUp);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onMove, { passive: false });
-    window.addEventListener("touchend", onUp);
-  }, []);
+  const { isCompact } = useViewport();
 
   // Ephemeral live channel state (emotes + lobby chat via Realtime broadcast)
   const [emotes, setEmotes] = useState([]);
@@ -150,6 +114,7 @@ export default function App() {
   // Modal visibility
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [showManage, setShowManage] = useState(false);
+  const [showTrade, setShowTrade] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showConfirmBankruptcy, setShowConfirmBankruptcy] = useState(false);
@@ -333,11 +298,13 @@ export default function App() {
         if (roomRow.game_state && Object.keys(roomRow.game_state).length > 0) {
           syncGameState(roomRow.game_state);
           navigateForState(roomRow.game_state);
-        } else {
-          // Empty state (lobby or host "play again" reset) → back to lobby.
+        } else if (roomRow.status === "lobby") {
+          // Only treat an empty state as "lobby" when the room is actually back in
+          // the lobby (host "play again"). Ignoring transient empty payloads during
+          // an active game prevents players from being bounced out mid-game.
           gameStateRef.current = null;
           setGameState(null);
-          navigateForState(null);
+          setScreen("LOBBY");
         }
       },
       (ps) => setPlayers(ps || [])
@@ -490,8 +457,11 @@ export default function App() {
     const auctionPid = s.phase === "auction" ? s.auction?.active?.[s.auction?.turn_idx] : null;
     const auctionBot = auctionPid ? s.players?.find(p => p.id === auctionPid && p.is_bot) : null;
     const debtorBot = s.phase === "debt" ? s.players?.find(p => p.id === s.debtor_id && p.is_bot) : null;
+    const tradePid = s.pending_trade?.to;
+    const tradeBot = tradePid ? s.players?.find(p => p.id === tradePid && p.is_bot) : null;
 
-    const botId = currentBot?.id ?? auctionBot?.id ?? debtorBot?.id;
+    // A trade aimed at a bot must be answered even when it's a human's turn.
+    const botId = tradeBot?.id ?? currentBot?.id ?? auctionBot?.id ?? debtorBot?.id;
     if (!botId) return;
 
     const decision = getAIDecision(s, botId);
@@ -523,15 +493,17 @@ export default function App() {
     const auctionBot = auctionPid ? gameState.players?.find(p => p.id === auctionPid && p.is_bot) : null;
     const debtorBot = gameState.phase === "debt"
       ? gameState.players?.find(p => p.id === gameState.debtor_id && p.is_bot) : null;
+    const tradePid = gameState.pending_trade?.to;
+    const tradeBot = tradePid ? gameState.players?.find(p => p.id === tradePid && p.is_bot) : null;
 
-    if (!currentBot && !auctionBot && !debtorBot) return;
+    if (!currentBot && !auctionBot && !debtorBot && !tradeBot) return;
 
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
     aiTimerRef.current = setTimeout(processAITurn, randomAIDelay());
 
     return () => { if (aiTimerRef.current) clearTimeout(aiTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.phase, gameState?.current, gameState?.auction?.turn_idx, gameState?.debtor_id, isHost, processAITurn]);
+  }, [gameState?.phase, gameState?.current, gameState?.auction?.turn_idx, gameState?.debtor_id, gameState?.pending_trade?.to, isHost, processAITurn]);
 
   // ── Action dispatch ────────────────────────────────────────────────────────
   const buildEnginePayload = (type, payload) => {
@@ -603,9 +575,10 @@ export default function App() {
     const newState = result.state;
     gameStateRef.current = newState;
     setGameState(newState);
-    await startRoomGame(roomId);
+    // Write the game state BEFORE flipping status to 'playing' so no client ever
+    // sees status=playing with an empty state (which would bounce them to lobby).
     await updateGameState(roomId, newState);
-    startChiptune();
+    await startRoomGame(roomId);
   };
 
   const handleLeaveRoom = async () => {
@@ -882,6 +855,7 @@ export default function App() {
                   else handleAction(act, pay);
                 }}
                 onOpenManage={() => setShowManage(true)}
+                onOpenTrade={() => setShowTrade(true)}
                 onOpenSettings={() => setShowSettings(true)}
               />
             );
@@ -898,39 +872,17 @@ export default function App() {
                 </div>
               );
             }
-            // Desktop: the board is a square flush to the left (no empty bars); the
-            // sidebar fills ALL remaining width. The handle resizes the board.
-            const effBoardSize = Math.max(320, Math.min(boardSize, vpHeight - 44, vpWidth - 300));
+            // Desktop: board is a square flush to the left edge filling the full
+            // height (no empty bars); the sidebar fills ALL remaining width.
             return (
               <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
-                <div style={{ width: `${effBoardSize}px`, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ height: "100%", aspectRatio: "1 / 1", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {spectatorBanner}
-                  <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <div style={{ width: "100%", aspectRatio: "1 / 1", maxHeight: "100%", flexShrink: 0 }}>
-                      {board}
-                    </div>
+                  <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+                    {board}
                   </div>
                 </div>
-                {/* Drag handle — resizes the board, sidebar fills the rest */}
-                <div
-                  onMouseDown={startBoardResize}
-                  onTouchStart={startBoardResize}
-                  title="Drag to resize the board"
-                  style={{
-                    width: "10px", flexShrink: 0, cursor: "col-resize",
-                    background: "rgba(255,179,0,0.18)",
-                    borderLeft: "1px solid rgba(255,179,0,0.3)",
-                    borderRight: "1px solid rgba(255,179,0,0.3)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.4)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,179,0,0.18)"; }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                    {[0, 1, 2].map(i => <div key={i} style={{ width: "3px", height: "3px", borderRadius: "50%", background: "rgba(255,179,0,0.8)" }} />)}
-                  </div>
-                </div>
-                <div style={{ flex: 1, minWidth: "240px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ flex: 1, minWidth: "260px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {sidebar}
                 </div>
               </div>
@@ -982,6 +934,12 @@ export default function App() {
         )}
         {gameState?.phase === "auction" && (
           <Auction gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
+        )}
+        {showTrade && screen === "GAME" && (
+          <TradeBroker gameState={gameState} myPlayerId={playerId} onAction={handleAction} onClose={() => setShowTrade(false)} />
+        )}
+        {gameState?.pending_trade && (
+          <TradeOfferModal gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
         )}
         {showSettings && (
           <Settings

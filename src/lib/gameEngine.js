@@ -1102,6 +1102,23 @@ export function getAIDecision(state, botId) {
   const isCurrentPlayer = getCurrentPlayerId(state) === botId;
   const prof = aiProfile(bot);
 
+  // Respond to a trade offer aimed at this bot — can arrive on any player's turn.
+  if (state.pending_trade && state.pending_trade.to === botId) {
+    const offer = state.pending_trade.offer || {};
+    const val = (tids) => (tids || []).reduce((sum, tid) => {
+      const t = TILES.find(x => x.id === tid);
+      if (!t) return sum;
+      return sum + (state.mortgaged.includes(tid) ? t.mortgage : t.price);
+    }, 0);
+    const receives = (offer.from_money || 0) + val(offer.from_properties) + (offer.from_cards || 0) * 50;
+    const gives = (offer.to_money || 0) + val(offer.to_properties) + (offer.to_cards || 0) * 50;
+    const affordable = bot.money >= (offer.to_money || 0);
+    // hard bots accept slightly unfavorable deals (to complete groups); easy are strict.
+    const threshold = prof.maxHouses >= 5 ? -40 : prof.maxHouses >= 4 ? 0 : 30;
+    const accept = affordable && (receives - gives) >= threshold;
+    return { type: 'respond_trade', payload: { playerId: botId, accept } };
+  }
+
   if (phase === 'turn' && isCurrentPlayer) {
     if (bot.in_jail) {
       const fine = hr(state).jail_fine ?? 50;

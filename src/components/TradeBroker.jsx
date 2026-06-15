@@ -1,309 +1,199 @@
 import { useState } from "react";
-import { TILES } from "../boardData";
+import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { playClick } from "../lib/audio";
-import { TradeIcon, DollarIcon, PlayIcon, CloseIcon } from "../lib/icons";
+import { TradeIcon, CloseIcon } from "../lib/icons";
 
-export default function TradeBroker({ gameState, myPlayerId, onAction }) {
-  const [targetPid, setTargetPid] = useState("");
-  const [myCash, setMyCash] = useState(0);
-  const [theirCash, setTheirCash] = useState(0);
-  const [myCards, setMyCards] = useState(0);
-  const [theirCards, setTheirCards] = useState(0);
-  const [myProps, setMyProps] = useState([]);
-  const [theirProps, setTheirProps] = useState([]);
+const tokenColor = (p) => p?.token_color || TOKEN_COLORS[p?.token_shape || p?.token] || "#38bdf8";
+const tileColor = (tid) => {
+  const t = TILES.find(x => x.id === tid);
+  if (!t) return "#64748b";
+  if (t.type === "railroad") return "#cbd5e1";
+  if (t.type === "utility") return "#94a3b8";
+  return GROUP_COLORS[t.group] || "#64748b";
+};
+const tileName = (tid) => TILES.find(x => x.id === tid)?.name || `#${tid}`;
 
-  const pendingTrade = gameState?.pending_trade;
+// Small property chip toggle
+function PropChip({ tid, selected, disabled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={disabled ? "Sell its houses before trading" : tileName(tid)}
+      style={{
+        display: "flex", alignItems: "center", gap: "5px",
+        padding: "5px 7px", textAlign: "left", width: "100%",
+        fontFamily: "var(--font-retro)", fontSize: "9px",
+        background: selected ? "rgba(52,211,153,0.16)" : "rgba(255,255,255,0.03)",
+        border: `1px solid ${selected ? "rgba(52,211,153,0.6)" : "rgba(255,255,255,0.08)"}`,
+        color: disabled ? "#475569" : selected ? "#e5e7eb" : "#94a3b8",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <span style={{ width: "6px", height: "12px", background: tileColor(tid), flexShrink: 0 }} />
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tileName(tid)}</span>
+    </button>
+  );
+}
 
-  // Render current pending trade decision if one exists
-  if (pendingTrade) {
-    const fromPlayer = gameState.players.find(p => p.id === pendingTrade.from);
-    const toPlayer = gameState.players.find(p => p.id === pendingTrade.to);
-    const offer = pendingTrade.offer;
+// ── Pending-offer modal: always mounted by App so incoming offers are never missed ──
+export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
+  const pending = gameState?.pending_trade;
+  if (!pending) return null;
 
-    const isTarget = pendingTrade.to === myPlayerId;
-    const isProposer = pendingTrade.from === myPlayerId;
+  const fromP = gameState.players.find(p => p.id === pending.from);
+  const toP = gameState.players.find(p => p.id === pending.to);
+  const offer = pending.offer || {};
+  const isTarget = pending.to === myPlayerId;
+  const isProposer = pending.from === myPlayerId;
 
-    const handleRespond = (accept) => {
-      playClick();
-      if (!onAction) return;
-      onAction("respond_trade", { accept });
-    };
-
-    const handleCancel = () => {
-      playClick();
-      if (!onAction) return;
-      onAction("cancel_trade", {});
-    };
-
-    return (
-      <div className="fixed inset-0 z-[7500] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-scale-up">
-        <div className="glass-card w-full max-w-lg p-6 border-t-4 border-cyan-500">
-          <h2 className="font-mono text-xs text-cyan-400 font-bold mb-4 tracking-widest text-center uppercase flex items-center justify-center gap-1.5">
-            <TradeIcon size={12} /> PENDING TRADE PROPOSAL
-          </h2>
-
-          <div className="grid grid-cols-2 gap-4 font-mono text-[10px] text-slate-300 mb-6">
-            {/* Proposer Offer */}
-            <div className="bg-black/40 p-3 border border-slate-900 rounded">
-              <div className="font-bold text-sky-400 mb-1">{fromPlayer?.name}'S OFFER:</div>
-              <div className="text-emerald-400 font-bold mb-2">+ ${offer.from_money}</div>
-              {offer.from_cards > 0 && <div className="text-amber-400 mb-2">+ {offer.from_cards} Jail Card(s)</div>}
-              <div className="border-t border-slate-900 pt-2 flex flex-col gap-1 max-h-[100px] overflow-y-auto">
-                {offer.from_properties.length > 0 ? (
-                  offer.from_properties.map(tid => (
-                    <div key={tid} className="truncate text-slate-400">- {TILES[tid].name}</div>
-                  ))
-                ) : (
-                  <span className="italic text-slate-600">No properties</span>
-                )}
-              </div>
-            </div>
-
-            {/* Target Request */}
-            <div className="bg-black/40 p-3 border border-slate-900 rounded">
-              <div className="font-bold text-amber-400 mb-1">{toPlayer?.name}'S OFFER:</div>
-              <div className="text-emerald-400 font-bold mb-2">+ ${offer.to_money}</div>
-              {offer.to_cards > 0 && <div className="text-amber-400 mb-2">+ {offer.to_cards} Jail Card(s)</div>}
-              <div className="border-t border-slate-900 pt-2 flex flex-col gap-1 max-h-[100px] overflow-y-auto">
-                {offer.to_properties.length > 0 ? (
-                  offer.to_properties.map(tid => (
-                    <div key={tid} className="truncate text-slate-400">- {TILES[tid].name}</div>
-                  ))
-                ) : (
-                  <span className="italic text-slate-600">No properties</span>
-                )}
-              </div>
-            </div>
+  const Side = ({ title, color, money, cards, props }) => (
+    <div style={{ flex: 1, minWidth: "150px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color, fontWeight: "bold", marginBottom: "8px" }}>{title}</div>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#34d399", marginBottom: "4px" }}>${(money || 0).toLocaleString()}</div>
+      {cards > 0 && <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#fbbf24", marginBottom: "4px" }}>{cards}× Jail card</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
+        {(props || []).length ? props.map(tid => (
+          <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "9px", color: "#cbd5e1" }}>
+            <span style={{ width: "5px", height: "10px", background: tileColor(tid) }} /> {tileName(tid)}
           </div>
-
-          {/* Action buttons based on identity */}
-          <div className="flex justify-center gap-4">
-            {isTarget ? (
-              <>
-                <button 
-                  onClick={() => handleRespond(true)}
-                  className="btn-retro btn-retro-green flex-1"
-                >
-                  <PlayIcon size={10} className="mr-1" /> ACCEPT TRADE
-                </button>
-                <button 
-                  onClick={() => handleRespond(false)}
-                  className="btn-retro btn-retro-red flex-1"
-                >
-                  <CloseIcon size={10} className="mr-1" /> REJECT TRADE
-                </button>
-              </>
-            ) : isProposer ? (
-              <button 
-                onClick={handleCancel}
-                className="btn-retro btn-retro-red w-full"
-              >
-                <CloseIcon size={10} className="mr-1" /> WITHDRAW TRADE PROPOSAL
-              </button>
-            ) : (
-              <div className="font-mono text-[9px] text-slate-500 italic text-center py-2 animate-pulse w-full">
-                Waiting for {toPlayer?.name} to respond to {fromPlayer?.name}'s trade proposal...
-              </div>
-            )}
-          </div>
-        </div>
+        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>nothing</span>}
       </div>
-    );
-  }
+    </div>
+  );
 
-  // Otherwise, render trade creation panel
-  const myPlayer = gameState?.players?.find(p => p.id === myPlayerId);
-  const otherActivePlayers = gameState?.players?.filter(p => !p.bankrupt && p.id !== myPlayerId) || [];
+  return (
+    <div className="fixed inset-0 z-[7500] flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px" }}>
+      <div className="glass-card" style={{ width: "min(94vw, 480px)", padding: "20px", borderTop: "4px solid #22d3ee" }}>
+        <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#22d3ee", fontWeight: "bold", textAlign: "center", letterSpacing: "0.15em", marginBottom: "14px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+          <TradeIcon size={13} /> TRADE OFFER
+        </h2>
+        <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
+          <Side title={`${fromP?.name} GIVES`} color={tokenColor(fromP)} money={offer.from_money} cards={offer.from_cards} props={offer.from_properties} />
+          <Side title={`${toP?.name} GIVES`} color={tokenColor(toP)} money={offer.to_money} cards={offer.to_cards} props={offer.to_properties} />
+        </div>
+        {isTarget ? (
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✓ ACCEPT</button>
+            <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✕ REJECT</button>
+          </div>
+        ) : isProposer ? (
+          <button onClick={() => { playClick(); onAction("cancel_trade", {}); }} className="btn-retro btn-retro-red" style={{ width: "100%", fontSize: "10px", padding: "10px" }}>
+            <CloseIcon size={10} className="mr-1" /> WITHDRAW OFFER
+          </button>
+        ) : (
+          <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#64748b", textAlign: "center", padding: "8px" }}>
+            Waiting for {toP?.name} to respond…
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-  if (otherActivePlayers.length === 0) return null;
+// ── Trade builder: a clean centered modal opened from the sidebar ──
+export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }) {
+  const [targetPid, setTargetPid] = useState("");
+  const [give, setGive] = useState({ cash: 0, cards: 0, props: [] });
+  const [get, setGet] = useState({ cash: 0, cards: 0, props: [] });
 
-  const targetPlayer = gameState?.players?.find(p => p.id === targetPid);
+  const me = gameState?.players?.find(p => p.id === myPlayerId);
+  const others = gameState?.players?.filter(p => !p.bankrupt && p.id !== myPlayerId) || [];
+  const target = gameState?.players?.find(p => p.id === targetPid);
 
-  const handleToggleMyProp = (tid) => {
-    setMyProps(prev => prev.includes(tid) ? prev.filter(x => x !== tid) : [...prev, tid]);
+  const isImproved = (tid) => (gameState?.houses?.[tid.toString()] || 0) > 0;
+  const toggle = (side, setSide, tid) => {
+    setSide(s => ({ ...s, props: s.props.includes(tid) ? s.props.filter(x => x !== tid) : [...s.props, tid] }));
   };
+  const clampCash = (v, max) => Math.max(0, Math.min(max, parseInt(v, 10) || 0));
 
-  const handleToggleTheirProp = (tid) => {
-    setTheirProps(prev => prev.includes(tid) ? prev.filter(x => x !== tid) : [...prev, tid]);
-  };
+  const hasOffer = give.cash || get.cash || give.cards || get.cards || give.props.length || get.props.length;
 
-  const handlePropose = () => {
+  const propose = () => {
     playClick();
-    if (!onAction || targetPid === "") return;
-
+    if (!target || !hasOffer) return;
     onAction("propose_trade", {
       toId: targetPid,
       offer: {
-        from_properties: myProps,
-        to_properties: theirProps,
-        from_money: myCash,
-        to_money: theirCash,
-        from_cards: myCards,
-        to_cards: theirCards,
+        from_properties: give.props, to_properties: get.props,
+        from_money: give.cash, to_money: get.cash,
+        from_cards: give.cards, to_cards: get.cards,
       },
     });
-
-    // Reset local creator inputs
-    setMyCash(0);
-    setTheirCash(0);
-    setMyCards(0);
-    setTheirCards(0);
-    setMyProps([]);
-    setTheirProps([]);
+    onClose?.();
   };
 
-  return (
-    <div id="trade-broker-panel" className="glass-card p-4 border border-slate-800 flex flex-col gap-4">
-      <h3 className="font-mono text-[10px] text-sky-400 font-bold tracking-wider uppercase flex items-center gap-1.5">
-        <TradeIcon size={11} /> TRADE BROKER TERMINAL
-      </h3>
-
-      {/* Select opponent */}
-      <div className="flex flex-col gap-1 font-mono text-[9px] text-slate-400">
-        <span>SELECT PARTNER PLAYER:</span>
-        <select
-          value={targetPid}
-          onChange={e => { setTargetPid(e.target.value); setTheirProps([]); setTheirCash(0); setTheirCards(0); }}
-          className="retro-input bg-slate-950 font-mono text-[10px] text-slate-300 w-full"
-        >
-          <option value="">Choose partner...</option>
-          {otherActivePlayers.map(p => (
-            <option key={p.id} value={p.id}>{p.name} ({p.token})</option>
-          ))}
-        </select>
+  const Column = ({ title, color, player, side, setSide }) => (
+    <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color, fontWeight: "bold" }}>{title}</div>
+      <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
+        CASH (max ${player.money.toLocaleString()})
+        <input type="number" value={side.cash} min={0} max={player.money}
+          onChange={e => setSide(s => ({ ...s, cash: clampCash(e.target.value, player.money) }))}
+          className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
+      </label>
+      {player.jail_cards > 0 && (
+        <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
+          JAIL CARDS (max {player.jail_cards})
+          <input type="number" value={side.cards} min={0} max={player.jail_cards}
+            onChange={e => setSide(s => ({ ...s, cards: clampCash(e.target.value, player.jail_cards) }))}
+            className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
+        </label>
+      )}
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>PROPERTIES</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "180px", overflowY: "auto" }}>
+        {player.properties.length ? player.properties.map(tid => (
+          <PropChip key={tid} tid={tid} selected={side.props.includes(tid)} disabled={isImproved(tid)}
+            onClick={() => toggle(side, setSide, tid)} />
+        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>none owned</span>}
       </div>
+    </div>
+  );
 
-      {targetPlayer && myPlayer && (
-        <div className="grid grid-cols-2 gap-4 font-mono text-[9px] text-slate-300">
-          {/* My Side */}
-          <div className="flex flex-col gap-3 p-2 border border-slate-900 rounded bg-slate-950/20">
-            <div className="font-bold text-sky-400 truncate">YOU OFFER:</div>
-            
-            {/* Money input */}
-            <div className="flex flex-col gap-1">
-              <span>CASH ($0 - ${myPlayer.money}):</span>
-              <div className="relative flex items-center">
-                <span className="absolute left-2.5 text-slate-500 font-mono text-[9px] flex items-center"><DollarIcon size={10} /></span>
-                <input
-                  type="number"
-                  value={myCash}
-                  onChange={e => setMyCash(Math.max(0, Math.min(myPlayer.money, parseInt(e.target.value, 10) || 0)))}
-                  className="retro-input bg-slate-950 p-1 pl-6 text-[9px] w-full"
-                />
-              </div>
-            </div>
-
-            {/* Jail card input */}
-            {myPlayer.jail_cards > 0 && (
-              <div className="flex flex-col gap-1">
-                <span>JAIL CARDS (0 - {myPlayer.jail_cards}):</span>
-                <input
-                  type="number"
-                  value={myCards}
-                  onChange={e => setMyCards(Math.max(0, Math.min(myPlayer.jail_cards, parseInt(e.target.value, 10) || 0)))}
-                  className="retro-input bg-slate-950 p-1 text-[9px] w-full"
-                />
-              </div>
-            )}
-
-            {/* Properties checklist */}
-            <div className="flex flex-col gap-1">
-              <span>PROPERTIES:</span>
-              <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto pr-1">
-                {myPlayer.properties.length > 0 ? (
-                  myPlayer.properties.map(tid => {
-                    // Check if improved (Monopoly properties with houses cannot be traded)
-                    const isImproved = (gameState?.houses?.[tid.toString()] || 0) > 0;
-                    return (
-                      <label key={tid} className="flex items-center gap-1.5 cursor-pointer text-[8px] truncate">
-                        <input
-                          type="checkbox"
-                          checked={myProps.includes(tid)}
-                          disabled={isImproved}
-                          onChange={() => handleToggleMyProp(tid)}
-                        />
-                        <span className={isImproved ? "text-slate-600 line-through" : ""}>
-                          {TILES[tid].name} {isImproved && "(Improved)"}
-                        </span>
-                      </label>
-                    );
-                  })
-                ) : (
-                  <span className="italic text-slate-600">None owned</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Their Side */}
-          <div className="flex flex-col gap-3 p-2 border border-slate-900 rounded bg-slate-950/20">
-            <div className="font-bold text-amber-400 truncate">{targetPlayer.name} OFFERS:</div>
-            
-            {/* Money input */}
-            <div className="flex flex-col gap-1">
-              <span>CASH ($0 - ${targetPlayer.money}):</span>
-              <div className="relative flex items-center">
-                <span className="absolute left-2.5 text-slate-500 font-mono text-[9px] flex items-center"><DollarIcon size={10} /></span>
-                <input
-                  type="number"
-                  value={theirCash}
-                  onChange={e => setTheirCash(Math.max(0, Math.min(targetPlayer.money, parseInt(e.target.value, 10) || 0)))}
-                  className="retro-input bg-slate-950 p-1 pl-6 text-[9px] w-full"
-                />
-              </div>
-            </div>
-
-            {/* Jail card input */}
-            {targetPlayer.jail_cards > 0 && (
-              <div className="flex flex-col gap-1">
-                <span>JAIL CARDS (0 - {targetPlayer.jail_cards}):</span>
-                <input
-                  type="number"
-                  value={theirCards}
-                  onChange={e => setTheirCards(Math.max(0, Math.min(targetPlayer.jail_cards, parseInt(e.target.value, 10) || 0)))}
-                  className="retro-input bg-slate-950 p-1 text-[9px] w-full"
-                />
-              </div>
-            )}
-
-            {/* Properties checklist */}
-            <div className="flex flex-col gap-1">
-              <span>PROPERTIES:</span>
-              <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto pr-1">
-                {targetPlayer.properties.length > 0 ? (
-                  targetPlayer.properties.map(tid => {
-                    const isImproved = (gameState?.houses?.[tid.toString()] || 0) > 0;
-                    return (
-                      <label key={tid} className="flex items-center gap-1.5 cursor-pointer text-[8px] truncate">
-                        <input
-                          type="checkbox"
-                          checked={theirProps.includes(tid)}
-                          disabled={isImproved}
-                          onChange={() => handleToggleTheirProp(tid)}
-                        />
-                        <span className={isImproved ? "text-slate-600 line-through" : ""}>
-                          {TILES[tid].name} {isImproved && "(Improved)"}
-                        </span>
-                      </label>
-                    );
-                  })
-                ) : (
-                  <span className="italic text-slate-600">None owned</span>
-                )}
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="fixed inset-0 z-[7400] flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px" }}>
+      <div className="glass-card" style={{ width: "min(96vw, 560px)", maxHeight: "90vh", overflowY: "auto", padding: "18px", borderTop: "4px solid #38bdf8" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+          <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
+            <TradeIcon size={13} /> PROPOSE A TRADE
+          </h2>
+          <button onClick={() => { playClick(); onClose?.(); }} style={{ background: "none", border: "none", cursor: "pointer" }}><CloseIcon size={14} color="#64748b" /></button>
         </div>
-      )}
 
-      {targetPlayer && (
-        <button
-          onClick={handlePropose}
-          className="btn-retro btn-retro-green w-full font-bold text-center mt-2"
-        >
-          <PlayIcon size={10} className="mr-1" /> SEND TRADE PROPOSAL
+        {/* Partner picker */}
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b", marginBottom: "6px" }}>TRADE WITH</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
+          {others.map(p => {
+            const sel = p.id === targetPid;
+            return (
+              <button key={p.id} onClick={() => { playClick(); setTargetPid(p.id); setGet({ cash: 0, cards: 0, props: [] }); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px",
+                  fontFamily: "var(--font-retro)", fontSize: "9px",
+                  background: sel ? `${tokenColor(p)}22` : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${sel ? tokenColor(p) : "rgba(255,255,255,0.1)"}`,
+                  color: sel ? "#fff" : "#94a3b8", cursor: "pointer",
+                }}>
+                <span style={{ width: "9px", height: "9px", background: tokenColor(p) }} />
+                {p.name}{p.is_bot ? " [AI]" : ""}
+              </button>
+            );
+          })}
+        </div>
+
+        {target && me && (
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "14px" }}>
+            <Column title="YOU GIVE" color="#38bdf8" player={me} side={give} setSide={setGive} />
+            <Column title={`${target.name} GIVES`} color="#fbbf24" player={target} side={get} setSide={setGet} />
+          </div>
+        )}
+
+        <button onClick={propose} disabled={!target || !hasOffer}
+          className="btn-retro btn-retro-green" style={{ width: "100%", fontSize: "11px", padding: "12px", fontWeight: "bold", opacity: (!target || !hasOffer) ? 0.4 : 1 }}>
+          <TradeIcon size={11} className="mr-1" /> SEND OFFER
         </button>
-      )}
+      </div>
     </div>
   );
 }

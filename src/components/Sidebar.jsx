@@ -3,7 +3,6 @@ import { TOKEN_COLORS } from "../boardData";
 import { ManageIcon, TradeIcon, SettingsIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 import { calcNetWorth } from "../lib/gameEngine";
-import TradeBroker from "./TradeBroker";
 import { EmoteBar } from "./Emotes";
 
 // Condense raw log lines into a deduped, concise activity stream for the feed.
@@ -116,10 +115,10 @@ export default function Sidebar({
   onAction,
   onEmote,
   onOpenManage,
+  onOpenTrade,
   onOpenSettings,
 }) {
   const [chatInput, setChatInput] = useState("");
-  const [tradeOpen, setTradeOpen] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const chatEndRef = useRef(null);
 
@@ -325,8 +324,8 @@ export default function Sidebar({
                   <ManageIcon size={10} /><span>PORTFOLIO</span>
                 </Btn>
                 <Btn
-                  style={{ flex: 1, fontSize: "9px", padding: "8px 4px", ...(tradeOpen ? { borderColor: "rgba(251,191,36,0.5)", color: "#fbbf24" } : {}) }}
-                  onClick={() => { playClick(); setTradeOpen(v => !v); }}
+                  style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }}
+                  onClick={() => { playClick(); onOpenTrade?.(); }}
                   disabled={activeOpponents.length === 0 || inDebt}
                 >
                   <TradeIcon size={10} /><span>TRADE</span>
@@ -358,12 +357,6 @@ export default function Sidebar({
         </>
       )}
 
-      {/* ── TRADE DESK (inline, expandable) ───────────────────── */}
-      {tradeOpen && !isBankrupt && (
-        <div style={{ flexShrink: 0, borderTop: "1px solid rgba(251,191,36,0.15)", background: "rgba(0,0,0,0.25)" }}>
-          <TradeBroker gameState={gameState} myPlayerId={myPlayerId} onAction={onAction} />
-        </div>
-      )}
 
       {/* ── LIVE FEED ─────────────────────────────────────────── */}
       <div className="mk-section">
