@@ -168,8 +168,8 @@ export default function Board({ gameState, myPlayerId, onTileClick, renderedPosi
     <div style={{
       containerType: "inline-size",
       /* Fill the parent container (containerType: size) as a square */
-      width: "min(100cqw, 100cqh)",
-      height: "min(100cqw, 100cqh)",
+      width: "100%",
+      height: "100%",
       display: "grid",
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",

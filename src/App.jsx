@@ -637,67 +637,44 @@ export default function App() {
           )}
 
           {screen === "GAME" && gameState && (
-            <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
-              {/* Main area: board + sidebar */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "row", overflow: "hidden", minHeight: 0 }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-                  {isBankrupt && (
-                    <div style={{ flexShrink: 0, padding: "5px 10px", background: "rgba(69,10,10,0.3)", border: "none", borderBottom: "1px solid rgba(239,68,68,0.3)", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#f87171", textAlign: "center", letterSpacing: "0.1em" }}>
-                      <BankruptcyIcon size={10} color="#EF4444" /> YOU ARE BANKRUPT — SPECTATING
-                    </div>
-                  )}
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", containerType: "size", padding: "4px" }}>
-                    <Board
-                      gameState={gameState}
-                      myPlayerId={playerId}
-                      onTileClick={tid => setSelectedTileId(tid)}
-                      renderedPositions={renderedPositions}
-                      animationsBusy={animationsBusy}
-                      onSkipAnimations={handleSkipAnimations}
-                    />
+            <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
+              {/* Board column — square sized by height, no centering gaps */}
+              <div style={{ flexShrink: 0, height: "100%", aspectRatio: "1 / 1", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {isBankrupt && (
+                  <div style={{ flexShrink: 0, padding: "5px 10px", background: "rgba(69,10,10,0.3)", borderBottom: "1px solid rgba(239,68,68,0.3)", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#f87171", textAlign: "center", letterSpacing: "0.1em" }}>
+                    <BankruptcyIcon size={10} color="#EF4444" /> YOU ARE BANKRUPT — SPECTATING
                   </div>
-                </div>
-                <div style={{ width: "300px", flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  <Sidebar
+                )}
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <Board
                     gameState={gameState}
                     myPlayerId={playerId}
-                    playerName={playerName}
-                    animDice={animDice}
+                    onTileClick={tid => setSelectedTileId(tid)}
+                    renderedPositions={renderedPositions}
                     animationsBusy={animationsBusy}
-                    isHost={isHost}
-                    onEndGame={handleEndGame}
-                    onAction={(act, pay) => {
-                      if (act === "declare_bankruptcy") handleBankruptcyClick();
-                      else handleAction(act, pay);
-                    }}
-                    onOpenManage={() => setShowManage(true)}
-                    onOpenSettings={() => setShowSettings(true)}
                     onSkipAnimations={handleSkipAnimations}
                   />
                 </div>
               </div>
-              {/* News ticker */}
-              {gameState.log?.length > 0 && (() => {
-                const tickerEntries = gameState.log.slice(-12);
-                const doubled = [...tickerEntries, ...tickerEntries]; // duplicate for seamless loop
-                return (
-                  <div style={{ height: "26px", borderTop: "1px solid rgba(255,179,0,0.15)", background: "#020307", display: "flex", alignItems: "center", overflow: "hidden", flexShrink: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 8px", borderRight: "1px solid rgba(255,179,0,0.2)", flexShrink: 0 }}>
-                      <span style={{ width: "5px", height: "5px", background: "#22c55e", borderRadius: "50%", display: "inline-block", animation: "pulse-anim 2s infinite", flexShrink: 0 }} />
-                      <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#FFB300", letterSpacing: "0.12em" }}>FEED</span>
-                    </div>
-                    <div className="news-ticker-wrap">
-                      <div key={gameState.log.length} className="news-ticker-track" style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#64748b" }}>
-                        {doubled.map((entry, i) => (
-                          <span key={i} style={{ padding: "0 24px" }}>
-                            <span style={{ color: "#334155" }}>▶</span> {entry}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+              {/* Sidebar — fills remaining width */}
+              <div style={{ flex: 1, minWidth: "260px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <Sidebar
+                  gameState={gameState}
+                  myPlayerId={playerId}
+                  playerName={playerName}
+                  animDice={animDice}
+                  animationsBusy={animationsBusy}
+                  isHost={isHost}
+                  onEndGame={handleEndGame}
+                  onAction={(act, pay) => {
+                    if (act === "declare_bankruptcy") handleBankruptcyClick();
+                    else handleAction(act, pay);
+                  }}
+                  onOpenManage={() => setShowManage(true)}
+                  onOpenSettings={() => setShowSettings(true)}
+                  onSkipAnimations={handleSkipAnimations}
+                />
+              </div>
             </div>
           )}
 
