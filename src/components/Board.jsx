@@ -90,7 +90,11 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
   const displayDice = animDice || gameState?.dice;
   const speedDie = gameState?.speed_die;
   const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
-  const status = gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" };
+  // While the dice/token are still animating, never reveal the outcome (e.g.
+  // "can buy …") — keep the suspense until the token actually lands.
+  const status = animationsBusy
+    ? { headline: `${currentPlayer?.name || "—"} is rolling`, sub: "Where will the token land?" }
+    : (gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" });
   const latest = (gameState?.log || []).slice(-1)[0];
   const land = inPlay ? landingInfo(gameState, landing) : null;
 
@@ -122,12 +126,15 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
       <>
       {/* Headline status */}
       <div style={{
-        textAlign: "center", background: "rgba(0,0,0,0.55)",
-        border: `1px solid ${accent}55`, borderTop: `3px solid ${accent}`,
-        padding: "clamp(10px,2.2cqw,20px) clamp(14px,3cqw,28px)", maxWidth: "94%",
+        textAlign: "center",
+        background: "linear-gradient(180deg, rgba(6,8,14,0.75), rgba(0,0,0,0.5))",
+        border: `1px solid ${accent}40`, borderTop: `3px solid ${accent}`, borderRadius: "8px",
+        padding: "clamp(10px,2.2cqw,20px) clamp(14px,3cqw,28px)", maxWidth: "96%", minWidth: "62%",
+        boxShadow: `0 0 26px ${accent}22, inset 0 0 30px rgba(0,0,0,0.5)`,
       }}>
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.1cqw,10px)", color: "#64748b", letterSpacing: "0.2em", marginBottom: "8px" }}>
-          ◆ LIVE STATUS ◆
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "9px" }}>
+          <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}`, animation: "pulse-anim 1.8s infinite" }} />
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,9px)", color: "#64748b", letterSpacing: "0.25em" }}>LIVE STATUS</span>
         </div>
         <div style={{
           fontFamily: "var(--font-retro)", fontSize: "clamp(12px,2.6cqw,24px)", fontWeight: "bold",
@@ -139,6 +146,20 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
         <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.5cqw,13px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
           {status.sub}
         </div>
+        {inPlay && latest && !animationsBusy && (
+          <div style={{ marginTop: "11px", paddingTop: "9px", borderTop: `1px solid ${accent}22` }}>
+            <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.85cqw,8px)", color: accent, letterSpacing: "0.2em", marginBottom: "4px", opacity: 0.8 }}>
+              ▶ LAST MOVE
+            </div>
+            <div key={latest} className="feed-in" style={{
+              fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.25cqw,11px)", color: "#cbd5e1",
+              lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box",
+              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            }}>
+              {latest}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Center dice */}
@@ -173,17 +194,6 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
               SKIP ▶▶
             </button>
           )}
-        </div>
-      )}
-
-      {/* Single latest news line */}
-      {inPlay && latest && (
-        <div style={{
-          fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.2cqw,11px)",
-          color: "#cbd5e1", maxWidth: "94%",
-          overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", textAlign: "center",
-        }}>
-          ▶ {latest}
         </div>
       )}
 

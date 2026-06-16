@@ -462,29 +462,6 @@ export default function Sidebar({
       )}
 
 
-      {/* ── MINIMIZED LIVE FEED (latest 2 lines) ──────────────── */}
-      <div className="mk-section">
-        <span>LIVE FEED</span>
-        <span style={{ width: "6px", height: "6px", background: "#22c55e", borderRadius: "50%", display: "inline-block", animation: "pulse-anim 2s infinite" }} />
-      </div>
-      <div style={{ flexShrink: 0, padding: "4px 10px", display: "flex", flexDirection: "column", gap: "0", maxHeight: "52px", overflow: "hidden" }}>
-        {abstractFeed(log).slice(0, 2).map((g, i) => {
-          const { icon, color } = feedCategory(g.text);
-          return (
-            <div key={g.key} className="feed-in" style={{
-              fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.2vw,10px)",
-              color: i === 0 ? "#e5e7eb" : "#6b7280", lineHeight: "1.6",
-              display: "flex", gap: "4px", alignItems: "flex-start",
-              overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
-            }}>
-              <span style={{ color: i === 0 ? color : `${color}70`, flexShrink: 0 }}>{icon}</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{g.text}</span>
-              {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "8px" }}>×{g.count}</span>}
-            </div>
-          );
-        })}
-      </div>
-
       {/* ── TABS: PORTFOLIO | TERMINAL (inline, no popups) ─────── */}
       <div style={{ display: "flex", flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.12)", borderBottom: "1px solid rgba(255,179,0,0.12)" }}>
         {[["terminal", "TERMINAL"], ["portfolio", "PORTFOLIO"]].map(([id, label]) => (
@@ -509,10 +486,29 @@ export default function Sidebar({
           </div>
         ) : (
           <>
-            {/* Chat / event terminal */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "5px 10px", scrollbarWidth: "thin", scrollbarColor: "rgba(255,179,0,0.12) transparent" }}>
+            {/* Activity log (events) */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "5px 10px", scrollbarWidth: "thin", scrollbarColor: "rgba(255,179,0,0.12) transparent", minHeight: "60px" }}>
+              {abstractFeed(log).map((g, i) => {
+                const { icon, color } = feedCategory(g.text);
+                const isLatest = i === 0;
+                return (
+                  <div key={g.key} className="feed-in" style={{
+                    fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.25vw,10px)",
+                    color: isLatest ? "#e5e7eb" : i < 4 ? "#6b7280" : "#374151", lineHeight: "1.6",
+                    borderLeft: `2px solid ${isLatest ? color : i < 4 ? `${color}40` : "rgba(255,255,255,0.03)"}`,
+                    paddingLeft: "6px", display: "flex", gap: "4px", alignItems: "flex-start",
+                  }}>
+                    <span style={{ color: isLatest ? color : `${color}60`, flexShrink: 0 }}>{icon}</span>
+                    <span style={{ wordBreak: "break-word", flex: 1 }}>{g.text}</span>
+                    {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "8px" }}>×{g.count}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Chat stream */}
+            <div style={{ flexShrink: 0, maxHeight: "96px", overflowY: "auto", padding: "4px 10px", borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.2)", scrollbarWidth: "thin" }}>
               {chatLog.length === 0 && (
-                <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>Terminal ready — say something…</div>
+                <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>Say something…</div>
               )}
               {chatLog.slice(-60).map((c, i) => (
                 <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3vw,11px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
