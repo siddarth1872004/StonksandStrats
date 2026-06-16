@@ -442,30 +442,36 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
               }}>
                 {playersHere.map(p => {
                   const isActive = p.id === currentTurnPlayerId && gameState?.winner === null;
+                  const isMoving = !!movingPids[p.id];
                   const col = p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8";
                   // Choose a state-specific animation: moving > money fx > idle (active).
-                  const fx = movingPids[p.id] ? "token-moving"
+                  const fx = isMoving ? "token-moving"
                     : tokenFx[p.id] === "gain" ? "token-gain"
                     : tokenFx[p.id] === "loss" ? "token-paying"
                     : isActive ? "token-idle"
                     : "token-hop";
-                  const glow = movingPids[p.id]
-                    ? `0 0 9px 3px ${col}`
-                    : tokenFx[p.id] === "gain" ? "0 0 9px 3px #34d399"
-                    : tokenFx[p.id] === "loss" ? "0 0 9px 3px #f87171"
-                    : isActive ? `0 0 7px 2px ${col}` : "none";
+                  const glow = isMoving
+                    ? `0 0 10px 3px ${col}`
+                    : tokenFx[p.id] === "gain" ? "0 0 10px 3px #34d399"
+                    : tokenFx[p.id] === "loss" ? "0 0 10px 3px #f87171"
+                    : "none";
+                  // The active piece gets a pulsing colored halo ring (color via
+                  // currentColor) — but never while it's mid-move (the ring would
+                  // smear the bounce); the moving glow covers that case.
+                  const ringClass = isActive && !isMoving ? " token-active" : "";
                   return (
                     <div
                       key={p.id}
-                      className={fx}
+                      className={"token-piece" + ringClass}
+                      title={`${p.name} · $${(p.money ?? 0).toLocaleString()}`}
                       style={{
-                        width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0,
-                        borderRadius: "50%",
-                        boxShadow: glow,
-                        transition: "box-shadow 0.2s",
+                        width: "clamp(11px, 2.9cqw, 22px)", height: "clamp(11px, 2.9cqw, 22px)", flexShrink: 0,
+                        color: col,
                       }}
                     >
-                      <TokenIcon name={p.token_shape || p.token} color={col} size="100%" />
+                      <div className={"token-fx " + fx} style={{ boxShadow: glow }}>
+                        <TokenIcon name={p.token_shape || p.token} color={col} size="100%" />
+                      </div>
                     </div>
                   );
                 })}

@@ -141,6 +141,7 @@ export default function App() {
   const [landing, setLanding] = useState(null);      // { pid, tileId, key } center card
   const landingTimerRef = useRef(null);
   const animQueueRef = useRef(null);
+  const animationsBusyRef = useRef(false);
 
   // Client visual settings
   const [scanlinesActive, setScanlinesActive] = useState(
@@ -190,7 +191,7 @@ export default function App() {
 
   useEffect(() => {
     const q = new AnimationQueue();
-    q.onBusyChange(setAnimationsBusy);
+    q.onBusyChange((b) => { animationsBusyRef.current = b; setAnimationsBusy(b); });
     animQueueRef.current = q;
   }, []);
 
@@ -274,6 +275,10 @@ export default function App() {
           q.enqueue(qInst => animateDice(ev.d1, ev.d2, setAnimDice, qInst));
           break;
         case ANIM.MOVE_HOP:
+          // Pin the token at its ORIGIN now (this batches with the setGameState
+          // above) so it never flashes at the destination while the dice animate;
+          // the hop walks it forward when the queue reaches this step.
+          setRenderedPositions(p => ({ ...p, [ev.pid]: ev.from }));
           q.enqueue(qInst => {
             playMove();
             setMovingPids(m => ({ ...m, [ev.pid]: true }));
@@ -286,8 +291,18 @@ export default function App() {
           });
           break;
         case ANIM.MOVE_WARP:
-          setRenderedPositions(p => ({ ...p, [ev.pid]: ev.to }));
-          showLanding(ev.pid, ev.to);
+          // Hold at the origin, then warp after any dice settle (sequenced through
+          // the queue) so the jump doesn't pop before the roll is shown.
+          setRenderedPositions(p => ({ ...p, [ev.pid]: ev.from }));
+          q.enqueue(() => new Promise(res => {
+            setMovingPids(m => ({ ...m, [ev.pid]: true }));
+            setTimeout(() => {
+              setRenderedPositions(p => ({ ...p, [ev.pid]: ev.to }));
+              setMovingPids(m => { const n = { ...m }; delete n[ev.pid]; return n; });
+              showLanding(ev.pid, ev.to);
+              res();
+            }, 320);
+          }));
           break;
         case ANIM.MONEY_DELTA: {
           const deltaId = `${Date.now()}-${ev.pid}`;
@@ -304,8 +319,13 @@ export default function App() {
           break;
         }
         case ANIM.CARD_DRAW:
-          setCardOverlay({ text: ev.text, isChance: ev.isChance });
-          setTimeout(() => setCardOverlay(null), 1800);
+          // Sequence the card through the queue so it appears AFTER the token
+          // lands on the Chance/Chest tile (not mid-hop), holds, then clears.
+          q.enqueue(() => new Promise(res => {
+            playClick();
+            setCardOverlay({ text: ev.text, isChance: ev.isChance });
+            setTimeout(() => { setCardOverlay(null); res(); }, 1900);
+          }));
           break;
         case ANIM.BANKRUPT: playJail(); break;
         case ANIM.WINNER: playWin(); break;
@@ -606,13 +626,21 @@ export default function App() {
     const nsAuctionPid = ns.phase === "auction" ? ns.auction?.active?.[ns.auction?.turn_idx] : null;
     const nsDebtorId = ns.phase === "debt" ? ns.debtor_id : null;
     const sameBot = nsCurrentPid === botId || nsAuctionPid === botId || nsDebtorId === botId;
-    if (sameBot && ns.phase !== "game_over" && getAIDecision(ns, botId)) {
-      aiTimerRef.current = setTimeout(processAITurn, Math.floor(Math.random() * 300) + 200);
+    // Only self-chain when nothing is animating. If the action kicked off a move
+    // (e.g. a roll), let the animation finish — the effect (keyed on
+    // animationsBusy) re-schedules the next decision once the token has landed.
+    if (sameBot && !animationsBusyRef.current && ns.phase !== "game_over" && getAIDecision(ns, botId)) {
+      aiTimerRef.current = setTimeout(processAITurn, Math.floor(Math.random() * 400) + 350);
     }
   }, [commitState]);
 
   useEffect(() => {
     if (!isHost || !gameState || gameState.phase === "lobby" || gameState.phase === "game_over") return;
+    // Never let a bot act while the dice/token are still animating — otherwise it
+    // "instantly" buys/builds the moment it lands, before the move even finishes.
+    // When the animation completes animationsBusy flips false and this effect
+    // re-runs (it's in the deps), scheduling the bot with a natural think-pause.
+    if (animationsBusy) return;
 
     const currentPid = gameState.order?.[gameState.current];
     const currentBot = gameState.players?.find(p => p.id === currentPid && p.is_bot);
@@ -633,7 +661,7 @@ export default function App() {
     // index can stay the same while pointing at a new bidder, which would
     // otherwise stall the auction (the next bot never gets prompted).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.phase, gameState?.current, gameState?.auction?.active?.[gameState?.auction?.turn_idx], gameState?.auction?.active?.length, gameState?.debtor_id, gameState?.pending_trade?.to, isHost, processAITurn]);
+  }, [gameState?.phase, gameState?.current, gameState?.auction?.active?.[gameState?.auction?.turn_idx], gameState?.auction?.active?.length, gameState?.debtor_id, gameState?.pending_trade?.to, isHost, animationsBusy, processAITurn]);
 
   // ── Action dispatch ────────────────────────────────────────────────────────
   const buildEnginePayload = (type, payload) => {
