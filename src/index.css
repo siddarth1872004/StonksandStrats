@@ -1,6 +1,10 @@
 /* src/index.css */
 @import "@fontsource/press-start-2p/index.css";
 @import "@fontsource/vt323/index.css";
+@import "@fontsource/chakra-petch/400.css";
+@import "@fontsource/chakra-petch/500.css";
+@import "@fontsource/chakra-petch/600.css";
+@import "@fontsource/chakra-petch/700.css";
 
 :root {
   /* AMOLED pure-black base */
@@ -21,12 +25,12 @@
   --color-pink: 330, 100%, 60%;
   --color-purple: 270, 100%, 60%;
   
-  /* Fonts: VT323 is the readable in-game workhorse; Press Start 2P is reserved
-     for big branding only (it's illegible at small sizes). */
-  --font-retro: "VT323", "Courier New", monospace;
+  /* Fonts: Chakra Petch is the readable in-game workhorse (clean, game-y, large
+     x-height); Press Start 2P is reserved for big branding only. */
+  --font-retro: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
   --font-display: "Press Start 2P", monospace;
   --font-digital: "VT323", monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "Chakra Petch", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* Default Low Bloom Settings */
   --bloom-size: 5px;
@@ -820,20 +824,21 @@ body {
 .text-left { text-align: left; }
 .text-right { text-align: right; }
 
-.text-\[6px\] { font-size: 6px; }
-.text-\[7px\] { font-size: 7px; }
-.text-\[8px\] { font-size: 8px; }
-.text-\[9px\] { font-size: 9px; }
-.text-\[10px\] { font-size: 10px; }
-.text-\[11px\] { font-size: 11px; }
-.text-\[12px\] { font-size: 12px; }
-.text-xs { font-size: 12px; }
-.text-sm { font-size: 14px; }
-.text-base { font-size: 16px; }
-.text-lg { font-size: 18px; }
-.text-xl { font-size: 20px; }
-.text-2xl { font-size: 24px; }
-.text-3xl { font-size: 30px; }
+/* Bumped well up for legibility — Chakra Petch reads cleanly at these sizes */
+.text-\[6px\] { font-size: 11px; }
+.text-\[7px\] { font-size: 11px; }
+.text-\[8px\] { font-size: 12px; }
+.text-\[9px\] { font-size: 13px; }
+.text-\[10px\] { font-size: 14px; }
+.text-\[11px\] { font-size: 15px; }
+.text-\[12px\] { font-size: 15px; }
+.text-xs { font-size: 13px; }
+.text-sm { font-size: 15px; }
+.text-base { font-size: 17px; }
+.text-lg { font-size: 20px; }
+.text-xl { font-size: 23px; }
+.text-2xl { font-size: 27px; }
+.text-3xl { font-size: 33px; }
 
 /* Colors & Shadows */
 .text-slate-200 { color: #e2e8f0; }

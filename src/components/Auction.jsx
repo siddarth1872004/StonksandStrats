@@ -44,39 +44,39 @@ export default function Auction({ gameState, myPlayerId, onAction }) {
     <div className="dialog-overlay">
       <div className="glass-card auction-overlay-content animate-scale-up" style={{ borderTop: "4px solid #F59E0B" }}>
         {/* Title */}
-        <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#F59E0B", fontWeight: "bold", marginBottom: "16px", letterSpacing: "1px", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+        <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "14px", color: "#F59E0B", fontWeight: "bold", marginBottom: "16px", letterSpacing: "1px", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
           <GavelIcon size={12} /> LIVE FORECLOSURE AUCTION
         </h2>
 
         {/* Property Info Card */}
         <div style={{ background: "rgba(0, 0, 0, 0.6)", padding: "16px", border: "1px solid rgba(245, 158, 11, 0.2)", borderRadius: "0px", marginBottom: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#F59E0B", marginBottom: "4px" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#F59E0B", marginBottom: "4px" }}>
             AUCTIONED PROPERTY:
           </div>
           <div style={{ fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: "bold", color: "#F1F5F9", letterSpacing: "0.5px" }}>
             {tile?.name || "Unknown Property"}
           </div>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#94A3B8", marginTop: "4px", textTransform: "uppercase" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#94A3B8", marginTop: "4px", textTransform: "uppercase" }}>
             Value: ${tile?.price} | Group: {tile?.group}
           </div>
         </div>
 
         {/* Bid Tracker grid */}
-        <div className="auction-grid-row" style={{ fontFamily: "var(--font-retro)", fontSize: "8px" }}>
+        <div className="auction-grid-row" style={{ fontFamily: "var(--font-retro)", fontSize: "12px" }}>
           <div className="auction-stat-box">
-            <div style={{ color: "#64748B", fontSize: "7px", marginBottom: "4px" }}>CURRENT HIGH BID:</div>
-            <div style={{ fontSize: "12px", fontWeight: "bold", color: "#10B981" }}>${auction.current_bid}</div>
-            <div style={{ fontSize: "7px", color: "#94A3B8", marginTop: "4px", textTransform: "uppercase", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ color: "#64748B", fontSize: "11px", marginBottom: "4px" }}>CURRENT HIGH BID:</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#10B981" }}>${auction.current_bid}</div>
+            <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "4px", textTransform: "uppercase", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               By: {currentBidder?.name || "No Bids Yet"}
             </div>
           </div>
 
           <div className="auction-stat-box">
-            <div style={{ color: "#64748B", fontSize: "7px", marginBottom: "4px" }}>ACTIVE BIDDER TURN:</div>
-            <div style={{ fontSize: "12px", fontWeight: "bold", color: "#F59E0B" }}>
+            <div style={{ color: "#64748B", fontSize: "11px", marginBottom: "4px" }}>ACTIVE BIDDER TURN:</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#F59E0B" }}>
               {activeBidder?.name || "Unknown"}
             </div>
-            <div style={{ fontSize: "7px", color: "#94A3B8", marginTop: "4px", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "4px", textTransform: "uppercase" }}>
               {isMyBiddingTurn ? "YOUR DECISION" : "Waiting..."}
             </div>
           </div>
@@ -84,7 +84,7 @@ export default function Auction({ gameState, myPlayerId, onAction }) {
 
         {/* Action Panel */}
         {isMyBiddingTurn ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", fontFamily: "var(--font-retro)", fontSize: "8px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", fontFamily: "var(--font-retro)", fontSize: "12px" }}>
             {/* Quick bid increments */}
             <div style={{ display: "flex", justifyContent: "center", gap: "8px" }}>
               <button 
@@ -125,7 +125,7 @@ export default function Auction({ gameState, myPlayerId, onAction }) {
                   max={myPlayer?.money || 0}
                   placeholder={`Custom Bid (> $${auction.current_bid})`}
                   className="retro-input"
-                  style={{ flex: 1, fontSize: "8px", padding: "6px 6px 6px 20px", fontFamily: "var(--font-retro)", borderRadius: "0px" }}
+                  style={{ flex: 1, fontSize: "12px", padding: "6px 6px 6px 20px", fontFamily: "var(--font-retro)", borderRadius: "0px" }}
                 />
               </div>
               <button 
@@ -146,7 +146,7 @@ export default function Auction({ gameState, myPlayerId, onAction }) {
             </button>
           </div>
         ) : (
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#94A3B8", fontStyle: "italic", padding: "16px 0", animation: "pulse 2s infinite" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#94A3B8", fontStyle: "italic", padding: "16px 0", animation: "pulse 2s infinite" }}>
             Waiting for {activeBidder?.name} to place a bid or pass...
           </div>
         )}

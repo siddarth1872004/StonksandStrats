@@ -24,7 +24,7 @@ function PropChip({ tid, selected, disabled, onClick }) {
       style={{
         display: "flex", alignItems: "center", gap: "5px",
         padding: "5px 7px", textAlign: "left", width: "100%",
-        fontFamily: "var(--font-retro)", fontSize: "9px",
+        fontFamily: "var(--font-retro)", fontSize: "13px",
         background: selected ? "rgba(52,211,153,0.16)" : "rgba(255,255,255,0.03)",
         border: `1px solid ${selected ? "rgba(52,211,153,0.6)" : "rgba(255,255,255,0.08)"}`,
         color: disabled ? "#475569" : selected ? "#e5e7eb" : "#94a3b8",
@@ -46,26 +46,26 @@ function TradeColumn({ title, color, player, side, setSide, houses }) {
   }));
   return (
     <div style={{ width: "100%", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color, fontWeight: "bold" }}>{title}</div>
-      <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "14px", color, fontWeight: "bold" }}>{title}</div>
+      <label style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#64748b" }}>
         CASH (max ${player.money.toLocaleString()})
         <input type="number" value={side.cash} min={0} max={player.money}
           onChange={e => setSide(s => ({ ...s, cash: clampInt(e.target.value, player.money) }))}
-          className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
+          className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "15px", padding: "6px" }} />
       </label>
       {player.jail_cards > 0 && (
-        <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
+        <label style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#64748b" }}>
           JAIL CARDS (max {player.jail_cards})
           <input type="number" value={side.cards} min={0} max={player.jail_cards}
             onChange={e => setSide(s => ({ ...s, cards: clampInt(e.target.value, player.jail_cards) }))}
-            className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "11px", padding: "6px" }} />
+            className="retro-input" style={{ width: "100%", marginTop: "3px", fontSize: "15px", padding: "6px" }} />
         </label>
       )}
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>PROPERTIES</div>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#64748b" }}>PROPERTIES</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "180px", overflowY: "auto" }}>
         {player.properties.length ? player.properties.map(tid => (
           <PropChip key={tid} tid={tid} selected={side.props.includes(tid)} disabled={isImproved(tid)} onClick={() => toggleProp(tid)} />
-        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>none owned</span>}
+        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>none owned</span>}
       </div>
     </div>
   );
@@ -75,15 +75,15 @@ function TradeColumn({ title, color, player, side, setSide, houses }) {
 function OfferSide({ title, color, money, cards, props }) {
   return (
     <div style={{ width: "100%", minWidth: 0, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color, fontWeight: "bold", marginBottom: "8px" }}>{title}</div>
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#34d399", marginBottom: "4px" }}>${(money || 0).toLocaleString()}</div>
-      {cards > 0 && <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#fbbf24", marginBottom: "4px" }}>{cards}× Jail card</div>}
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color, fontWeight: "bold", marginBottom: "8px" }}>{title}</div>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "15px", color: "#34d399", marginBottom: "4px" }}>${(money || 0).toLocaleString()}</div>
+      {cards > 0 && <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#fbbf24", marginBottom: "4px" }}>{cards}× Jail card</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
         {(props || []).length ? props.map(tid => (
-          <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "9px", color: "#cbd5e1" }}>
+          <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "13px", color: "#cbd5e1" }}>
             <span style={{ width: "5px", height: "10px", background: tileColor(tid) }} /> {tileName(tid)}
           </div>
-        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>nothing</span>}
+        )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>nothing</span>}
       </div>
     </div>
   );
@@ -102,7 +102,7 @@ export function TradeOfferView({ gameState, myPlayerId, onAction, onCounter }) {
 
   return (
     <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#22d3ee", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "14px", color: "#22d3ee", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
         <TradeIcon size={12} /> TRADE OFFER
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -112,21 +112,21 @@ export function TradeOfferView({ gameState, myPlayerId, onAction, onCounter }) {
       {isTarget ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <div style={{ display: "flex", gap: "6px" }}>
-            <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "9px", padding: "9px" }}>✓ ACCEPT</button>
-            <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "9px", padding: "9px" }}>✕ REJECT</button>
+            <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "13px", padding: "9px" }}>✓ ACCEPT</button>
+            <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "13px", padding: "9px" }}>✕ REJECT</button>
           </div>
           {onCounter && (
-            <button onClick={() => { playClick(); onCounter(); }} className="btn-retro" style={{ width: "100%", fontSize: "9px", padding: "8px", borderColor: "#fbbf24", color: "#fbbf24" }}>
+            <button onClick={() => { playClick(); onCounter(); }} className="btn-retro" style={{ width: "100%", fontSize: "13px", padding: "8px", borderColor: "#fbbf24", color: "#fbbf24" }}>
               ⇄ COUNTER-OFFER
             </button>
           )}
         </div>
       ) : isProposer ? (
-        <button onClick={() => { playClick(); onAction("cancel_trade", {}); }} className="btn-retro btn-retro-red" style={{ width: "100%", fontSize: "9px", padding: "9px" }}>
+        <button onClick={() => { playClick(); onAction("cancel_trade", {}); }} className="btn-retro btn-retro-red" style={{ width: "100%", fontSize: "13px", padding: "9px" }}>
           <CloseIcon size={10} className="mr-1" /> WITHDRAW OFFER
         </button>
       ) : (
-        <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#64748b", textAlign: "center", padding: "8px" }}>
+        <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#64748b", textAlign: "center", padding: "8px" }}>
           Waiting for {toP?.name} to respond…
         </div>
       )}
@@ -164,7 +164,7 @@ export function TradeBuilder({ gameState, myPlayerId, onAction, prefill = null, 
   return (
     <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
+        <span style={{ fontFamily: "var(--font-retro)", fontSize: "14px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
           <TradeIcon size={12} /> {isCounter ? "COUNTER-OFFER" : "PROPOSE TRADE"}
         </span>
         {isCounter && (
@@ -173,16 +173,16 @@ export function TradeBuilder({ gameState, myPlayerId, onAction, prefill = null, 
       </div>
 
       {/* Partner picker */}
-      <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>TRADE WITH</div>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#64748b" }}>TRADE WITH</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-        {others.length === 0 && <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#475569", fontStyle: "italic" }}>No one to trade with.</span>}
+        {others.length === 0 && <span style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#475569", fontStyle: "italic" }}>No one to trade with.</span>}
         {others.map(p => {
           const sel = p.id === targetPid;
           return (
             <button key={p.id} onClick={() => { playClick(); setTargetPid(p.id); setGet({ cash: 0, cards: 0, props: [] }); }}
               style={{
                 display: "flex", alignItems: "center", gap: "5px", padding: "5px 8px",
-                fontFamily: "var(--font-retro)", fontSize: "9px",
+                fontFamily: "var(--font-retro)", fontSize: "13px",
                 background: sel ? `${tokenColor(p)}22` : "rgba(255,255,255,0.03)",
                 border: `1px solid ${sel ? tokenColor(p) : "rgba(255,255,255,0.1)"}`,
                 color: sel ? "#fff" : "#94a3b8", cursor: "pointer",
@@ -202,7 +202,7 @@ export function TradeBuilder({ gameState, myPlayerId, onAction, prefill = null, 
       )}
 
       <button onClick={propose} disabled={!target || !hasOffer}
-        className="btn-retro btn-retro-green" style={{ width: "100%", fontSize: "10px", padding: "11px", fontWeight: "bold", opacity: (!target || !hasOffer) ? 0.4 : 1 }}>
+        className="btn-retro btn-retro-green" style={{ width: "100%", fontSize: "14px", padding: "11px", fontWeight: "bold", opacity: (!target || !hasOffer) ? 0.4 : 1 }}>
         <TradeIcon size={11} className="mr-1" /> {isCounter ? "SEND COUNTER-OFFER" : "SEND OFFER"}
       </button>
     </div>

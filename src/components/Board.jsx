@@ -119,7 +119,7 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
             <div style={{ width: "clamp(14px,2.4cqw,22px)", height: "clamp(14px,2.4cqw,22px)" }}>
               <TokenIcon name={land.player.token_shape || land.player.token} color={land.tokenCol} size="100%" />
             </div>
-            <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.2cqw,11px)", color: land.tokenCol, fontWeight: "bold" }}>
+            <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.5cqw,15px)", color: land.tokenCol, fontWeight: "bold" }}>
               {land.player.name} landed on
             </span>
           </div>
@@ -137,16 +137,16 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "9px" }}>
           <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}`, animation: "pulse-anim 1.8s infinite" }} />
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,9px)", color: "#64748b", letterSpacing: "0.25em" }}>LIVE NEWS</span>
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3cqw,12px)", color: "#64748b", letterSpacing: "0.22em" }}>LIVE NEWS</span>
         </div>
         <div style={{
-          fontFamily: "var(--font-retro)", fontSize: "clamp(12px,2.6cqw,24px)", fontWeight: "bold",
+          fontFamily: "var(--font-retro)", fontSize: "clamp(15px,2.8cqw,28px)", fontWeight: "bold",
           color: accent, textShadow: `0 0 12px ${accent}80`, lineHeight: 1.4,
           overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {status.headline}
         </div>
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.5cqw,13px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.8cqw,16px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
           {status.sub}
         </div>
       </div>
@@ -178,7 +178,7 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
           {animationsBusy && onSkipAnimations && (
             <button
               onClick={() => { playClick(); onSkipAnimations(); }}
-              style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.3cqw,10px)", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", padding: "3px 10px", cursor: "pointer" }}
+              style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4cqw,13px)", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", padding: "3px 10px", cursor: "pointer" }}
             >
               SKIP ▶▶
             </button>
@@ -204,9 +204,9 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
           padding: "clamp(5px,1cqw,9px) clamp(10px,1.8cqw,16px)",
           display: "flex", alignItems: "center", gap: "7px", justifyContent: "center",
         }}>
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.85cqw,8px)", color: "#FFB300", letterSpacing: "0.18em", flexShrink: 0 }}>▶ NEWS</span>
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.1cqw,11px)", color: "#FFB300", letterSpacing: "0.16em", flexShrink: 0 }}>▶ NEWS</span>
           <span style={{
-            fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.25cqw,11px)", color: "#e2e8f0", lineHeight: 1.4,
+            fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.6cqw,15px)", color: "#e2e8f0", lineHeight: 1.4,
             overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
           }}>{latest}</span>
         </div>
@@ -300,7 +300,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
           position: "relative",
         };
 
-        const textSize = "clamp(8px, 1.7cqw, 15px)";
+        const textSize = "clamp(8px, 1.6cqw, 14px)";
 
         return (
           <div

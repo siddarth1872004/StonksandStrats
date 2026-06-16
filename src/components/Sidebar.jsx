@@ -52,7 +52,7 @@ function Section({ label, right }) {
 function Btn({ children, onClick, disabled, style, variant }) {
   const base = {
     fontFamily: "var(--font-retro)",
-    fontSize: "clamp(12px, 1.6vw, 15px)",
+    fontSize: "clamp(14px, 1.8vw, 17px)",
     background: "rgba(10,14,24,0.7)",
     border: "1px solid rgba(255,179,0,0.22)",
     color: "#cbd5e1",
@@ -94,9 +94,9 @@ function TurnTimer({ deadline }) {
       background: danger ? "rgba(69,10,10,0.35)" : "rgba(0,0,0,0.25)",
       borderBottom: "1px solid rgba(255,179,0,0.08)",
     }}>
-      <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#64748b", letterSpacing: "0.15em" }}>TURN TIMER</span>
+      <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#64748b", letterSpacing: "0.15em" }}>TURN TIMER</span>
       <span style={{
-        fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.6vw,12px)", fontWeight: "bold",
+        fontFamily: "var(--font-retro)", fontSize: "clamp(13px,1.8vw,16px)", fontWeight: "bold",
         color: danger ? "#f87171" : "#fbbf24",
         animation: danger ? "timer-pulse 1s infinite" : "none",
       }}>
@@ -144,8 +144,8 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
     return (
       <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 5px", background: isMort ? "rgba(69,10,10,0.18)" : "rgba(0,0,0,0.3)", borderLeft: `3px solid ${isMort ? "#ef4444" : gColor}` }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.3vw,10px)", color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tile.name}</div>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: isMort ? "#ef4444" : "#475569" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.5vw,14px)", color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tile.name}</div>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: isMort ? "#ef4444" : "#475569" }}>
             {isMort ? "MORTGAGED" : h === 5 ? "★ HOTEL" : h > 0 ? `${h} house${h > 1 ? "s" : ""}` : "unimproved"}
           </div>
         </div>
@@ -153,23 +153,23 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
           {hasColor && ownsAll && !isMort && (
             <>
               <button title={`Build ($${tile.houseCost})`} disabled={!canBuild} onClick={() => act("build_house", tid)}
-                style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", cursor: canBuild ? "pointer" : "not-allowed", opacity: canBuild ? 1 : 0.35 }}>
+                style={{ fontFamily: "var(--font-retro)", fontSize: "12px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", cursor: canBuild ? "pointer" : "not-allowed", opacity: canBuild ? 1 : 0.35 }}>
                 <HouseIcon size={8} color="currentColor" />+
               </button>
               <button title="Sell house" disabled={!canSell} onClick={() => act("sell_house", tid)}
-                style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", cursor: canSell ? "pointer" : "not-allowed", opacity: canSell ? 1 : 0.35 }}>
+                style={{ fontFamily: "var(--font-retro)", fontSize: "12px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", cursor: canSell ? "pointer" : "not-allowed", opacity: canSell ? 1 : 0.35 }}>
                 <HouseIcon size={8} color="currentColor" />−
               </button>
             </>
           )}
           {!isMort ? (
             <button title={`Mortgage (+$${tile.mortgage})`} disabled={!canMort} onClick={() => act("mortgage", tid)}
-              style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", cursor: canMort ? "pointer" : "not-allowed", opacity: canMort ? 1 : 0.35 }}>
+              style={{ fontFamily: "var(--font-retro)", fontSize: "12px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", cursor: canMort ? "pointer" : "not-allowed", opacity: canMort ? 1 : 0.35 }}>
               MRTG
             </button>
           ) : (
             <button title={`Redeem ($${Math.round((tile.mortgage || 0) * 1.1)})`} disabled={!canRedeem} onClick={() => act("unmortgage", tid)}
-              style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", cursor: canRedeem ? "pointer" : "not-allowed", opacity: canRedeem ? 1 : 0.35 }}>
+              style={{ fontFamily: "var(--font-retro)", fontSize: "12px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", cursor: canRedeem ? "pointer" : "not-allowed", opacity: canRedeem ? 1 : 0.35 }}>
               REDEEM
             </button>
           )}
@@ -180,12 +180,12 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "6px 8px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-retro)", fontSize: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-retro)", fontSize: "12px" }}>
         <span style={{ color: "#FFB300" }}>NW ${netWorth.toLocaleString()}</span>
         <span style={{ color: "#34d399" }}>CASH ${cash.toLocaleString()}</span>
       </div>
       {myProps.length === 0 ? (
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", textAlign: "center", padding: "20px 0" }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#334155", textAlign: "center", padding: "20px 0" }}>
           No deeds yet — buy properties to build your portfolio.
         </div>
       ) : (
@@ -194,15 +194,15 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
             <div key={g} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                 <span style={{ width: "9px", height: "9px", background: GROUP_COLORS[g] }} />
-                <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#94a3b8", letterSpacing: "0.1em" }}>{g.toUpperCase()}</span>
-                {GROUPS[g] && tids.length === GROUPS[g].length && <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#34d399", marginLeft: "auto" }}>★ MONOPOLY</span>}
+                <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#94a3b8", letterSpacing: "0.1em" }}>{g.toUpperCase()}</span>
+                {GROUPS[g] && tids.length === GROUPS[g].length && <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#34d399", marginLeft: "auto" }}>★ MONOPOLY</span>}
               </div>
               {tids.map(deed)}
             </div>
           ))}
           {misc.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#94a3b8", letterSpacing: "0.1em" }}>STATIONS & UTILITIES</span>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#94a3b8", letterSpacing: "0.1em" }}>STATIONS & UTILITIES</span>
               {misc.map(deed)}
             </div>
           )}
@@ -322,7 +322,7 @@ export default function Sidebar({
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "1px" }}>
                 <span style={{
                   fontFamily: "var(--font-retro)",
-                  fontSize: "clamp(9px, 1.5vw, 12px)",
+                  fontSize: "clamp(13px, 1.7vw, 16px)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   color: p.bankrupt ? "#475569" : isCurrent ? "#f8fafc" : "#cbd5e1",
                   textDecoration: p.bankrupt ? "line-through" : "none",
@@ -330,14 +330,14 @@ export default function Sidebar({
                   {p.name}{isMe ? " ★" : ""}{p.is_bot ? ` [${(p.difficulty || "ai").slice(0,1).toUpperCase()}]` : ""}
                 </span>
                 {!p.bankrupt && (
-                  <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#475569" }}>
+                  <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#475569" }}>
                     {netWorthPropCount}⌂ · NW ${netWorth.toLocaleString()}
                   </span>
                 )}
               </div>
               <span style={{
                 fontFamily: "var(--font-retro)",
-                fontSize: "clamp(10px, 1.6vw, 13px)",
+                fontSize: "clamp(14px, 1.9vw, 17px)",
                 fontWeight: "bold", flexShrink: 0, textAlign: "right",
                 color: p.bankrupt ? "#EF4444" : p.in_jail ? "#F59E0B" : isCurrent ? "#FFB300" : "#34d399",
               }}>
@@ -360,18 +360,18 @@ export default function Sidebar({
                 {phase === "turn" && (
                   myPlayer?.in_jail ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <Btn variant="green" style={{ width: "100%", fontSize: "9px", fontWeight: "bold", padding: "9px" }} onClick={() => onAction("roll_dice")}>
+                      <Btn variant="green" style={{ width: "100%", fontSize: "13px", fontWeight: "bold", padding: "9px" }} onClick={() => onAction("roll_dice")}>
                         ⚂ ROLL FOR DOUBLES
                       </Btn>
                       <div style={{ display: "flex", gap: "5px" }}>
-                        <Btn style={{ flex: 1, fontSize: "9px" }} disabled={myPlayer?.money < 50} onClick={() => onAction("pay_jail_fine")}>PAY $50</Btn>
-                        <Btn style={{ flex: 1, fontSize: "9px" }} disabled={!myPlayer?.jail_cards} onClick={() => onAction("use_jail_card")}>
+                        <Btn style={{ flex: 1, fontSize: "13px" }} disabled={myPlayer?.money < 50} onClick={() => onAction("pay_jail_fine")}>PAY $50</Btn>
+                        <Btn style={{ flex: 1, fontSize: "13px" }} disabled={!myPlayer?.jail_cards} onClick={() => onAction("use_jail_card")}>
                           GET OUT CARD ({myPlayer?.jail_cards})
                         </Btn>
                       </div>
                     </div>
                   ) : (
-                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", padding: "12px", fontSize: "clamp(10px,1.8vw,12px)" }} onClick={() => onAction("roll_dice")}>
+                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", padding: "12px", fontSize: "clamp(15px,2vw,18px)" }} onClick={() => onAction("roll_dice")}>
                       ⚂ ROLL DICE
                     </Btn>
                   )
@@ -379,12 +379,12 @@ export default function Sidebar({
 
                 {phase === "speed_bus" && speed_die_choice && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#8B5CF6", textAlign: "center", padding: "2px 0" }}>
+                    <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#8B5CF6", textAlign: "center", padding: "2px 0" }}>
                       BUS — CHOOSE ROUTE:
                     </div>
                     <div style={{ display: "flex", gap: "5px" }}>
                       {speed_die_choice.map((steps, i) => (
-                        <Btn key={i} variant="amber" style={{ flex: 1, fontSize: "10px", fontWeight: "bold" }} onClick={() => onAction("choose_bus_route", { steps })}>
+                        <Btn key={i} variant="amber" style={{ flex: 1, fontSize: "14px", fontWeight: "bold" }} onClick={() => onAction("choose_bus_route", { steps })}>
                           +{steps}
                         </Btn>
                       ))}
@@ -394,22 +394,22 @@ export default function Sidebar({
 
                 {phase === "buy_decision" && gameState.can_buy !== null && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "10px", padding: "10px" }} onClick={() => onAction("buy_property")}>⌂ BUY</Btn>
+                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "14px", padding: "10px" }} onClick={() => onAction("buy_property")}>⌂ BUY</Btn>
                     <div style={{ display: "flex", gap: "5px" }}>
-                      <Btn variant="amber" style={{ flex: 1, fontWeight: "bold", fontSize: "9px" }} onClick={() => onAction("decline_buy", { auction: true })}>⚖ AUCTION</Btn>
-                      <Btn variant="red" style={{ flex: 1, fontWeight: "bold", fontSize: "9px" }} onClick={() => onAction("decline_buy", { auction: false })}>PASS</Btn>
+                      <Btn variant="amber" style={{ flex: 1, fontWeight: "bold", fontSize: "13px" }} onClick={() => onAction("decline_buy", { auction: true })}>⚖ AUCTION</Btn>
+                      <Btn variant="red" style={{ flex: 1, fontWeight: "bold", fontSize: "13px" }} onClick={() => onAction("decline_buy", { auction: false })}>PASS</Btn>
                     </div>
                   </div>
                 )}
 
                 {phase === "post_roll" && (
-                  <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "9px", padding: "9px" }} onClick={() => onAction("end_turn")}>
+                  <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "13px", padding: "9px" }} onClick={() => onAction("end_turn")}>
                     {extra_roll ? "⚂ ROLL AGAIN (DOUBLES)" : "END TURN ▶"}
                   </Btn>
                 )}
 
                 {inDebt && debtor_id === myPlayerId && (
-                  <Btn variant="red" style={{ width: "100%", fontWeight: "bold", padding: "8px", fontSize: "9px" }} onClick={() => onAction("declare_bankruptcy")}>
+                  <Btn variant="red" style={{ width: "100%", fontWeight: "bold", padding: "8px", fontSize: "13px" }} onClick={() => onAction("declare_bankruptcy")}>
                     ☠ DECLARE BANKRUPTCY
                   </Btn>
                 )}
@@ -418,12 +418,12 @@ export default function Sidebar({
 
             {/* Waiting states */}
             {!isMyTurn && !inDebt && phase !== "lobby" && (
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#475569", padding: "7px 8px", border: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#475569", padding: "7px 8px", border: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
                 WAITING FOR {players.find(p => p.id === currPlayerId)?.name?.toUpperCase() || "TURN"}…
               </div>
             )}
             {inDebt && debtor_id !== myPlayerId && (
-              <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#f87171", padding: "7px 8px", border: "1px solid rgba(239,68,68,0.2)", textAlign: "center", background: "rgba(69,10,10,0.15)" }}>
+              <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#f87171", padding: "7px 8px", border: "1px solid rgba(239,68,68,0.2)", textAlign: "center", background: "rgba(69,10,10,0.15)" }}>
                 ⚠ {players.find(p => p.id === debtor_id)?.name} RESOLVING DEBT
               </div>
             )}
@@ -431,11 +431,11 @@ export default function Sidebar({
             {/* Portfolio + Trade — open inline in the panel below (not popups) */}
             {!isBankrupt && (
               <div style={{ display: "flex", gap: "5px" }}>
-                <Btn style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }} onClick={() => { playClick(); setTab("portfolio"); }}>
+                <Btn style={{ flex: 1, fontSize: "13px", padding: "8px 4px" }} onClick={() => { playClick(); setTab("portfolio"); }}>
                   <ManageIcon size={10} /><span>PORTFOLIO</span>
                 </Btn>
                 <Btn
-                  style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }}
+                  style={{ flex: 1, fontSize: "13px", padding: "8px 4px" }}
                   onClick={() => { playClick(); setCounterPrefill(null); setTab("trade"); }}
                   disabled={activeOpponents.length === 0 || inDebt}
                 >
@@ -448,20 +448,20 @@ export default function Sidebar({
             {isHost && phase !== "game_over" && (
               confirmEnd ? (
                 <div style={{ display: "flex", gap: "4px" }}>
-                  <Btn variant="red" style={{ flex: 1, fontSize: "9px" }} onClick={() => { playClick(); setConfirmEnd(false); onEndGame(); }}>
+                  <Btn variant="red" style={{ flex: 1, fontSize: "13px" }} onClick={() => { playClick(); setConfirmEnd(false); onEndGame(); }}>
                     ✓ CONFIRM END
                   </Btn>
-                  <Btn style={{ fontSize: "9px", padding: "4px 8px" }} onClick={() => { playClick(); setConfirmEnd(false); }}>✕</Btn>
+                  <Btn style={{ fontSize: "13px", padding: "4px 8px" }} onClick={() => { playClick(); setConfirmEnd(false); }}>✕</Btn>
                 </div>
               ) : (
-                <Btn style={{ width: "100%", fontSize: "9px", color: "#ef4444", borderColor: "rgba(239,68,68,0.25)", padding: "6px" }} onClick={() => { playClick(); setConfirmEnd(true); }}>
+                <Btn style={{ width: "100%", fontSize: "13px", color: "#ef4444", borderColor: "rgba(239,68,68,0.25)", padding: "6px" }} onClick={() => { playClick(); setConfirmEnd(true); }}>
                   END GAME (HOST)
                 </Btn>
               )
             )}
 
             {/* Settings */}
-            <Btn style={{ width: "100%", fontSize: "9px", color: "#475569", borderColor: "rgba(255,255,255,0.06)", padding: "5px" }} onClick={() => { playClick(); onOpenSettings(); }}>
+            <Btn style={{ width: "100%", fontSize: "13px", color: "#475569", borderColor: "rgba(255,255,255,0.06)", padding: "5px" }} onClick={() => { playClick(); onOpenSettings(); }}>
               <SettingsIcon size={9} /><span>SETTINGS</span>
             </Btn>
           </div>
@@ -474,7 +474,7 @@ export default function Sidebar({
         {[["terminal", "TERMINAL"], ["portfolio", "PORTFOLIO"], ["trade", "TRADE"]].map(([id, label]) => (
           <button key={id} onClick={() => { playClick(); setTab(id); }}
             style={{
-              flex: 1, fontFamily: "var(--font-retro)", fontSize: "8px", padding: "6px 3px",
+              flex: 1, fontFamily: "var(--font-retro)", fontSize: "12px", padding: "6px 3px",
               background: tab === id ? "rgba(255,179,0,0.1)" : "transparent",
               border: "none", borderBottom: `2px solid ${tab === id ? "#FFB300" : "transparent"}`,
               color: tab === id ? "#FFB300" : (id === "trade" && pendingInvolvesMe) ? "#22d3ee" : "#64748b",
@@ -519,14 +519,14 @@ export default function Sidebar({
                 const isLatest = i === 0;
                 return (
                   <div key={g.key} className="feed-in" style={{
-                    fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.25vw,10px)",
+                    fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.5vw,14px)",
                     color: isLatest ? "#e5e7eb" : i < 4 ? "#6b7280" : "#374151", lineHeight: "1.6",
                     borderLeft: `2px solid ${isLatest ? color : i < 4 ? `${color}40` : "rgba(255,255,255,0.03)"}`,
                     paddingLeft: "6px", display: "flex", gap: "4px", alignItems: "flex-start",
                   }}>
                     <span style={{ color: isLatest ? color : `${color}60`, flexShrink: 0 }}>{icon}</span>
                     <span style={{ wordBreak: "break-word", flex: 1 }}>{g.text}</span>
-                    {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "8px" }}>×{g.count}</span>}
+                    {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "12px" }}>×{g.count}</span>}
                   </div>
                 );
               })}
@@ -534,10 +534,10 @@ export default function Sidebar({
             {/* Chat stream */}
             <div style={{ flexShrink: 0, maxHeight: "96px", overflowY: "auto", padding: "4px 10px", borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.2)", scrollbarWidth: "thin" }}>
               {chatLog.length === 0 && (
-                <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>Say something…</div>
+                <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>Say something…</div>
               )}
               {chatLog.slice(-60).map((c, i) => (
-                <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3vw,11px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
+                <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(13px,1.6vw,15px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
                   <span style={{ color: c.color || "#fbbf24", fontWeight: "bold" }}>{c.name}:</span> {c.text}
                 </div>
               ))}
@@ -550,8 +550,8 @@ export default function Sidebar({
             )}
             <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: "4px", padding: "5px 8px", borderTop: "1px solid rgba(255,179,0,0.1)", background: "rgba(0,0,0,0.3)", flexShrink: 0 }}>
               <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="message…" maxLength={80}
-                style={{ flex: 1, padding: "6px", fontSize: "clamp(8px,1.4vw,10px)", fontFamily: "var(--font-retro)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,179,0,0.15)", color: "#cbd5e1", outline: "none" }} />
-              <button type="submit" style={{ fontFamily: "var(--font-retro)", fontSize: "10px", background: "rgba(10,14,24,0.7)", border: "1px solid rgba(255,179,0,0.2)", color: "#FFB300", padding: "4px 10px", cursor: "pointer" }}>▶</button>
+                style={{ flex: 1, padding: "6px", fontSize: "clamp(12px,1.5vw,14px)", fontFamily: "var(--font-retro)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,179,0,0.15)", color: "#cbd5e1", outline: "none" }} />
+              <button type="submit" style={{ fontFamily: "var(--font-retro)", fontSize: "14px", background: "rgba(10,14,24,0.7)", border: "1px solid rgba(255,179,0,0.2)", color: "#FFB300", padding: "4px 10px", cursor: "pointer" }}>▶</button>
             </form>
           </>
         )}
