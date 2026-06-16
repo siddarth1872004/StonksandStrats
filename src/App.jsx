@@ -677,11 +677,13 @@ export default function App() {
 
   useEffect(() => {
     if (!isHost || !gameState || gameState.phase === "lobby" || gameState.phase === "game_over") return;
-    // Never let a bot act while the dice/token are still animating — otherwise it
-    // "instantly" buys/builds the moment it lands, before the move even finishes.
-    // When the animation completes animationsBusy flips false and this effect
-    // re-runs (it's in the deps), scheduling the bot with a natural think-pause.
-    if (animationsBusy) return;
+    // Hold the bot back ONLY while a dice/token move is mid-flight, so it doesn't
+    // buy/build the instant it lands. Auctions, debt and trade responses have no
+    // pending move, so they must never be animation-gated (that was stalling the
+    // auction AI). When the move animation ends, animationsBusy flips and this
+    // effect re-runs (it's in the deps) to schedule with a natural think-pause.
+    const moveSpoilingPhase = ["turn", "post_roll", "buy_decision", "speed_bus", "payment"].includes(gameState.phase);
+    if (animationsBusy && moveSpoilingPhase) return;
 
     const currentPid = gameState.order?.[gameState.current];
     const currentBot = gameState.players?.find(p => p.id === currentPid && p.is_bot);

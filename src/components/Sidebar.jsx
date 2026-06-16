@@ -432,18 +432,24 @@ function Sidebar({
               </div>
             )}
 
-            {/* Portfolio + Trade — open inline in the panel below (not popups) */}
+            {/* Portfolio + Trade — toggle a dropdown that replaces the terminal
+                below; clicking the active one again returns to the terminal. */}
             {!isBankrupt && (
               <div style={{ display: "flex", gap: "5px" }}>
-                <Btn style={{ flex: 1, fontSize: "13px", padding: "8px 4px" }} onClick={() => { playClick(); setOpenPanel("portfolio"); }}>
+                <Btn
+                  style={{ flex: 1, fontSize: "13px", padding: "8px 4px",
+                    ...(openPanel === "portfolio" ? { background: "rgba(255,179,0,0.16)", borderColor: "#FFB300", color: "#FFB300" } : {}) }}
+                  onClick={() => { playClick(); setOpenPanel(openPanel === "portfolio" ? "terminal" : "portfolio"); }}
+                >
                   <ManageIcon size={10} /><span>PORTFOLIO</span>
                 </Btn>
                 <Btn
-                  style={{ flex: 1, fontSize: "13px", padding: "8px 4px" }}
-                  onClick={() => { playClick(); setCounterPrefill(null); setOpenPanel("trade"); }}
+                  style={{ flex: 1, fontSize: "13px", padding: "8px 4px",
+                    ...(openPanel === "trade" ? { background: "rgba(34,211,238,0.16)", borderColor: "#22d3ee", color: "#22d3ee" } : {}) }}
+                  onClick={() => { playClick(); setCounterPrefill(null); setOpenPanel(openPanel === "trade" ? "terminal" : "trade"); }}
                   disabled={activeOpponents.length === 0 || inDebt}
                 >
-                  <TradeIcon size={10} /><span>TRADE</span>
+                  <TradeIcon size={10} /><span>TRADE{pendingInvolvesMe ? " ●" : ""}</span>
                 </Btn>
               </div>
             )}
@@ -473,108 +479,99 @@ function Sidebar({
       )}
 
 
-      {/* ── DROPDOWN BARS: TERMINAL | PORTFOLIO | TRADE ──────────────
-          Each is a collapsible bar inside the sidebar; clicking a bar opens its
-          panel inline (and closes the others). No tabs, no popups. */}
-      <div style={{ flex: stacked ? "none" : 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", borderTop: "1px solid rgba(255,179,0,0.18)" }}>
-        {[
-          { id: "terminal", label: "TERMINAL", icon: "▌" },
-          { id: "portfolio", label: "PORTFOLIO", icon: <ManageIcon size={10} /> },
-          { id: "trade", label: "TRADE", icon: <TradeIcon size={10} /> },
-        ].map(({ id, label, icon }) => {
-          const open = openPanel === id;
-          const alert = id === "trade" && pendingInvolvesMe;
-          return (
-            <div key={id} style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: open ? 1 : "0 0 auto" }}>
-              <button
-                onClick={() => { playClick(); setOpenPanel(open ? null : id); }}
-                style={{
-                  display: "flex", alignItems: "center", gap: "7px", width: "100%",
-                  fontFamily: "var(--font-retro)", fontSize: "13px", letterSpacing: "0.08em", fontWeight: "bold",
-                  padding: "9px 10px", cursor: "pointer", textAlign: "left",
-                  background: open ? "rgba(255,179,0,0.12)" : "rgba(255,255,255,0.015)",
-                  border: "none", borderBottom: "1px solid rgba(255,179,0,0.12)",
-                  color: open ? "#FFB300" : alert ? "#22d3ee" : "#94a3b8",
-                }}
-              >
-                <span style={{ flexShrink: 0, fontSize: "11px", transition: "transform 0.2s", transform: open ? "rotate(90deg)" : "none", color: open ? "#FFB300" : "#64748b" }}>▶</span>
-                <span style={{ display: "flex", alignItems: "center", gap: "5px", flex: 1 }}>{icon}{label}</span>
-                {alert && <span style={{ color: "#22d3ee" }}>● OFFER</span>}
-              </button>
+      {/* ── PANEL: TERMINAL by default; PORTFOLIO/TRADE replace it when toggled
+          from the buttons above (tap the same button again to return). ────── */}
+      <div style={{ flex: stacked ? "none" : 1, minHeight: stacked ? "auto" : 0, display: "flex", flexDirection: "column", overflow: "hidden", borderTop: "1px solid rgba(255,179,0,0.18)" }}>
 
-              {open && id === "portfolio" && (
-                <div style={{ flex: 1, minHeight: stacked ? "auto" : "120px", maxHeight: stacked ? "300px" : "none", overflowY: "auto", scrollbarWidth: "thin" }}>
-                  <PortfolioPanel gameState={gameState} myPlayerId={myPlayerId} onAction={onAction} />
-                </div>
-              )}
+        {/* Header bar for the overlay panels, with a clear "back to terminal" close. */}
+        {(openPanel === "portfolio" || openPanel === "trade") && (
+          <button
+            onClick={() => { playClick(); setOpenPanel("terminal"); }}
+            style={{
+              display: "flex", alignItems: "center", gap: "7px", width: "100%", flexShrink: 0,
+              fontFamily: "var(--font-retro)", fontSize: "13px", letterSpacing: "0.08em", fontWeight: "bold",
+              padding: "9px 10px", cursor: "pointer", textAlign: "left",
+              background: openPanel === "trade" ? "rgba(34,211,238,0.12)" : "rgba(255,179,0,0.12)",
+              border: "none", borderBottom: "1px solid rgba(255,179,0,0.12)",
+              color: openPanel === "trade" ? "#22d3ee" : "#FFB300",
+            }}
+          >
+            {openPanel === "trade" ? <TradeIcon size={10} /> : <ManageIcon size={10} />}
+            <span style={{ flex: 1 }}>{openPanel === "trade" ? "TRADE" : "PORTFOLIO"}</span>
+            <span style={{ fontSize: "12px", color: "#94a3b8" }}>✕ TERMINAL</span>
+          </button>
+        )}
 
-              {open && id === "trade" && (
-                <div style={{ flex: 1, minHeight: stacked ? "auto" : "120px", maxHeight: stacked ? "340px" : "none", overflowY: "auto", scrollbarWidth: "thin" }}>
-                  {pendingInvolvesMe && !counterPrefill ? (
-                    <TradeOfferView gameState={gameState} myPlayerId={myPlayerId} onAction={onAction}
-                      onCounter={() => {
-                        const o = pending.offer || {};
-                        setCounterPrefill({
-                          targetPid: pending.from,
-                          give: { cash: o.to_money || 0, cards: o.to_cards || 0, props: o.to_properties || [] },
-                          get: { cash: o.from_money || 0, cards: o.from_cards || 0, props: o.from_properties || [] },
-                        });
-                      }} />
-                  ) : (
-                    <TradeBuilder gameState={gameState} myPlayerId={myPlayerId} onAction={onAction}
-                      prefill={counterPrefill} onClose={() => setCounterPrefill(null)} />
-                  )}
-                </div>
-              )}
-
-              {open && id === "terminal" && (
-                <div style={{ flex: 1, minHeight: stacked ? "180px" : "120px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  {/* Activity log (events) */}
-                  <div style={{ flex: 1, overflowY: "auto", padding: "5px 10px", scrollbarWidth: "thin", scrollbarColor: "rgba(255,179,0,0.12) transparent", minHeight: "50px" }}>
-                    {abstractFeed(log).map((g, i) => {
-                      const { icon: fIcon, color } = feedCategory(g.text);
-                      const isLatest = i === 0;
-                      return (
-                        <div key={g.key} className="feed-in" style={{
-                          fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.5vw,14px)",
-                          color: isLatest ? "#e5e7eb" : i < 4 ? "#6b7280" : "#374151", lineHeight: "1.6",
-                          borderLeft: `2px solid ${isLatest ? color : i < 4 ? `${color}40` : "rgba(255,255,255,0.03)"}`,
-                          paddingLeft: "6px", display: "flex", gap: "4px", alignItems: "flex-start",
-                        }}>
-                          <span style={{ color: isLatest ? color : `${color}60`, flexShrink: 0 }}>{fIcon}</span>
-                          <span style={{ wordBreak: "break-word", flex: 1 }}>{g.text}</span>
-                          {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "12px" }}>×{g.count}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Chat stream */}
-                  <div style={{ flexShrink: 0, maxHeight: "96px", overflowY: "auto", padding: "4px 10px", borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.2)", scrollbarWidth: "thin" }}>
-                    {chatLog.length === 0 && (
-                      <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>Say something…</div>
-                    )}
-                    {chatLog.slice(-60).map((c, i) => (
-                      <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(13px,1.6vw,15px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
-                        <span style={{ color: c.color || "#fbbf24", fontWeight: "bold" }}>{c.name}:</span> {c.text}
-                      </div>
-                    ))}
-                    <div ref={chatEndRef} />
-                  </div>
-                  {onEmote && (
-                    <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.25)" }}>
-                      <EmoteBar onEmote={onEmote} compact />
-                    </div>
-                  )}
-                  <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: "4px", padding: "5px 8px", borderTop: "1px solid rgba(255,179,0,0.1)", background: "rgba(0,0,0,0.3)", flexShrink: 0 }}>
-                    <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="message…" maxLength={80}
-                      style={{ flex: 1, padding: "6px", fontSize: "clamp(12px,1.5vw,14px)", fontFamily: "var(--font-retro)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,179,0,0.15)", color: "#cbd5e1", outline: "none" }} />
-                    <button type="submit" style={{ fontFamily: "var(--font-retro)", fontSize: "14px", background: "rgba(10,14,24,0.7)", border: "1px solid rgba(255,179,0,0.2)", color: "#FFB300", padding: "4px 10px", cursor: "pointer" }}>▶</button>
-                  </form>
-                </div>
-              )}
+        {openPanel === "portfolio" ? (
+          <div style={{ flex: 1, minHeight: stacked ? "auto" : "120px", maxHeight: stacked ? "320px" : "none", overflowY: "auto", scrollbarWidth: "thin" }}>
+            <PortfolioPanel gameState={gameState} myPlayerId={myPlayerId} onAction={onAction} />
+          </div>
+        ) : openPanel === "trade" ? (
+          <div style={{ flex: 1, minHeight: stacked ? "auto" : "120px", maxHeight: stacked ? "360px" : "none", overflowY: "auto", scrollbarWidth: "thin" }}>
+            {pendingInvolvesMe && !counterPrefill ? (
+              <TradeOfferView gameState={gameState} myPlayerId={myPlayerId} onAction={onAction}
+                onCounter={() => {
+                  const o = pending.offer || {};
+                  setCounterPrefill({
+                    targetPid: pending.from,
+                    give: { cash: o.to_money || 0, cards: o.to_cards || 0, props: o.to_properties || [] },
+                    get: { cash: o.from_money || 0, cards: o.from_cards || 0, props: o.from_properties || [] },
+                  });
+                }} />
+            ) : (
+              <TradeBuilder gameState={gameState} myPlayerId={myPlayerId} onAction={onAction}
+                prefill={counterPrefill} onClose={() => setCounterPrefill(null)} />
+            )}
+          </div>
+        ) : (
+          /* TERMINAL — the persistent base panel */
+          <div style={{ flex: 1, minHeight: stacked ? "200px" : "120px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ flexShrink: 0, padding: "6px 10px", borderBottom: "1px solid rgba(255,179,0,0.1)", fontFamily: "var(--font-retro)", fontSize: "12px", letterSpacing: "0.14em", color: "#FFB300", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+              ▌ TERMINAL
             </div>
-          );
-        })}
+            {/* Activity log (events) */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "5px 10px", scrollbarWidth: "thin", scrollbarColor: "rgba(255,179,0,0.12) transparent", minHeight: "50px" }}>
+              {abstractFeed(log).map((g, i) => {
+                const { icon: fIcon, color } = feedCategory(g.text);
+                const isLatest = i === 0;
+                return (
+                  <div key={g.key} className="feed-in" style={{
+                    fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.5vw,14px)",
+                    color: isLatest ? "#e5e7eb" : i < 4 ? "#6b7280" : "#374151", lineHeight: "1.6",
+                    borderLeft: `2px solid ${isLatest ? color : i < 4 ? `${color}40` : "rgba(255,255,255,0.03)"}`,
+                    paddingLeft: "6px", display: "flex", gap: "4px", alignItems: "flex-start",
+                  }}>
+                    <span style={{ color: isLatest ? color : `${color}60`, flexShrink: 0 }}>{fIcon}</span>
+                    <span style={{ wordBreak: "break-word", flex: 1 }}>{g.text}</span>
+                    {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "12px" }}>×{g.count}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Chat stream */}
+            <div style={{ flexShrink: 0, maxHeight: "96px", overflowY: "auto", padding: "4px 10px", borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.2)", scrollbarWidth: "thin" }}>
+              {chatLog.length === 0 && (
+                <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>Say something…</div>
+              )}
+              {chatLog.slice(-60).map((c, i) => (
+                <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(13px,1.6vw,15px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
+                  <span style={{ color: c.color || "#fbbf24", fontWeight: "bold" }}>{c.name}:</span> {c.text}
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+            {onEmote && (
+              <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.25)" }}>
+                <EmoteBar onEmote={onEmote} compact />
+              </div>
+            )}
+            <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: "4px", padding: "5px 8px", borderTop: "1px solid rgba(255,179,0,0.1)", background: "rgba(0,0,0,0.3)", flexShrink: 0 }}>
+              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="message…" maxLength={80}
+                style={{ flex: 1, padding: "6px", fontSize: "clamp(12px,1.5vw,14px)", fontFamily: "var(--font-retro)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,179,0,0.15)", color: "#cbd5e1", outline: "none" }} />
+              <button type="submit" style={{ fontFamily: "var(--font-retro)", fontSize: "14px", background: "rgba(10,14,24,0.7)", border: "1px solid rgba(255,179,0,0.2)", color: "#FFB300", padding: "4px 10px", cursor: "pointer" }}>▶</button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
