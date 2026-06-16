@@ -154,7 +154,7 @@ export function animateDice(finalD1, finalD2, setDiceDisplay, queueInstance) {
 // setPositions: setter that accepts (pid, tileId)
 export function animateHop(pid, from, steps, setPositions, queueInstance) {
   return new Promise(resolve => {
-    const HOP_MS = 120;
+    const HOP_MS = 230;
     let current = from;
     let count = 0;
 

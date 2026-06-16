@@ -901,7 +901,9 @@ export default function App() {
       {(() => {
         const pp = gameState?.pending_payment;
         const curId = gameState?.order?.[gameState?.current];
-        if (!pp || gameState?.phase !== "payment" || curId !== playerId) return null;
+        // Hold the payment prompt until the dice + token-move animations finish,
+        // so the "what happens next" suspense isn't spoiled before the token lands.
+        if (!pp || gameState?.phase !== "payment" || curId !== playerId || animationsBusy) return null;
         const me = gameState.players.find(p => p.id === playerId);
         const creditor = pp.toPid ? gameState.players.find(p => p.id === pp.toPid)?.name : "the Bank";
         const canAfford = (me?.money ?? 0) >= pp.amount;
