@@ -142,6 +142,11 @@ export default function App() {
   const landingTimerRef = useRef(null);
   const animQueueRef = useRef(null);
   const animationsBusyRef = useRef(false);
+  // Monotonic version of the last game_state we committed/applied. Lets clients
+  // drop stale or duplicate states (the same update arrives over BOTH the
+  // broadcast fast-path and the ~1s postgres_changes echo, and the two can land
+  // out of order — without this a late DB echo briefly reverts to an old state).
+  const lastSeqRef = useRef(0);
 
   // Client visual settings
   const [scanlinesActive, setScanlinesActive] = useState(
@@ -371,16 +376,39 @@ export default function App() {
     pendingWriteRef.current = null;
   }, []);
 
+  // Stamp a strictly-increasing version onto a state before it leaves this client.
+  // Date.now()-based so it keeps climbing across host migration/reload; the +1
+  // guards against two commits within the same millisecond.
+  const stampSeq = useCallback((st) => {
+    const seq = Math.max(Date.now(), lastSeqRef.current + 1);
+    lastSeqRef.current = seq;
+    return { ...st, state_seq: seq };
+  }, []);
+
+  // Apply a state that arrived from a remote source (broadcast or DB echo),
+  // ignoring anything we've already superseded. Legacy states without a
+  // state_seq are always applied (safe fallback).
+  const applyRemoteState = useCallback((st) => {
+    if (!st) return;
+    if (st.state_seq != null) {
+      if (st.state_seq <= lastSeqRef.current) return; // stale or duplicate
+      lastSeqRef.current = st.state_seq;
+    }
+    syncGameState(st);
+    navigateForState(st);
+  }, [syncGameState]);
+
   // Commit a new state: run animations + persist to DB. Use everywhere instead of
   // setGameState+updateGameState so the host always gets animations too.
   const commitState = useCallback((newState) => {
-    syncGameState(newState);
+    const stamped = stampSeq(newState);
+    syncGameState(stamped);
     // Fast path: push the new state to guests over the broadcast channel
     // immediately (sub-100ms) so the flow isn't a postgres_changes hop behind.
-    liveRef.current?.sendState(newState);
-    if (roomId) queueGameWrite(newState); // durable copy for reconnects
+    liveRef.current?.sendState(stamped);
+    if (roomId) queueGameWrite(stamped); // durable copy for reconnects
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, queueGameWrite]);
+  }, [roomId, queueGameWrite, stampSeq]);
 
   // ── Supabase subscriptions ─────────────────────────────────────────────────
   useEffect(() => {
@@ -393,6 +421,9 @@ export default function App() {
       setGameMode(room.game_mode || "classic");
       setQuickModeRounds(room.quick_mode_rounds || 30);
       if (room.game_state && Object.keys(room.game_state).length > 0) {
+        // Seed the seq baseline from the loaded state so the first DB echo of the
+        // same state isn't re-applied as if it were new.
+        if (room.game_state.state_seq != null) lastSeqRef.current = room.game_state.state_seq;
         gameStateRef.current = room.game_state;
         setGameState(room.game_state);
         navigateForState(room.game_state);
@@ -417,8 +448,9 @@ export default function App() {
         setGameMode(roomRow.game_mode || "classic");
         setQuickModeRounds(roomRow.quick_mode_rounds || 30);
         if (roomRow.game_state && Object.keys(roomRow.game_state).length > 0) {
-          syncGameState(roomRow.game_state);
-          navigateForState(roomRow.game_state);
+          // Seq-guarded: ignores our own DB echo and any out-of-order/stale write
+          // (the broadcast fast-path already delivered newer state to guests).
+          applyRemoteState(roomRow.game_state);
         } else if (roomRow.status === "lobby") {
           // Only treat an empty state as "lobby" when the room is actually back in
           // the lobby (host "play again"). Ignoring transient empty payloads during
@@ -510,9 +542,8 @@ export default function App() {
       onChat: (p) => setLobbyChat(c => [...c.slice(-40), p]),
       // Guests apply host-broadcast state instantly (skip our own echo as host).
       onState: (st) => {
-        if (isHostRef.current || !st) return;
-        syncGameState(st);
-        navigateForState(st);
+        if (isHostRef.current) return;
+        applyRemoteState(st);
       },
       // Host applies guest-broadcast actions instantly (the DB row is durable backup).
       onAction: (row) => { if (isHostRef.current) applyActionRow(row); },
@@ -577,7 +608,7 @@ export default function App() {
 
     const seconds = rules.turn_timer_seconds || 60;
     const deadline = Date.now() + seconds * 1000;
-    const withDeadline = { ...s, turn_deadline: deadline };
+    const withDeadline = stampSeq({ ...s, turn_deadline: deadline });
     gameStateRef.current = withDeadline;
     setGameState(withDeadline);
     liveRef.current?.sendState(withDeadline);
@@ -736,7 +767,7 @@ export default function App() {
     const result = startGame(state, { hostId: playerId });
     if (result.error) { setToast({ message: result.error, type: "error" }); return; }
 
-    const newState = result.state;
+    const newState = stampSeq(result.state);
     gameStateRef.current = newState;
     setGameState(newState);
     // Write the game state BEFORE flipping status to 'playing' so no client ever
