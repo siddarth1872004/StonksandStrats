@@ -57,52 +57,52 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
   const speedDie = gameState?.speed_die;
   const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
   const status = gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" };
-  const recent = (gameState?.log || []).slice(-3).reverse();
+  const latest = (gameState?.log || []).slice(-1)[0];
 
   return (
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      height: "100%", width: "100%", gap: "clamp(6px, 1.6cqw, 14px)", padding: "clamp(8px, 2cqw, 18px)",
+      height: "100%", width: "100%", gap: "clamp(10px, 2.4cqw, 22px)", padding: "clamp(10px, 2.5cqw, 24px)",
     }}>
       {/* Headline status */}
       <div style={{
-        textAlign: "center", background: "rgba(0,0,0,0.45)",
-        border: `1px solid ${accent}55`, borderTop: `2px solid ${accent}`,
-        padding: "clamp(6px,1.4cqw,12px) clamp(10px,2cqw,18px)", maxWidth: "92%",
+        textAlign: "center", background: "rgba(0,0,0,0.55)",
+        border: `1px solid ${accent}55`, borderTop: `3px solid ${accent}`,
+        padding: "clamp(10px,2.2cqw,20px) clamp(14px,3cqw,28px)", maxWidth: "94%",
       }}>
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.8cqw,7px)", color: "#64748b", letterSpacing: "0.2em", marginBottom: "5px" }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.1cqw,10px)", color: "#64748b", letterSpacing: "0.2em", marginBottom: "8px" }}>
           ◆ LIVE STATUS ◆
         </div>
         <div style={{
-          fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.6cqw,15px)", fontWeight: "bold",
-          color: accent, textShadow: `0 0 8px ${accent}70`, lineHeight: 1.4,
+          fontFamily: "var(--font-retro)", fontSize: "clamp(12px,2.6cqw,24px)", fontWeight: "bold",
+          color: accent, textShadow: `0 0 12px ${accent}80`, lineHeight: 1.4,
           overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {status.headline}
         </div>
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,9px)", color: "#94a3b8", marginTop: "5px", lineHeight: 1.4 }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.5cqw,13px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
           {status.sub}
         </div>
       </div>
 
       {/* Center dice */}
       {inPlay && displayDice && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "clamp(5px, 1.4cqw, 12px)" }}>
-            <div style={{ width: "clamp(26px, 6.5cqw, 54px)", height: "clamp(26px, 6.5cqw, 54px)" }} className={animationsBusy ? "dice-rolling" : ""}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "clamp(8px, 2cqw, 18px)" }}>
+            <div style={{ width: "clamp(40px, 9.5cqw, 84px)", height: "clamp(40px, 9.5cqw, 84px)" }} className={animationsBusy ? "dice-rolling" : ""}>
               <DiceIcon value={displayDice[0]} size="100%" />
             </div>
-            <div style={{ width: "clamp(26px, 6.5cqw, 54px)", height: "clamp(26px, 6.5cqw, 54px)" }} className={animationsBusy ? "dice-rolling" : ""}>
+            <div style={{ width: "clamp(40px, 9.5cqw, 84px)", height: "clamp(40px, 9.5cqw, 84px)" }} className={animationsBusy ? "dice-rolling" : ""}>
               <DiceIcon value={displayDice[1]} size="100%" />
             </div>
             {speedDie && (
               <div style={{
-                width: "clamp(26px, 6.5cqw, 54px)", height: "clamp(26px, 6.5cqw, 54px)",
+                width: "clamp(40px, 9.5cqw, 84px)", height: "clamp(40px, 9.5cqw, 84px)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 border: `2px solid ${speedDie.type === "mr_monopoly" ? "#F59E0B" : speedDie.type === "bus" ? "#8B5CF6" : "#38bdf8"}`,
                 background: "rgba(0,0,0,0.6)",
                 fontFamily: "var(--font-retro)",
-                fontSize: speedDie.type === "move" ? "clamp(12px,3cqw,22px)" : "clamp(6px,1.4cqw,10px)",
+                fontSize: speedDie.type === "move" ? "clamp(18px,4.5cqw,34px)" : "clamp(8px,2cqw,14px)",
                 color: speedDie.type === "mr_monopoly" ? "#F59E0B" : speedDie.type === "bus" ? "#8B5CF6" : "#38bdf8",
               }}>
                 {speedDie.type === "move" ? speedDie.face : speedDie.type === "bus" ? "BUS" : "MR.M"}
@@ -112,7 +112,7 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
           {animationsBusy && onSkipAnimations && (
             <button
               onClick={() => { playClick(); onSkipAnimations(); }}
-              style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,8px)", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", padding: "2px 8px", cursor: "pointer" }}
+              style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.3cqw,10px)", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", padding: "3px 10px", cursor: "pointer" }}
             >
               SKIP ▶▶
             </button>
@@ -120,24 +120,20 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
         </div>
       )}
 
-      {/* Recent activity */}
-      {recent.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "94%", width: "100%", alignItems: "center" }}>
-          {recent.map((line, i) => (
-            <div key={i} style={{
-              fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.85cqw,8px)",
-              color: i === 0 ? "#cbd5e1" : i === 1 ? "#64748b" : "#475569",
-              maxWidth: "100%", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", textAlign: "center",
-            }}>
-              {i === 0 ? "▶ " : "· "}{line}
-            </div>
-          ))}
+      {/* Single latest news line */}
+      {inPlay && latest && (
+        <div style={{
+          fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.2cqw,11px)",
+          color: "#cbd5e1", maxWidth: "94%",
+          overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", textAlign: "center",
+        }}>
+          ▶ {latest}
         </div>
       )}
 
       {/* Lobby branding only (before the game starts) */}
       {!inPlay && gameState?.phase === "lobby" && (
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.4cqw,12px)", color: "#34d399", fontWeight: "bold", letterSpacing: "0.1em", textShadow: "0 0 8px rgba(52,211,153,0.4)" }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,2cqw,18px)", color: "#34d399", fontWeight: "bold", letterSpacing: "0.1em", textShadow: "0 0 10px rgba(52,211,153,0.4)" }}>
           STONKS &amp; STRATS
         </div>
       )}
@@ -168,7 +164,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
       display: "grid",
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",
-      background: "#080c18",
+      background: "#000000",
       border: `3px solid ${isMyTurn ? "rgba(52,211,153,0.75)" : "rgba(255,179,0,0.5)"}`,
       boxShadow: isMyTurn
         ? "0 0 40px rgba(52,211,153,0.25), inset 0 0 20px rgba(0,0,0,0.6)"
@@ -185,7 +181,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle, #0e1633 0%, #050811 100%)",
+        background: "radial-gradient(circle, #0a0a0c 0%, #000000 100%)",
         border: "1px solid rgba(56,189,248,0.15)",
         position: "relative",
         overflow: "hidden",

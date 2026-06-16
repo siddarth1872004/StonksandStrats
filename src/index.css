@@ -3,8 +3,9 @@
 @import "@fontsource/vt323/index.css";
 
 :root {
-  --bg-dark: #060913;
-  --bg-glow: radial-gradient(circle at 50% 50%, #10162f 0%, #03050a 100%);
+  /* AMOLED pure-black base */
+  --bg-dark: #000000;
+  --bg-glow: none;
   
   /* Glassmorphism system */
   --glass-bg: rgba(10, 15, 30, 0.75);
@@ -189,7 +190,7 @@ body {
   100% { transform: translate(-4%, -3%) scale(1.15) rotate(0deg); }
 }
 @keyframes hue-cycle { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
-@keyframes bg-breathe { 0%,100% { opacity: 0.55; } 50% { opacity: 0.85; } }
+@keyframes bg-breathe { 0%,100% { opacity: 0.35; } 50% { opacity: 0.6; } }
 
 .crt-bg {
   position: fixed;
@@ -199,15 +200,16 @@ body {
   overflow: hidden;
   animation: bg-breathe 9s ease-in-out infinite;
 }
+/* Very faint drifting glow so AMOLED black stays dominant but alive */
 .crt-bg::before {
   content: "";
   position: absolute;
   inset: -25%;
   background:
-    radial-gradient(38% 38% at 24% 30%, rgba(255,179,0,0.12), transparent 62%),
-    radial-gradient(44% 44% at 76% 66%, rgba(56,189,248,0.12), transparent 62%),
-    radial-gradient(34% 34% at 62% 18%, rgba(168,85,247,0.10), transparent 62%),
-    radial-gradient(40% 40% at 30% 80%, rgba(16,185,129,0.08), transparent 62%);
+    radial-gradient(38% 38% at 24% 30%, rgba(255,179,0,0.06), transparent 60%),
+    radial-gradient(44% 44% at 76% 66%, rgba(56,189,248,0.06), transparent 60%),
+    radial-gradient(34% 34% at 62% 18%, rgba(168,85,247,0.05), transparent 60%),
+    radial-gradient(40% 40% at 30% 80%, rgba(16,185,129,0.04), transparent 60%);
   animation: plasma-drift 22s ease-in-out infinite, hue-cycle 48s linear infinite;
   will-change: transform, filter;
 }

@@ -187,7 +187,8 @@ export default function App() {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
-  useEffect(() => { document.body.className = `bloom-${bloomSetting}`; }, [bloomSetting]);
+  // Bloom is always on (high) regardless of the saved setting.
+  useEffect(() => { document.body.className = "bloom-high"; }, [bloomSetting]);
 
   useEffect(() => {
     const q = new AnimationQueue();
