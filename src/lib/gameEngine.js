@@ -32,8 +32,8 @@ export const DEFAULT_HOUSE_RULES = {
 // ── Card Decks ────────────────────────────────────────────────────────────────
 const CHANCE_CARDS = [
   { text: "Advance to GO. Collect $200.", action: "advance_to", value: 0 },
-  { text: "Take a ride to Illinois Avenue. If you pass GO, collect $200.", action: "advance_to", value: 24 },
-  { text: "Advance to St. Charles Place. If you pass GO, collect $200.", action: "advance_to", value: 11 },
+  { text: "Advance to Trafalgar Square. If you pass GO, collect $200.", action: "advance_to", value: 24 },
+  { text: "Advance to Pall Mall. If you pass GO, collect $200.", action: "advance_to", value: 11 },
   { text: "Advance to the nearest Utility. If owned, throw dice and pay 10x. If unowned, you may buy it.", action: "advance_to_nearest_utility" },
   { text: "Advance to the nearest Railroad. If owned, pay twice the rent. If unowned, you may buy it.", action: "advance_to_nearest_railroad" },
   { text: "Advance to the nearest Railroad. If owned, pay twice the rent. If unowned, you may buy it.", action: "advance_to_nearest_railroad" },
@@ -43,8 +43,8 @@ const CHANCE_CARDS = [
   { text: "Go directly to Jail. Do not pass GO, do not collect $200.", action: "go_to_jail" },
   { text: "Make general repairs on all your properties. Pay $25 per house, $100 per hotel.", action: "pay_per_house", value: [25, 100] },
   { text: "Speeding fine. Pay $15.", action: "pay", value: 15 },
-  { text: "Take a trip to Reading Railroad. If you pass GO, collect $200.", action: "advance_to", value: 5 },
-  { text: "Take a walk on the Boardwalk. Advance directly there.", action: "advance_to", value: 39 },
+  { text: "Take a trip to King's Cross Station. If you pass GO, collect $200.", action: "advance_to", value: 5 },
+  { text: "Take a walk down Mayfair. Advance directly there.", action: "advance_to", value: 39 },
   { text: "You have been elected Chairman of the Board. Pay each player $50.", action: "pay_each_player", value: 50 },
   { text: "Your building loan matures. Collect $150.", action: "collect", value: 150 },
 ];

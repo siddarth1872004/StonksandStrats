@@ -65,8 +65,8 @@ body.bloom-low {
 }
 
 body.bloom-high {
-  --bloom-size: 10px;
-  --bloom-opacity: 0.45;
+  --bloom-size: 12px;
+  --bloom-opacity: 0.5;
 }
 
 * {
@@ -270,23 +270,28 @@ body {
   background:
     linear-gradient(
       rgba(18, 16, 16, 0) 50%,
-      rgba(0, 0, 0, 0.10) 50%
+      rgba(0, 0, 0, 0.13) 50%
     ),
     linear-gradient(
       90deg,
-      rgba(255, 0, 0, 0.04),
-      rgba(0, 255, 0, 0.03),
-      rgba(0, 0, 255, 0.04)
+      rgba(255, 0, 0, 0.05),
+      rgba(0, 255, 0, 0.04),
+      rgba(0, 0, 255, 0.05)
     );
   background-size: 100% 3px, 4px 100%;
   z-index: 9999;
   pointer-events: none;
-  animation: scanline-roll 10s linear infinite;
+  /* roll the scanlines AND let them subtly pulse for a live CRT shimmer */
+  animation: scanline-roll 9s linear infinite, scanline-pulse 3.5s ease-in-out infinite;
 }
 
 @keyframes scanline-roll {
-  from { background-position: 0 0; }
-  to   { background-position: 0 100px; }
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 0 100px, 0 0; }
+}
+@keyframes scanline-pulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
 }
 
 @keyframes crt-flicker {
@@ -308,10 +313,38 @@ body {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background:
-    radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.5) 100%),
-    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(120, 180, 255, 0.035), transparent 70%);
+    radial-gradient(circle, transparent 55%, rgba(0, 0, 0, 0.6) 100%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(120, 180, 255, 0.045), transparent 70%);
   pointer-events: none;
   z-index: 9998;
+  /* faint breathing so the tube glow feels alive */
+  animation: vignette-breathe 7s ease-in-out infinite;
+}
+@keyframes vignette-breathe {
+  0%, 100% { opacity: 0.92; }
+  50%      { opacity: 1; }
+}
+
+/* ── Low-power mode (phones / few-core / low-memory / reduced-motion) ──────
+   Drop the GPU-melting effects: backdrop blur on every glass card and the
+   fullscreen hue-cycling plasma are the two heaviest. Cheap CRT scanlines &
+   vignette stay so it still looks the part, just without the cost. */
+body.low-power .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #0a0e1a !important;
+}
+body.low-power .crt-bg,
+body.low-power .crt-bg::before,
+body.low-power .crt-bg::after,
+body.low-power .crt-vignette,
+body.low-power .crt-screen.flicker {
+  animation: none !important;
+}
+body.low-power .crt-bg::before { filter: none !important; }
+body.low-power .crt-bg::after { display: none !important; }   /* drop the roll band */
+body.low-power .crt-screen.scanlines::before {
+  animation: scanline-roll 12s linear infinite !important;     /* keep roll, no pulse */
 }
 
 .board-grid-13 {

@@ -191,8 +191,18 @@ export default function App() {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
-  // Bloom is always on (high) regardless of the saved setting.
-  useEffect(() => { document.body.className = "bloom-high"; }, [bloomSetting]);
+  // Bloom is always on (high). On weak devices (few cores / little memory /
+  // small touch screens / reduced-motion) add `low-power`, which the stylesheet
+  // uses to drop the GPU-heavy effects (backdrop blur, hue-cycling plasma) so
+  // the game stays smooth on phones and low-end PCs.
+  useEffect(() => {
+    const lowPower =
+      (navigator.hardwareConcurrency || 8) <= 4 ||
+      (navigator.deviceMemory || 8) <= 4 ||
+      window.matchMedia("(max-width: 820px)").matches ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.body.className = lowPower ? "bloom-high low-power" : "bloom-high";
+  }, [bloomSetting]);
 
   useEffect(() => {
     const q = new AnimationQueue();

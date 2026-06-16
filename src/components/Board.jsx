@@ -90,12 +90,13 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
   const displayDice = animDice || gameState?.dice;
   const speedDie = gameState?.speed_die;
   const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
-  // While the dice/token are still animating, never reveal the outcome (e.g.
-  // "can buy …") — keep the suspense until the token actually lands.
-  const status = animationsBusy
-    ? { headline: `${currentPlayer?.name || "—"} is rolling`, sub: "Where will the token land?" }
-    : (gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" });
   const latest = (gameState?.log || []).slice(-1)[0];
+  // One big bold headline carries EVERYTHING: while the dice/token animate we
+  // hold the suspense; otherwise we surface the most recent event from the log
+  // (buys, rent, cards, trades, jail…) so no event is relegated to small text.
+  const newsLine = animationsBusy
+    ? `${currentPlayer?.name || "—"} is rolling…`
+    : (latest || (gameState ? describeStatus(gameState, currentPlayer).headline : ""));
   // The full tile-details card is shown only to the player who actually landed
   // (and persists through their turn). Everyone else just sees the live news.
   const land = (inPlay && !animationsBusy && landing && landing.pid === myPlayerId)
@@ -124,19 +125,6 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
             </span>
           </div>
           <TileDetails tileId={land.tile.id} gameState={gameState} />
-          {latest && (
-            <div key={latest} className="feed-in" style={{
-              marginTop: "clamp(10px,1.6cqw,16px)", paddingTop: "clamp(8px,1.4cqw,14px)",
-              borderTop: "1px solid rgba(255,179,0,0.18)",
-              display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
-            }}>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.2cqw,12px)", color: "#FFB300", letterSpacing: "0.18em", flexShrink: 0 }}>▶ NEWS</span>
-              <span style={{
-                fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.7cqw,16px)", color: "#e2e8f0", lineHeight: 1.4,
-                overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-              }}>{latest}</span>
-            </div>
-          )}
         </div>
       ) : (
       <>
@@ -148,33 +136,20 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
         padding: "clamp(10px,2.2cqw,20px) clamp(14px,3cqw,28px)", maxWidth: "96%", minWidth: "62%",
         boxShadow: `0 0 26px ${accent}22, inset 0 0 30px rgba(0,0,0,0.5)`,
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "9px" }}>
-          <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}`, animation: "pulse-anim 1.8s infinite" }} />
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3cqw,12px)", color: "#64748b", letterSpacing: "0.22em" }}>LIVE NEWS</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "clamp(8px,1.4cqw,12px)" }}>
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}`, animation: "pulse-anim 1.8s infinite" }} />
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4cqw,13px)", color: "#FFB300", letterSpacing: "0.24em", fontWeight: "bold" }}>LIVE NEWS</span>
         </div>
-        <div style={{
-          fontFamily: "var(--font-retro)", fontSize: "clamp(15px,2.8cqw,28px)", fontWeight: "bold",
-          color: accent, textShadow: `0 0 12px ${accent}80`, lineHeight: 1.4,
-          overflow: "hidden", textOverflow: "ellipsis",
+        {/* Every event flows through here as one big, bold headline (no small
+            sub-text). During the roll we hold the suspense instead of spoiling
+            the outcome. */}
+        <div key={newsLine} className={animationsBusy ? "" : "feed-in"} style={{
+          fontFamily: "var(--font-retro)", fontSize: "clamp(17px,3.1cqw,32px)", fontWeight: "bold",
+          color: accent, textShadow: `0 0 14px ${accent}80`, lineHeight: 1.32,
+          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical",
         }}>
-          {status.headline}
+          {newsLine}
         </div>
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.8cqw,16px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
-          {status.sub}
-        </div>
-        {inPlay && latest && (
-          <div key={latest} className="feed-in" style={{
-            marginTop: "clamp(10px,1.6cqw,16px)", paddingTop: "clamp(8px,1.4cqw,14px)",
-            borderTop: "1px solid rgba(255,179,0,0.18)",
-            display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
-          }}>
-            <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.2cqw,12px)", color: "#FFB300", letterSpacing: "0.18em", flexShrink: 0 }}>▶ NEWS</span>
-            <span style={{
-              fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.7cqw,16px)", color: "#e2e8f0", lineHeight: 1.4,
-              overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-            }}>{latest}</span>
-          </div>
-        )}
       </div>
 
       {/* Center dice */}
