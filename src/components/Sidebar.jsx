@@ -52,25 +52,26 @@ function Section({ label, right }) {
 function Btn({ children, onClick, disabled, style, variant }) {
   const base = {
     fontFamily: "var(--font-retro)",
-    fontSize: "clamp(8px, 1.4vw, 10px)",
+    fontSize: "clamp(12px, 1.6vw, 15px)",
     background: "rgba(10,14,24,0.7)",
-    border: "2px solid rgba(255,179,0,0.2)",
+    border: "1px solid rgba(255,179,0,0.22)",
     color: "#cbd5e1",
-    padding: "8px",
-    minHeight: "30px",
+    padding: "8px 10px",
+    minHeight: "32px",
+    borderRadius: "8px",
     cursor: disabled ? "not-allowed" : "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "5px",
+    gap: "6px",
     opacity: disabled ? 0.4 : 1,
-    letterSpacing: "0.05em",
-    transition: "border-color 0.1s, color 0.1s",
+    letterSpacing: "0.04em",
+    transition: "border-color 0.12s, color 0.12s, background 0.12s",
     ...style,
   };
-  if (variant === "green") { base.border = "2px solid rgba(52,211,153,0.5)"; base.color = "#34d399"; base.background = "rgba(5,46,22,0.3)"; }
-  if (variant === "red")   { base.border = "2px solid rgba(239,68,68,0.4)"; base.color = "#f87171"; base.background = "rgba(69,10,10,0.3)"; }
-  if (variant === "amber") { base.border = "2px solid rgba(255,179,0,0.45)"; base.color = "#FFB300"; base.background = "rgba(30,20,0,0.4)"; }
+  if (variant === "green") { base.border = "1px solid rgba(52,211,153,0.55)"; base.color = "#34d399"; base.background = "rgba(5,46,22,0.35)"; }
+  if (variant === "red")   { base.border = "1px solid rgba(239,68,68,0.5)"; base.color = "#f87171"; base.background = "rgba(69,10,10,0.35)"; }
+  if (variant === "amber") { base.border = "1px solid rgba(255,179,0,0.5)"; base.color = "#FFB300"; base.background = "rgba(30,20,0,0.45)"; }
   return <button style={base} onClick={onClick} disabled={disabled}>{children}</button>;
 }
 

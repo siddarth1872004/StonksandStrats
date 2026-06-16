@@ -188,7 +188,7 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
 
       {/* Lobby branding only (before the game starts) */}
       {!inPlay && gameState?.phase === "lobby" && (
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,2cqw,18px)", color: "#34d399", fontWeight: "bold", letterSpacing: "0.1em", textShadow: "0 0 10px rgba(52,211,153,0.4)" }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: "clamp(10px,1.8cqw,16px)", color: "#34d399", fontWeight: "bold", letterSpacing: "0.06em", textShadow: "0 0 12px rgba(52,211,153,0.5)", lineHeight: 1.6 }}>
           STONKS &amp; STRATS
         </div>
       )}
@@ -300,7 +300,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
           position: "relative",
         };
 
-        const textSize = "clamp(6px, 1.35cqw, 12px)";
+        const textSize = "clamp(8px, 1.7cqw, 15px)";
 
         return (
           <div
@@ -389,7 +389,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
               {tile.price && !ownerColor && !isMortgaged && (
                 <span style={{
                   fontFamily: "var(--font-retro)",
-                  fontSize: "clamp(4px, 0.75cqw, 7px)",
+                  fontSize: "clamp(7px, 1.1cqw, 12px)",
                   color: "#38bdf8",
                   fontWeight: "bold",
                 }}>

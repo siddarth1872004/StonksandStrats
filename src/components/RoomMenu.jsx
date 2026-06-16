@@ -34,10 +34,10 @@ export default function RoomMenu({ onCreateRoom, onJoinRoom, defaultName }) {
   return (
     <div className="glass-card w-full max-w-sm p-6 flex flex-col gap-5 border-t-2 border-sky-500">
       <div className="text-center">
-        <h2 className="font-mono text-xs text-sky-400 font-bold tracking-widest uppercase mb-1 flex items-center justify-center gap-1.5">
-          <UsersIcon size={12} /> STONKS &amp; STRATS
+        <h2 className="text-sky-400 font-bold uppercase mb-2 flex items-center justify-center gap-2" style={{ fontFamily: "var(--font-display)", fontSize: "13px", letterSpacing: "0.08em", lineHeight: 1.6 }}>
+          <UsersIcon size={14} /> STONKS &amp; STRATS
         </h2>
-        <p className="text-[10px] text-slate-500 font-mono">Multiplayer Monopoly via Supabase</p>
+        <p className="text-[11px] text-slate-500 font-mono">Multiplayer Monopoly</p>
       </div>
 
       {/* Player name */}

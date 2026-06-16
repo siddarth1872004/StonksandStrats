@@ -922,33 +922,32 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ position: "relative", zIndex: 1 }}>
-        <header style={{ height: "32px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", borderBottom: "2px solid rgba(255,179,0,0.2)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.2em" }}>STONKS &amp; STRATS</span>
+        <header style={{ height: "38px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", borderBottom: "1px solid rgba(255,179,0,0.18)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: "9px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.06em" }}>STONKS &amp; STRATS</span>
             {roomId && <>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "2px 6px" }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "1px 8px", borderRadius: "4px", letterSpacing: "0.1em" }}>
                 {roomId}
               </span>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: isHost ? "#fbbf24" : "#64748b", border: "1px solid", borderColor: isHost ? "rgba(251,191,36,0.35)" : "rgba(100,116,139,0.2)", padding: "2px 6px" }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: isHost ? "#fbbf24" : "#94a3b8", border: "1px solid", borderColor: isHost ? "rgba(251,191,36,0.35)" : "rgba(100,116,139,0.2)", padding: "1px 8px", borderRadius: "4px" }}>
                 {isHost ? "HOST" : "PLAYER"}{isBankrupt ? " · SPECTATOR" : ""}
-              </span>
-              <span title={connected ? "Realtime connected" : "Reconnecting…"} style={{ display: "flex", alignItems: "center", gap: "4px", fontFamily: "var(--font-retro)", fontSize: "8px", color: connected ? "#34d399" : "#fbbf24" }}>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: connected ? "#22c55e" : "#fbbf24", boxShadow: connected ? "0 0 5px #22c55e" : "0 0 5px #fbbf24", animation: connected ? "pulse-anim 2s infinite" : "blink-anim 0.8s infinite" }} />
-                {connected ? "LIVE" : "RECONNECTING"}
               </span>
             </>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {roomId && (
+              <span title={connected ? "Realtime connected" : "Reconnecting…"} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "12px", color: connected ? "#34d399" : "#fbbf24" }}>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: connected ? "#22c55e" : "#fbbf24", boxShadow: connected ? "0 0 5px #22c55e" : "0 0 5px #fbbf24", animation: connected ? "pulse-anim 2s infinite" : "blink-anim 0.8s infinite" }} />
+                {connected ? "LIVE" : "RECONNECTING"}
+              </span>
+            )}
             <button
               onClick={toggleMute}
               title={muted ? "Unmute" : "Mute"}
               style={{ background: "none", border: "none", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center" }}
             >
-              {muted ? <MuteIcon size={13} color="#64748b" /> : <SoundIcon size={13} color="#FFB300" />}
+              {muted ? <MuteIcon size={15} color="#64748b" /> : <SoundIcon size={15} color="#FFB300" />}
             </button>
-            <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#334155", letterSpacing: "0.1em" }}>
-              [|] DIAG · [M] PORTFOLIO · ESC CLOSE
-            </div>
           </div>
         </header>
 
