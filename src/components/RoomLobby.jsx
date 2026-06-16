@@ -12,6 +12,7 @@ const TOKEN_COLORS = {
   iron: "#8B5CF6", shoe: "#10B981", cat: "#F97316", ring: "#EC4899", wheelbarrow: "#84CC16",
 };
 
+const ALL_TOKENS = ["car", "hat", "dog", "ship", "iron", "shoe", "cat", "ring", "wheelbarrow"];
 const BOT_TOKENS = ["hat", "dog", "ship", "iron", "shoe", "cat", "ring", "wheelbarrow", "car"];
 const BOT_NAMES = ["AutoBot Alpha", "RoboStrat", "Moneyman 3000", "BotFolio"];
 
@@ -25,7 +26,7 @@ export default function RoomLobby({
   players, myPlayerId, isHost, roomCode, hostPlayerId,
   houseRules, onHouseRulesChange,
   gameMode, quickModeRounds, onGameModeChange,
-  onStartGame, onLeave, onAddBot, onRemoveBot, onBotDifficulty,
+  onStartGame, onLeave, onAddBot, onRemoveBot, onBotDifficulty, onChangeToken,
   lobbyChat = [], onLobbyChat, onEmote,
 }) {
   const [copied, setCopied] = useState(false);
@@ -70,6 +71,15 @@ export default function RoomLobby({
 
   const humanCount = players.filter(p => !p.is_bot).length;
   const botCount = players.filter(p => p.is_bot).length;
+
+  const me = players.find(p => p.id === myPlayerId);
+  const myShape = me?.token_shape || me?.token;
+  const takenByOthers = new Set(players.filter(p => p.id !== myPlayerId).map(p => p.token_shape || p.token));
+
+  const pickToken = (shape) => {
+    if (takenByOthers.has(shape) || shape === myShape) return;
+    onChangeToken?.(shape, TOKEN_COLORS[shape]);
+  };
 
   return (
     <div className="glass-card w-full max-w-lg p-5 flex flex-col gap-4 border-t-2 border-amber-500 font-mono">
@@ -182,6 +192,41 @@ export default function RoomLobby({
               <div className="text-center text-slate-600 text-[9px] py-3 italic">Waiting for players to join…</div>
             )}
           </div>
+
+          {/* Your token picker — taken tokens are disabled */}
+          {me && onChangeToken && (
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[8px] text-slate-500 tracking-wider uppercase">YOUR TOKEN</div>
+              <div className="grid grid-cols-9 gap-1">
+                {ALL_TOKENS.map(t => {
+                  const taken = takenByOthers.has(t);
+                  const mine = t === myShape;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => { playClick(); pickToken(t); }}
+                      disabled={taken}
+                      title={taken ? "Taken" : mine ? "Your token" : t}
+                      style={{
+                        border: mine ? `2px solid ${TOKEN_COLORS[t]}` : "1px solid rgba(56,189,248,0.18)",
+                        background: mine ? `${TOKEN_COLORS[t]}22` : "rgba(0,0,0,0.3)",
+                        boxShadow: mine ? `0 0 8px ${TOKEN_COLORS[t]}55` : "none",
+                        opacity: taken ? 0.28 : 1,
+                        cursor: taken ? "not-allowed" : mine ? "default" : "pointer",
+                        padding: "5px",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        position: "relative",
+                        transition: "all 0.1s",
+                      }}
+                    >
+                      <TokenIcon name={t} color={taken ? "#475569" : TOKEN_COLORS[t]} size={16} />
+                      {taken && <span style={{ position: "absolute", fontSize: "8px", color: "#f87171" }}>✕</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Add bot button */}
           {isHost && players.length < 6 && (

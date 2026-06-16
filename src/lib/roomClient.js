@@ -1,5 +1,14 @@
 // Phase 3 room client — rooms.id = room code (text PK), auth.uid() = player.id
 import { supabase } from './supabase';
+import { TOKEN_COLORS } from '../boardData';
+
+const TOKEN_SHAPES = ['car', 'hat', 'dog', 'ship', 'iron', 'shoe', 'cat', 'ring', 'wheelbarrow'];
+
+// First token shape not already claimed by someone in the room.
+function firstFreeToken(existingPlayers) {
+  const used = new Set((existingPlayers || []).map(p => p.token_shape || p.token));
+  return TOKEN_SHAPES.find(t => !used.has(t)) || 'car';
+}
 
 // ── Room creation ─────────────────────────────────────────────────────────────
 // Uses the create_room_fn RPC so code generation + insert is atomic server-side.
@@ -61,13 +70,16 @@ export async function joinRoom(code, playerName, tokenShape, tokenColor) {
   }
 
   const seat = existingPlayers.length;
+  // Auto-assign the first free token so two players never start with the same one;
+  // they can change it in the lobby afterwards.
+  const shape = tokenShape || firstFreeToken(existingPlayers);
   const { error: playerErr } = await supabase.from('players').upsert({
     id:          user.id,
     room_id:     code.toUpperCase(),
     seat_index:  seat,
     name:        playerName,
-    token_shape: tokenShape || 'hat',
-    token_color: tokenColor || '#3B82F6',
+    token_shape: shape,
+    token_color: tokenColor || TOKEN_COLORS[shape] || '#3B82F6',
     is_bot:      false,
     is_connected: true,
   }, { onConflict: 'id' });
@@ -227,20 +239,37 @@ export async function updateBotDifficulty(botId, difficulty) {
   await supabase.from('players').update({ bot_difficulty: difficulty }).eq('id', botId).eq('is_bot', true);
 }
 
+// Change a player's token (used by the in-lobby token picker). Guarded so a token
+// already claimed by someone else in the room can't be taken.
+export async function updatePlayerToken(roomId, playerId, shape, color) {
+  const players = await fetchPlayers(roomId);
+  const taken = players.some(p => p.id !== playerId && (p.token_shape || p.token) === shape);
+  if (taken) throw new Error('That token is already taken.');
+  await supabase.from('players').update({ token_shape: shape, token_color: color }).eq('id', playerId);
+}
+
 export async function removeBot(botId) {
   await supabase.from('players').delete().eq('id', botId).eq('is_bot', true);
 }
 
-// ── Ephemeral live channel (emotes + lobby chat) ──────────────────────────────
-// Realtime broadcast — no DB writes, works before game_state exists (lobby).
-export function subscribeToLive(roomId, { onEmote, onChat } = {}) {
+// ── Ephemeral live channel (emotes + lobby chat + low-latency game sync) ───────
+// Realtime broadcast — sub-100ms, no DB round-trip. Used for the fast path:
+//   • host broadcasts each new game_state so guests update instantly
+//   • guests broadcast their actions so the host applies them instantly
+// The DB (rooms.game_state / actions table) remains the durable source of truth
+// for reconnects; broadcast just removes the ~1s postgres_changes latency.
+export function subscribeToLive(roomId, { onEmote, onChat, onState, onAction } = {}) {
   const channel = supabase.channel(`live:${roomId}`, { config: { broadcast: { self: true } } });
   if (onEmote) channel.on('broadcast', { event: 'emote' }, ({ payload }) => onEmote(payload));
   if (onChat) channel.on('broadcast', { event: 'chat' }, ({ payload }) => onChat(payload));
+  if (onState) channel.on('broadcast', { event: 'state' }, ({ payload }) => onState(payload));
+  if (onAction) channel.on('broadcast', { event: 'action' }, ({ payload }) => onAction(payload));
   channel.subscribe();
   return {
     sendEmote: (payload) => channel.send({ type: 'broadcast', event: 'emote', payload }),
     sendChat: (payload) => channel.send({ type: 'broadcast', event: 'chat', payload }),
+    sendState: (payload) => channel.send({ type: 'broadcast', event: 'state', payload }),
+    sendAction: (payload) => channel.send({ type: 'broadcast', event: 'action', payload }),
     unsubscribe: () => supabase.removeChannel(channel),
   };
 }

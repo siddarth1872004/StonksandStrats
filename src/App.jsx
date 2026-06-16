@@ -26,7 +26,7 @@ import {
   sendAction, updateGameState, startRoomGame, endRoom, leaveRoom,
   updateHouseRules, updateGameMode, addBot, removeBot, updateBotDifficulty,
   touchHeartbeat, claimHost, markActionProcessed, subscribeToLive, resetRoomToLobby,
-  fetchUnprocessedActions,
+  fetchUnprocessedActions, updatePlayerToken,
 } from "./lib/roomClient";
 
 import {
@@ -83,6 +83,7 @@ export default function App() {
   const processedActionsRef = useRef(new Set()); // host idempotency guard
   const writeTimerRef = useRef(null);            // coalesced game_state writes
   const pendingWriteRef = useRef(null);
+  const isHostRef = useRef(false);               // current host flag for live-channel callbacks
 
   const [toast, setToast] = useState(null);
   const [connected, setConnected] = useState(true); // realtime link health
@@ -185,6 +186,7 @@ export default function App() {
   }, []);
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
+  useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   useEffect(() => { document.body.className = `bloom-${bloomSetting}`; }, [bloomSetting]);
 
   useEffect(() => {
@@ -342,7 +344,10 @@ export default function App() {
   // setGameState+updateGameState so the host always gets animations too.
   const commitState = useCallback((newState) => {
     syncGameState(newState);
-    if (roomId) queueGameWrite(newState);
+    // Fast path: push the new state to guests over the broadcast channel
+    // immediately (sub-100ms) so the flow isn't a postgres_changes hop behind.
+    liveRef.current?.sendState(newState);
+    if (roomId) queueGameWrite(newState); // durable copy for reconnects
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, queueGameWrite]);
 
@@ -400,23 +405,31 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  // Apply a single guest action row. Idempotent: an id is only ever processed
-  // once, so a realtime event and a safety-drain delivering the same row is safe.
-  const processActionRow = useCallback((actionRow) => {
-    if (!actionRow || processedActionsRef.current.has(actionRow.id)) return;
-    const currentState = gameStateRef.current;
-    if (!currentState) return; // not ready yet — a later drain will retry
-    processedActionsRef.current.add(actionRow.id);
+  // Apply a single guest action (from the realtime broadcast fast-path, the
+  // actions-table postgres_changes stream, or a safety drain). Idempotent: a
+  // client-generated `cid` (or DB row id) is processed at most once, so the same
+  // action arriving on multiple paths can never double-apply. DB rows are always
+  // marked processed so the drain stops re-delivering them.
+  const applyActionRow = useCallback((row) => {
+    if (!row) return;
+    const key = row.payload?.cid ?? row.id;
+    const isDbRow = row.id != null;
 
-    const actionType = actionRow.action_type || actionRow.type;
-    const enginePayload = actionType === "propose_trade"
-      ? { fromId: actionRow.player_id, toId: actionRow.payload.toId, offer: actionRow.payload.offer }
-      : { ...actionRow.payload, playerId: actionRow.player_id };
+    if (key == null || !processedActionsRef.current.has(key)) {
+      const currentState = gameStateRef.current;
+      if (!currentState) return; // not ready yet — a later drain will retry
+      if (key != null) processedActionsRef.current.add(key);
 
-    const result = applyAction(currentState, { type: actionType, payload: enginePayload });
-    if (result.error) console.error("[host] action error:", result.error);
-    else commitState(result.state);
-    markActionProcessed(actionRow.id).catch(console.error);
+      const actionType = row.action_type || row.type;
+      const enginePayload = actionType === "propose_trade"
+        ? { fromId: row.player_id, toId: row.payload.toId, offer: row.payload.offer }
+        : { ...row.payload, playerId: row.player_id };
+
+      const result = applyAction(currentState, { type: actionType, payload: enginePayload });
+      if (result.error) console.error("[host] action error:", result.error);
+      else commitState(result.state);
+    }
+    if (isDbRow) markActionProcessed(row.id).catch(console.error);
   }, [commitState]);
 
   // Host subscribes to actions + drains any it missed (on connect and on a timer).
@@ -424,16 +437,16 @@ export default function App() {
     if (!roomId || !isHost) return;
 
     const drain = () => fetchUnprocessedActions(roomId)
-      .then(rows => rows.forEach(processActionRow))
+      .then(rows => rows.forEach(applyActionRow))
       .catch(() => {});
 
-    const unsubActions = subscribeToActions(roomId, processActionRow);
+    const unsubActions = subscribeToActions(roomId, applyActionRow);
     drain(); // catch anything queued before this subscription existed
     const drainInterval = setInterval(drain, 3000); // safety net for missed events
 
     actionsUnsubRef.current = unsubActions;
     return () => { unsubActions(); clearInterval(drainInterval); actionsUnsubRef.current = null; };
-  }, [roomId, isHost, processActionRow]);
+  }, [roomId, isHost, applyActionRow]);
 
   // ── Host migration watcher ─────────────────────────────────────────────────
   // Non-hosts periodically check if the host is stale and attempt to claim it
@@ -464,9 +477,18 @@ export default function App() {
         setTimeout(() => setEmotes(e => e.filter(x => x.id !== id)), 2500);
       },
       onChat: (p) => setLobbyChat(c => [...c.slice(-40), p]),
+      // Guests apply host-broadcast state instantly (skip our own echo as host).
+      onState: (st) => {
+        if (isHostRef.current || !st) return;
+        syncGameState(st);
+        navigateForState(st);
+      },
+      // Host applies guest-broadcast actions instantly (the DB row is durable backup).
+      onAction: (row) => { if (isHostRef.current) applyActionRow(row); },
     });
     liveRef.current = live;
     return () => { live.unsubscribe(); liveRef.current = null; setEmotes([]); setLobbyChat([]); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   const sendEmote = useCallback((emoji) => {
@@ -527,6 +549,7 @@ export default function App() {
     const withDeadline = { ...s, turn_deadline: deadline };
     gameStateRef.current = withDeadline;
     setGameState(withDeadline);
+    liveRef.current?.sendState(withDeadline);
     writeGameStateNow(withDeadline).catch(console.error);
 
     if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
@@ -616,7 +639,13 @@ export default function App() {
       if (result.error) { setToast({ message: result.error, type: "error" }); return; }
       commitState(result.state);
     } else {
-      sendAction(roomId, playerId, type, payload);
+      // Tag with a client id so the host dedupes the fast broadcast against the
+      // durable DB row. Broadcast first (instant), then persist to the actions
+      // table as the reliable fallback.
+      const cid = (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+      const payloadWithCid = { ...payload, cid };
+      liveRef.current?.sendAction({ action_type: type, player_id: playerId, payload: payloadWithCid });
+      sendAction(roomId, playerId, type, payloadWithCid);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, playerId, isHost, commitState]);
@@ -737,6 +766,18 @@ export default function App() {
     await updateBotDifficulty(botId, difficulty);
     const ps = await fetchPlayers(roomId);
     setPlayers(ps);
+  };
+
+  const handleChangeToken = async (shape, color) => {
+    if (!roomId || !playerId) return;
+    playClick();
+    try {
+      await updatePlayerToken(roomId, playerId, shape, color);
+      const ps = await fetchPlayers(roomId);
+      setPlayers(ps);
+    } catch (err) {
+      setToast({ message: err.message, type: "error" });
+    }
   };
 
   // Play again: host resets the room back to the lobby with the same players.
@@ -923,6 +964,7 @@ export default function App() {
               onAddBot={handleAddBot}
               onRemoveBot={handleRemoveBot}
               onBotDifficulty={handleBotDifficulty}
+              onChangeToken={handleChangeToken}
               lobbyChat={lobbyChat}
               onLobbyChat={sendLobbyChat}
               onEmote={sendEmote}

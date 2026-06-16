@@ -1,17 +1,10 @@
 import { useState } from "react";
-import { TokenIcon, PlayIcon, KeyIcon, UsersIcon } from "../lib/icons";
+import { PlayIcon, KeyIcon, UsersIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
-
-const TOKENS = ["car", "hat", "dog", "ship", "iron", "shoe", "cat", "ring", "wheelbarrow"];
-const TOKEN_COLORS = {
-  car: "#EF4444", hat: "#3B82F6", dog: "#F59E0B", ship: "#06B6D4",
-  iron: "#8B5CF6", shoe: "#10B981", cat: "#F97316", ring: "#EC4899", wheelbarrow: "#84CC16",
-};
 
 export default function RoomMenu({ onCreateRoom, onJoinRoom, defaultName }) {
   const [tab, setTab] = useState("create");
   const [name, setName] = useState(defaultName || "");
-  const [token, setToken] = useState("car");
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +13,8 @@ export default function RoomMenu({ onCreateRoom, onJoinRoom, defaultName }) {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      await onCreateRoom(name.trim(), token, TOKEN_COLORS[token]);
+      // Token is chosen in the lobby; join with an auto-assigned one for now.
+      await onCreateRoom(name.trim());
     } finally {
       setLoading(false);
     }
@@ -31,7 +25,7 @@ export default function RoomMenu({ onCreateRoom, onJoinRoom, defaultName }) {
     if (!name.trim() || joinCode.length !== 6) return;
     setLoading(true);
     try {
-      await onJoinRoom(joinCode.toUpperCase(), name.trim(), token, TOKEN_COLORS[token]);
+      await onJoinRoom(joinCode.toUpperCase(), name.trim());
     } finally {
       setLoading(false);
     }
@@ -59,32 +53,9 @@ export default function RoomMenu({ onCreateRoom, onJoinRoom, defaultName }) {
         />
       </div>
 
-      {/* Token picker */}
-      <div className="flex flex-col gap-1 font-mono text-[9px] text-slate-400">
-        <span>SELECT TOKEN:</span>
-        <div className="grid grid-cols-5 gap-1.5">
-          {TOKENS.map(t => (
-            <button
-              key={t}
-              onClick={() => { playClick(); setToken(t); }}
-              style={{
-                border: token === t ? `2px solid ${TOKEN_COLORS[t]}` : "1px solid rgba(56,189,248,0.2)",
-                background: token === t ? `${TOKEN_COLORS[t]}20` : "rgba(0,0,0,0.3)",
-                boxShadow: token === t ? `0 0 8px ${TOKEN_COLORS[t]}40` : "none",
-                padding: "6px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.1s",
-              }}
-              title={t}
-            >
-              <TokenIcon name={t} color={TOKEN_COLORS[t]} size={18} />
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="text-[8px] text-slate-600 font-mono text-center -mt-2">
+        You'll pick your token in the lobby.
+      </p>
 
       {/* Tab switcher */}
       <div className="flex font-mono text-[9px]">
