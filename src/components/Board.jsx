@@ -214,8 +214,8 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
               ? `1.5px solid ${ownerColor}`
               : "1px solid rgba(42,50,90,0.4)",
           background: ownerColor
-            ? `${ownerColor}12`
-            : "rgba(12,17,34,0.9)",
+            ? `${ownerColor}1f`
+            : "#000000",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
@@ -235,7 +235,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
             style={cellStyle}
             onClick={() => onTileClick(tid)}
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(56,189,248,0.1)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = ownerColor ? `${ownerColor}12` : "rgba(12,17,34,0.9)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = ownerColor ? `${ownerColor}1f` : "#000000"; }}
           >
             {/* 1. Property group color band */}
             {tile.group && tile.group !== "railroad" && tile.group !== "utility" && (
