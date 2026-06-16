@@ -32,6 +32,30 @@
   /* Default Bloom Settings */
   --bloom-size: 7px;
   --bloom-opacity: 0.32;
+
+  /* Full app height. Falls back to vh, then uses dvh where supported so mobile
+     browser chrome (URL bar) never clips or overflows the layout. */
+  --app-h: 100vh;
+}
+@supports (height: 100dvh) {
+  :root { --app-h: 100dvh; }
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Centers its single child when it fits, but lets it scroll when it's taller
+   than the viewport (short phones / lobby + menu cards). margin:auto on a flex
+   child is the one pattern that centers AND keeps overflow reachable. */
+.scroll-center {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.scroll-center > * {
+  margin: auto;
+  flex-shrink: 0;
 }
 
 /* Bloom quality overrides — strong phosphor glow, still readable */
@@ -57,7 +81,7 @@ body {
   background-color: var(--bg-dark);
   background-image: var(--bg-glow);
   color: #f1f5f9;
-  min-height: 100vh;
+  min-height: var(--app-h);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -188,7 +212,7 @@ body {
 .crt-screen {
   position: relative;
   width: 100%;
-  height: 100vh;
+  height: var(--app-h);
   display: flex;
   overflow: hidden;
 }
@@ -374,7 +398,7 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100vh;
+  height: var(--app-h);
   overflow: hidden;
 }
 
@@ -710,7 +734,7 @@ body {
 /* Sizing */
 .w-full { width: 100%; }
 .h-full { height: 100%; }
-.h-screen { height: 100vh; }
+.h-screen { height: var(--app-h); }
 .w-\[320px\] { width: 320px; }
 .w-1\.5 { width: 6px; }
 .h-1\.5 { height: 6px; }

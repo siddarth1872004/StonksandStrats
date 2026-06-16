@@ -86,7 +86,7 @@ export default function App() {
   const [connected, setConnected] = useState(true); // realtime link health
 
   // Responsive layout
-  const { isCompact } = useViewport();
+  const { isCompact, isPhone } = useViewport();
 
   // Resizable sidebar (desktop). The board fills whatever space is left of it
   // (it is NOT constrained to a square — it stretches to fill the area).
@@ -928,9 +928,9 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden" style={{ position: "relative", zIndex: 1 }}>
-        <header style={{ height: "38px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", borderBottom: "1px solid rgba(255,179,0,0.18)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontFamily: "var(--font-display)", fontSize: "9px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.06em" }}>STONKS &amp; STRATS</span>
+        <header style={{ height: "38px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", borderBottom: "1px solid rgba(255,179,0,0.18)", background: "rgba(3,4,8,0.99)", flexShrink: 0, zIndex: 10, gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, overflow: "hidden" }}>
+            {!isPhone && <span style={{ fontFamily: "var(--font-display)", fontSize: "9px", color: "#FFB300", fontWeight: "bold", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>STONKS &amp; STRATS</span>}
             {roomId && <>
               <span style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "1px 8px", borderRadius: "4px", letterSpacing: "0.1em" }}>
                 {roomId}
@@ -940,11 +940,11 @@ export default function App() {
               </span>
             </>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
             {roomId && (
-              <span title={connected ? "Realtime connected" : "Reconnecting…"} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "12px", color: connected ? "#34d399" : "#fbbf24" }}>
+              <span title={connected ? "Realtime connected" : "Reconnecting…"} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "12px", color: connected ? "#34d399" : "#fbbf24", whiteSpace: "nowrap" }}>
                 <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: connected ? "#22c55e" : "#fbbf24", boxShadow: connected ? "0 0 5px #22c55e" : "0 0 5px #fbbf24", animation: connected ? "pulse-anim 2s infinite" : "blink-anim 0.8s infinite" }} />
-                {connected ? "LIVE" : "RECONNECTING"}
+                {isPhone ? (connected ? "" : "…") : (connected ? "LIVE" : "RECONNECTING")}
               </span>
             )}
             <button
@@ -957,7 +957,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className={`flex-1 flex items-center justify-center overflow-hidden ${screen === "GAME" ? "p-0" : "p-4"}`}>
+        <div className={`flex-1 min-h-0 flex ${screen === "GAME" ? "items-center justify-center overflow-hidden p-0" : "scroll-center p-4"}`}>
 
           {screen === "MENU" && (
             <RoomMenu
