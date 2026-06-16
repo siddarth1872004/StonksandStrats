@@ -278,9 +278,9 @@ export default function Sidebar({
       height: stacked ? "auto" : "100%",
       display: "flex",
       flexDirection: "column",
-      background: "#050810",
-      borderLeft: stacked ? "none" : "2px solid rgba(255,179,0,0.18)",
-      borderTop: stacked ? "2px solid rgba(255,179,0,0.18)" : "none",
+      background: "linear-gradient(180deg, #07090f 0%, #020308 100%)",
+      borderLeft: stacked ? "none" : "1px solid rgba(255,179,0,0.22)",
+      borderTop: stacked ? "1px solid rgba(255,179,0,0.22)" : "none",
       overflow: "hidden",
     }}>
 
@@ -292,7 +292,7 @@ export default function Sidebar({
         right={winner !== null ? <span style={{ color: "#FFD600", animation: "blink-anim 1.2s infinite" }}>★ GAME OVER</span> : null}
       />
       <div style={{ flexShrink: 0 }}>
-        {sortedPlayers.map((p, idx) => {
+        {sortedPlayers.map((p) => {
           const isCurrent = p.id === currPlayerId && winner === null;
           const color = tokenColor(p);
           const isMe = p.id === myPlayerId;
@@ -305,50 +305,42 @@ export default function Sidebar({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "7px",
-                padding: "6px 10px 6px 7px",
-                borderBottom: "1px solid rgba(255,179,0,0.05)",
+                gap: "8px",
+                padding: "7px 10px",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
                 borderLeft: `3px solid ${isCurrent ? color : "transparent"}`,
-                background: isCurrent ? `${color}12` : "transparent",
+                background: isCurrent ? `${color}16` : "transparent",
               }}
             >
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", flexShrink: 0, width: "10px", textAlign: "right" }}>
-                {idx + 1}
-              </span>
               <span style={{
-                width: "9px", height: "9px", flexShrink: 0,
+                width: "12px", height: "12px", borderRadius: "3px", flexShrink: 0,
                 background: p.bankrupt ? "#374151" : color,
-                boxShadow: isCurrent ? `0 0 8px ${color}90` : "none",
+                boxShadow: isCurrent ? `0 0 9px ${color}` : "none",
+                border: isMe ? "1.5px solid rgba(255,255,255,0.7)" : "none",
               }} />
-              <span style={{
-                fontFamily: "var(--font-retro)",
-                fontSize: "clamp(10px, 1.6vw, 13px)",
-                flex: 1,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                color: p.bankrupt ? "#374151" : isCurrent ? "#f1f5f9" : "#94a3b8",
-                textDecoration: p.bankrupt ? "line-through" : "none",
-              }}>
-                {p.name}{isMe ? " ★" : ""}{p.is_bot ? ` [${(p.difficulty || "ai").slice(0,1).toUpperCase()}]` : ""}
-              </span>
-              <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", flexShrink: 0 }}>
-                {netWorthPropCount}⌂
-              </span>
-              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, minWidth: "58px" }}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "1px" }}>
                 <span style={{
                   fontFamily: "var(--font-retro)",
-                  fontSize: "clamp(10px, 1.6vw, 13px)",
-                  fontWeight: "bold",
-                  color: p.bankrupt ? "#EF4444" : p.in_jail ? "#F59E0B" : isCurrent ? "#FFB300" : "#34d399",
+                  fontSize: "clamp(9px, 1.5vw, 12px)",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  color: p.bankrupt ? "#475569" : isCurrent ? "#f8fafc" : "#cbd5e1",
+                  textDecoration: p.bankrupt ? "line-through" : "none",
                 }}>
-                  {p.bankrupt ? "OUT" : p.in_jail ? "⊗JAIL" : `$${p.money.toLocaleString()}`}
+                  {p.name}{isMe ? " ★" : ""}{p.is_bot ? ` [${(p.difficulty || "ai").slice(0,1).toUpperCase()}]` : ""}
                 </span>
                 {!p.bankrupt && (
                   <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#475569" }}>
-                    NW ${netWorth.toLocaleString()}
+                    {netWorthPropCount}⌂ · NW ${netWorth.toLocaleString()}
                   </span>
                 )}
+              </div>
+              <span style={{
+                fontFamily: "var(--font-retro)",
+                fontSize: "clamp(10px, 1.6vw, 13px)",
+                fontWeight: "bold", flexShrink: 0, textAlign: "right",
+                color: p.bankrupt ? "#EF4444" : p.in_jail ? "#F59E0B" : isCurrent ? "#FFB300" : "#34d399",
+              }}>
+                {p.bankrupt ? "OUT" : p.in_jail ? "⊗ JAIL" : `$${p.money.toLocaleString()}`}
               </span>
             </div>
           );

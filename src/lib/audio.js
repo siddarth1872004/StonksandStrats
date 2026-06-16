@@ -50,54 +50,9 @@ function playTone({ freq, duration, type = "square", volume = 0.1, slides = [] }
   osc.stop(ctx.currentTime + duration);
 }
 
-// ── Mechanical keyboard keystroke ("thock" + tactile click) ───────────────────
-let lastKeyTime = 0;
-let noiseBuffer = null;
-function getNoiseBuffer(ctx) {
-  if (noiseBuffer) return noiseBuffer;
-  const len = Math.floor(ctx.sampleRate * 0.05);
-  noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
-  const data = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-  return noiseBuffer;
-}
-
-// Satisfying ASMR mechanical-key sound. Throttled so a global click/keydown
-// listener and an explicit playClick in the same event collapse to one hit.
-export const playKey = () => {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const t = ctx.currentTime;
-  if (t - lastKeyTime < 0.03) return;
-  lastKeyTime = t;
-
-  // 1) Tactile click — short bandpassed noise snap
-  const src = ctx.createBufferSource();
-  src.buffer = getNoiseBuffer(ctx);
-  const bp = ctx.createBiquadFilter();
-  bp.type = "bandpass";
-  bp.frequency.value = 2100 + Math.random() * 700;
-  bp.Q.value = 0.9;
-  const ng = ctx.createGain();
-  ng.gain.setValueAtTime(0.16, t);
-  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.028);
-  src.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
-  src.start(t); src.stop(t + 0.05);
-
-  // 2) Low "thock" body — quick sine thump for the deep keyboard feel
-  const osc = ctx.createOscillator();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(175 + Math.random() * 45, t);
-  osc.frequency.exponentialRampToValueAtTime(95, t + 0.04);
-  const og = ctx.createGain();
-  og.gain.setValueAtTime(0.0001, t);
-  og.gain.linearRampToValueAtTime(0.15, t + 0.004);
-  og.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-  osc.connect(og); og.connect(ctx.destination);
-  osc.start(t); osc.stop(t + 0.06);
+export const playClick = () => {
+  playTone({ freq: 800, duration: 0.05, type: "sine", volume: 0.15 });
 };
-
-export const playClick = () => playKey();
 
 export const playRoll = () => {
   const ctx = getAudioContext();

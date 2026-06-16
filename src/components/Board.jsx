@@ -149,20 +149,6 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
         <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.5cqw,13px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
           {status.sub}
         </div>
-        {inPlay && latest && !animationsBusy && (
-          <div style={{ marginTop: "11px", paddingTop: "9px", borderTop: `1px solid ${accent}22` }}>
-            <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.85cqw,8px)", color: accent, letterSpacing: "0.2em", marginBottom: "4px", opacity: 0.8 }}>
-              ▶ LAST MOVE
-            </div>
-            <div key={latest} className="feed-in" style={{
-              fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.25cqw,11px)", color: "#cbd5e1",
-              lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box",
-              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-            }}>
-              {latest}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Center dice */}
@@ -207,6 +193,23 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
         </div>
       )}
       </>
+      )}
+
+      {/* Persistent news ticker — always shows the latest event (buys, rent,
+          auctions, trades) in both the landing-details and live-news states. */}
+      {inPlay && latest && !animationsBusy && (
+        <div key={latest} className="feed-in" style={{
+          flexShrink: 0, maxWidth: "94%", textAlign: "center",
+          background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,179,0,0.2)", borderRadius: "6px",
+          padding: "clamp(5px,1cqw,9px) clamp(10px,1.8cqw,16px)",
+          display: "flex", alignItems: "center", gap: "7px", justifyContent: "center",
+        }}>
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(5px,0.85cqw,8px)", color: "#FFB300", letterSpacing: "0.18em", flexShrink: 0 }}>▶ NEWS</span>
+          <span style={{
+            fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.25cqw,11px)", color: "#e2e8f0", lineHeight: 1.4,
+            overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          }}>{latest}</span>
+        </div>
       )}
     </div>
   );
