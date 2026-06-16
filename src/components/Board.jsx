@@ -1,7 +1,7 @@
 import React from "react";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
-import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon } from "../lib/icons";
+import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon, JailIcon, GoToJailIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 
 /* Plain-English description of what's happening right now. */
@@ -343,6 +343,12 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
               {tile.type === "community_chest" && (
                 <ChestIcon size={16} color="#38bdf8" />
               )}
+              {tile.type === "jail" && (
+                <JailIcon size={16} color="#F59E0B" />
+              )}
+              {tile.type === "go_to_jail" && (
+                <GoToJailIcon size={16} color="#EF4444" />
+              )}
 
               {/* Tile name */}
               <span style={{
@@ -357,17 +363,14 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                 maxWidth: "100%",
                 padding: "0 1px",
               }}>
-                {tile.name === "GO" ? "GO" :
-                 tile.name.includes("Jail") ? "JAIL" :
-                 tile.name.includes("Free Parking") ? "FREE PKG" :
-                 tile.name.includes("Go To Jail") ? "GO JAIL" :
+                {tile.type === "go" ? "GO" :
+                 tile.type === "go_to_jail" ? "GO TO JAIL" :
+                 tile.type === "jail" ? "JUST VISITING" :
+                 tile.type === "free_parking" ? "FREE PARKING" :
                  tile.name
                    .replace(" Avenue", " Ave")
-                   .replace(" Place", " Pl")
                    .replace(" Street", " St")
-                   .replace(" Gardens", " Gdns")
-                   .replace(" Station", " Stn")
-                   .substring(0, 10)}
+                   .replace(" Station", " Stn")}
               </span>
 
               {/* Price tag */}
