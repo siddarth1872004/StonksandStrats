@@ -124,6 +124,19 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
             </span>
           </div>
           <TileDetails tileId={land.tile.id} gameState={gameState} />
+          {latest && (
+            <div key={latest} className="feed-in" style={{
+              marginTop: "clamp(10px,1.6cqw,16px)", paddingTop: "clamp(8px,1.4cqw,14px)",
+              borderTop: "1px solid rgba(255,179,0,0.18)",
+              display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
+            }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.2cqw,12px)", color: "#FFB300", letterSpacing: "0.18em", flexShrink: 0 }}>▶ NEWS</span>
+              <span style={{
+                fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.7cqw,16px)", color: "#e2e8f0", lineHeight: 1.4,
+                overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+              }}>{latest}</span>
+            </div>
+          )}
         </div>
       ) : (
       <>
@@ -149,6 +162,19 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
         <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.8cqw,16px)", color: "#94a3b8", marginTop: "8px", lineHeight: 1.4 }}>
           {status.sub}
         </div>
+        {inPlay && latest && (
+          <div key={latest} className="feed-in" style={{
+            marginTop: "clamp(10px,1.6cqw,16px)", paddingTop: "clamp(8px,1.4cqw,14px)",
+            borderTop: "1px solid rgba(255,179,0,0.18)",
+            display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
+          }}>
+            <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.2cqw,12px)", color: "#FFB300", letterSpacing: "0.18em", flexShrink: 0 }}>▶ NEWS</span>
+            <span style={{
+              fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.7cqw,16px)", color: "#e2e8f0", lineHeight: 1.4,
+              overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            }}>{latest}</span>
+          </div>
+        )}
       </div>
 
       {/* Center dice */}
@@ -193,23 +219,6 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
         </div>
       )}
       </>
-      )}
-
-      {/* Persistent news ticker — always shows the latest event (buys, rent,
-          auctions, trades) in both the landing-details and live-news states. */}
-      {inPlay && latest && !animationsBusy && (
-        <div key={latest} className="feed-in" style={{
-          flexShrink: 0, maxWidth: "94%", textAlign: "center",
-          background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,179,0,0.2)", borderRadius: "6px",
-          padding: "clamp(5px,1cqw,9px) clamp(10px,1.8cqw,16px)",
-          display: "flex", alignItems: "center", gap: "7px", justifyContent: "center",
-        }}>
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.1cqw,11px)", color: "#FFB300", letterSpacing: "0.16em", flexShrink: 0 }}>▶ NEWS</span>
-          <span style={{
-            fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.6cqw,15px)", color: "#e2e8f0", lineHeight: 1.4,
-            overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-          }}>{latest}</span>
-        </div>
       )}
     </div>
   );
