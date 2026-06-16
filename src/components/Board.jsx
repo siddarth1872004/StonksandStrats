@@ -229,13 +229,24 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const isMyTurn = currentTurnPlayerId === myPlayerId && gameState?.winner === null
     && gameState?.phase !== "lobby" && gameState?.phase !== "game_over";
-  const getPlayersOnTile = (tileId) => {
-    if (!gameState || !gameState.players) return [];
-    return gameState.players.filter(p => {
-      const pos = renderedPositions[p.id] !== undefined ? renderedPositions[p.id] : p.position;
-      return pos === tileId && !p.bankrupt;
-    });
-  };
+
+  // id → player lookup, rebuilt only when the player list changes (not on every
+  // animation frame), so per-tile owner resolution is O(1) instead of a .find().
+  const playersById = React.useMemo(() => {
+    const m = {};
+    (gameState?.players || []).forEach(p => { m[p.id] = p; });
+    return m;
+  }, [gameState?.players]);
+
+  // tileId → occupants, computed in a single O(players) pass per render rather
+  // than 40 .filter() scans. renderedPositions changes every hop frame, so this
+  // must recompute, but one pass is far cheaper than one scan per tile.
+  const playersByTile = {};
+  (gameState?.players || []).forEach(p => {
+    if (p.bankrupt) return;
+    const pos = renderedPositions[p.id] !== undefined ? renderedPositions[p.id] : p.position;
+    (playersByTile[pos] ||= []).push(p);
+  });
 
   return (
     /* container-type enables cqw units for fluid font sizing inside the board */
@@ -277,13 +288,13 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
       {TILES.map((tile) => {
         const tid = tile.id;
         const coords = getTileGridCoords(tid);
-        const playersHere = getPlayersOnTile(tid);
+        const playersHere = playersByTile[tid] || [];
 
         const ownerId = gameState?.owner?.[tid.toString()];
         const houseCount = gameState?.houses?.[tid.toString()] || 0;
         const isMortgaged = gameState?.mortgaged?.includes(tid);
 
-        const ownerObj = ownerId !== undefined ? gameState.players.find(p => p.id === ownerId) : null;
+        const ownerObj = ownerId !== undefined ? playersById[ownerId] : null;
         const ownerColor = ownerObj ? (ownerObj.token_color || TOKEN_COLORS[ownerObj.token_shape || ownerObj.token]) : null;
 
         const cellStyle = {

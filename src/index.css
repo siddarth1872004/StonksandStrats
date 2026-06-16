@@ -1,9 +1,8 @@
 /* src/index.css */
 @import "@fontsource/press-start-2p/index.css";
 @import "@fontsource/vt323/index.css";
+/* Only the two weights actually used (normal + bold); 500/600 were dead payload. */
 @import "@fontsource/chakra-petch/400.css";
-@import "@fontsource/chakra-petch/500.css";
-@import "@fontsource/chakra-petch/600.css";
 @import "@fontsource/chakra-petch/700.css";
 
 :root {

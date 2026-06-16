@@ -807,9 +807,16 @@ export default function App() {
   }, [isHost, roomId, cancelPendingWrite]);
 
   const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
-  const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
+  const handleBankruptcyClick = useCallback(() => { playClick(); setShowConfirmBankruptcy(true); }, []);
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
-  const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
+  // Stable identity so the memoized <Board> isn't forced to re-render every tick.
+  const handleSkipAnimations = useCallback(() => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); }, []);
+  // Stable props for the memoized <Sidebar> (inline arrows would break the memo).
+  const handleSidebarAction = useCallback((act, pay) => {
+    if (act === "declare_bankruptcy") handleBankruptcyClick();
+    else handleAction(act, pay);
+  }, [handleBankruptcyClick, handleAction]);
+  const openSettings = useCallback(() => setShowSettings(true), []);
 
   const handleEndGame = useCallback(async () => {
     if (!isHost || !roomId || !gameState) return;
@@ -1015,11 +1022,8 @@ export default function App() {
                 stacked={isCompact}
                 onEndGame={handleEndGame}
                 onEmote={sendEmote}
-                onAction={(act, pay) => {
-                  if (act === "declare_bankruptcy") handleBankruptcyClick();
-                  else handleAction(act, pay);
-                }}
-                onOpenSettings={() => setShowSettings(true)}
+                onAction={handleSidebarAction}
+                onOpenSettings={openSettings}
               />
             );
 

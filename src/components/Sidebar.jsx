@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { TOKEN_COLORS, TILES, GROUPS, GROUP_COLORS } from "../boardData";
 import { ManageIcon, TradeIcon, SettingsIcon, HouseIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
@@ -212,7 +212,7 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
   );
 }
 
-export default function Sidebar({
+function Sidebar({
   gameState,
   myPlayerId,
   playerName,
@@ -559,3 +559,7 @@ export default function Sidebar({
     </div>
   );
 }
+
+// Memoized: with stable callback props the sidebar skips the frequent App-level
+// re-renders (emotes, money-float, animation frames) that don't affect it.
+export default memo(Sidebar);
