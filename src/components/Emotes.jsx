@@ -5,7 +5,7 @@ const EMOTES = ["👍", "😂", "😱", "💰", "🤝", "🔥", "😭", "🎲"];
 export function EmoteOverlay({ emotes }) {
   if (!emotes?.length) return null;
   return (
-    <div className="fixed inset-0 pointer-events-none z-[8600]">
+    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 8700 }}>
       {emotes.map(e => (
         <div
           key={e.id}

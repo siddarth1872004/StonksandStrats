@@ -146,7 +146,7 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
 }
 
 /* ── Main Board component ────────────────────────────────────────── */
-function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations }) {
+function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations, tokenFx = {}, movingPids = {} }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const isMyTurn = currentTurnPlayerId === myPlayerId && gameState?.winner === null
     && gameState?.phase !== "lobby" && gameState?.phase !== "game_over";
@@ -348,14 +348,26 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                 {playersHere.map(p => {
                   const isActive = p.id === currentTurnPlayerId && gameState?.winner === null;
                   const col = p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8";
+                  // Choose a state-specific animation: moving > money fx > idle (active).
+                  const fx = movingPids[p.id] ? "token-moving"
+                    : tokenFx[p.id] === "gain" ? "token-gain"
+                    : tokenFx[p.id] === "loss" ? "token-paying"
+                    : isActive ? "token-idle"
+                    : "token-hop";
+                  const glow = movingPids[p.id]
+                    ? `0 0 9px 3px ${col}`
+                    : tokenFx[p.id] === "gain" ? "0 0 9px 3px #34d399"
+                    : tokenFx[p.id] === "loss" ? "0 0 9px 3px #f87171"
+                    : isActive ? `0 0 7px 2px ${col}` : "none";
                   return (
                     <div
                       key={p.id}
-                      className="token-hop"
+                      className={fx}
                       style={{
                         width: "clamp(10px, 2.8cqw, 22px)", height: "clamp(10px, 2.8cqw, 22px)", flexShrink: 0,
                         borderRadius: "50%",
-                        boxShadow: isActive ? `0 0 7px 2px ${col}` : "none",
+                        boxShadow: glow,
+                        transition: "box-shadow 0.2s",
                       }}
                     >
                       <TokenIcon name={p.token_shape || p.token} color={col} size="100%" />

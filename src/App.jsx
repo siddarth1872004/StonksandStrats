@@ -7,6 +7,9 @@ import Toast from "./components/Toast";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { EmoteOverlay } from "./components/Emotes";
 import { useViewport } from "./lib/useViewport";
+// Trading is core gameplay and must never fail to open — keep it in the main
+// bundle (not code-split) so a stale dynamic-import chunk can never break it.
+import TradeBroker, { TradeOfferModal } from "./components/TradeBroker";
 
 // Heavy / rarely-mounted UI is code-split so the initial bundle stays small.
 const Diagnostics = lazy(() => import("./components/Diagnostics"));
@@ -15,8 +18,6 @@ const Settings = lazy(() => import("./components/Settings"));
 const StatsScreen = lazy(() => import("./components/StatsScreen"));
 const PropertyDetailModal = lazy(() => import("./components/Modals").then(m => ({ default: m.PropertyDetailModal })));
 const ManageModal = lazy(() => import("./components/Modals").then(m => ({ default: m.ManageModal })));
-const TradeBroker = lazy(() => import("./components/TradeBroker"));
-const TradeOfferModal = lazy(() => import("./components/TradeBroker").then(m => ({ default: m.TradeOfferModal })));
 
 import { ensureAuth } from "./lib/supabase";
 import {
@@ -131,6 +132,9 @@ export default function App() {
   const [animationsBusy, setAnimationsBusy] = useState(false);
   const [moneyDeltas, setMoneyDeltas] = useState([]);
   const [cardOverlay, setCardOverlay] = useState(null);
+  // Transient per-token visual states for live token animations.
+  const [tokenFx, setTokenFx] = useState({});       // pid -> 'gain' | 'loss'
+  const [movingPids, setMovingPids] = useState({});  // pid -> true while hopping
   const animQueueRef = useRef(null);
 
   // Client visual settings
@@ -260,8 +264,10 @@ export default function App() {
         case ANIM.MOVE_HOP:
           q.enqueue(qInst => {
             playMove();
+            setMovingPids(m => ({ ...m, [ev.pid]: true }));
             return animateHop(ev.pid, ev.from, ev.steps,
-              (pid, pos) => setRenderedPositions(p => ({ ...p, [pid]: pos })), qInst);
+              (pid, pos) => setRenderedPositions(p => ({ ...p, [pid]: pos })), qInst)
+              .finally(() => setMovingPids(m => { const n = { ...m }; delete n[ev.pid]; return n; }));
           });
           break;
         case ANIM.MOVE_WARP:
@@ -271,6 +277,13 @@ export default function App() {
           const deltaId = `${Date.now()}-${ev.pid}`;
           setMoneyDeltas(d => [...d, { id: deltaId, pid: ev.pid, delta: ev.delta }]);
           setTimeout(() => setMoneyDeltas(d => d.filter(x => x.id !== deltaId)), 1200);
+          // Flash the token green (gained) or red+shake (paid).
+          const fx = ev.delta >= 0 ? "gain" : "loss";
+          setTokenFx(m => ({ ...m, [ev.pid]: fx }));
+          setTimeout(() => setTokenFx(m => {
+            if (m[ev.pid] !== fx) return m;
+            const n = { ...m }; delete n[ev.pid]; return n;
+          }), 1000);
           if (ev.delta < 0) playRent();
           break;
         }
@@ -769,7 +782,7 @@ export default function App() {
         const creditor = pp.toPid ? gameState.players.find(p => p.id === pp.toPid)?.name : "the Bank";
         const canAfford = (me?.money ?? 0) >= pp.amount;
         return (
-          <div className="fixed inset-0 z-[8600] flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.7)", zIndex: 8600 }}>
             <div className="glass-card animate-scale-up text-center" style={{ width: "min(92vw, 360px)", padding: "26px 24px", borderTop: "4px solid #f87171" }}>
               <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#f87171", letterSpacing: "0.2em", marginBottom: "10px" }}>⚠ PAYMENT DUE</div>
               <div style={{ fontFamily: "var(--font-retro)", fontSize: "26px", color: "#fca5a5", fontWeight: "bold", textShadow: "0 0 12px rgba(248,113,113,0.5)" }}>${pp.amount.toLocaleString()}</div>
@@ -875,6 +888,8 @@ export default function App() {
                 animDice={animDice}
                 animationsBusy={animationsBusy}
                 onSkipAnimations={handleSkipAnimations}
+                tokenFx={tokenFx}
+                movingPids={movingPids}
               />
             );
             const sidebar = (

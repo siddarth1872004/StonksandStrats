@@ -960,6 +960,45 @@ body {
   image-rendering: pixelated;
 }
 
+/* ── Per-state live token animations ─────────────────────────────── */
+/* Moving: lively continuous bounce while a token hops across tiles */
+@keyframes token-moving {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-5px) scale(1.1); }
+}
+.token-moving { animation: token-moving 0.3s ease-in-out infinite; }
+
+/* Idle: the active player's token gently breathes while it's their turn */
+@keyframes token-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-2px) scale(1.05); }
+}
+.token-idle { animation: token-idle 2.2s ease-in-out infinite; }
+
+/* Getting money: a happy pop with a green flash */
+@keyframes token-gain {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.4) translateY(-4px); }
+  60%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+.token-gain { animation: token-gain 0.85s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Paying: an anxious shake with a red flash */
+@keyframes token-paying {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  15% { transform: translateX(-3px) rotate(-10deg); }
+  30% { transform: translateX(3px) rotate(10deg); }
+  45% { transform: translateX(-3px) rotate(-7deg); }
+  60% { transform: translateX(2px) rotate(6deg); }
+  80% { transform: translateX(-1px) rotate(-3deg); }
+}
+.token-paying { animation: token-paying 0.6s ease-in-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .token-moving, .token-idle, .token-gain, .token-paying { animation: none; }
+}
+
 /* Scrollbar class */
 .scrollbar {
   scrollbar-width: thin;

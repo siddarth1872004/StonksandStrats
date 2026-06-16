@@ -101,7 +101,7 @@ export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
   const isProposer = pending.from === myPlayerId;
 
   return (
-    <div className="fixed inset-0 z-[7500] flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px" }}>
+    <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px", zIndex: 8300 }}>
       <div className="glass-card" style={{ width: "min(94vw, 480px)", padding: "20px", borderTop: "4px solid #22d3ee" }}>
         <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#22d3ee", fontWeight: "bold", textAlign: "center", letterSpacing: "0.15em", marginBottom: "14px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
           <TradeIcon size={13} /> TRADE OFFER
@@ -156,7 +156,7 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
   };
 
   return (
-    <div className="fixed inset-0 z-[7400] flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px" }}>
+    <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px", zIndex: 8200 }}>
       <div className="glass-card" style={{ width: "min(96vw, 560px)", maxHeight: "90vh", overflowY: "auto", padding: "18px", borderTop: "4px solid #38bdf8" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
           <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
