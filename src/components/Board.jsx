@@ -104,9 +104,13 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
 
   return (
     <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      height: "100%", width: "100%", gap: "clamp(10px, 2.4cqw, 22px)", padding: "clamp(10px, 2.5cqw, 24px)",
+      display: "flex", flexDirection: "column",
+      height: "100%", width: "100%", overflowY: "auto", overflowX: "hidden",
+      padding: "clamp(10px, 2.5cqw, 24px)",
     }}>
+      {/* margin:auto centers the block when it fits and lets it scroll when it's
+          taller than the board centre — never clipped. */}
+      <div style={{ margin: "auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(10px, 2.4cqw, 22px)" }}>
       {/* Landing on a tile shows the FULL tile info (same as clicking it),
           headed by who landed. Replaces the status/dice for a few seconds. */}
       {land ? (
@@ -144,9 +148,9 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
             sub-text). During the roll we hold the suspense instead of spoiling
             the outcome. */}
         <div key={newsLine} className={animationsBusy ? "" : "feed-in"} style={{
-          fontFamily: "var(--font-retro)", fontSize: "clamp(17px,3.1cqw,32px)", fontWeight: "bold",
-          color: accent, textShadow: `0 0 14px ${accent}80`, lineHeight: 1.32,
-          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical",
+          fontFamily: "var(--font-retro)", fontSize: "clamp(16px,2.8cqw,27px)", fontWeight: "bold",
+          color: accent, textShadow: `0 0 14px ${accent}80`, lineHeight: 1.3,
+          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
         }}>
           {newsLine}
         </div>
@@ -195,6 +199,7 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
       )}
       </>
       )}
+      </div>
     </div>
   );
 }

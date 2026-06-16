@@ -283,7 +283,8 @@ function Sidebar({
       background: "linear-gradient(180deg, #07090f 0%, #020308 100%)",
       borderLeft: stacked ? "none" : "1px solid rgba(255,179,0,0.22)",
       borderTop: stacked ? "1px solid rgba(255,179,0,0.22)" : "none",
-      overflow: "hidden",
+      overflowX: "hidden",
+      overflowY: stacked ? "visible" : "auto",
     }}>
 
       {showTimer && <TurnTimer deadline={turn_deadline} />}
@@ -293,7 +294,9 @@ function Sidebar({
         label="STANDINGS"
         right={winner !== null ? <span style={{ color: "#FFD600", animation: "blink-anim 1.2s infinite" }}>★ GAME OVER</span> : null}
       />
-      <div style={{ flexShrink: 0 }}>
+      {/* Cap the roster height so a full lobby can't shove the actions/dropdowns
+          off-screen; it scrolls on its own when there are many players. */}
+      <div style={{ flexShrink: 0, maxHeight: "34vh", overflowY: "auto", scrollbarWidth: "thin" }}>
         {sortedPlayers.map((p) => {
           const isCurrent = p.id === currPlayerId && winner === null;
           const color = tokenColor(p);
