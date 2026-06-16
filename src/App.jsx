@@ -413,6 +413,9 @@ export default function App() {
   const commitState = useCallback((newState) => {
     const stamped = stampSeq(newState);
     syncGameState(stamped);
+    // The host drives its OWN screen navigation locally; it can't rely on the
+    // DB echo anymore because the seq-guard (correctly) drops its own echoes.
+    navigateForState(stamped);
     // Fast path: push the new state to guests over the broadcast channel
     // immediately (sub-100ms) so the flow isn't a postgres_changes hop behind.
     liveRef.current?.sendState(stamped);
@@ -782,6 +785,7 @@ export default function App() {
     const newState = stampSeq(result.state);
     gameStateRef.current = newState;
     setGameState(newState);
+    navigateForState(newState); // host navigates locally (its DB echo is seq-dropped)
     // Write the game state BEFORE flipping status to 'playing' so no client ever
     // sees status=playing with an empty state (which would bounce them to lobby).
     processedActionsRef.current.clear();
