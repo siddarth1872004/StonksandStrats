@@ -29,20 +29,20 @@
   --font-display: "Press Start 2P", monospace;
   --font-sans: "Chakra Petch", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  /* Default Low Bloom Settings */
-  --bloom-size: 5px;
-  --bloom-opacity: 0.22;
+  /* Default Bloom Settings */
+  --bloom-size: 7px;
+  --bloom-opacity: 0.32;
 }
 
-/* Bloom quality overrides — kept subtle so text stays crisp */
+/* Bloom quality overrides — strong phosphor glow, still readable */
 body.bloom-low {
-  --bloom-size: 3px;
-  --bloom-opacity: 0.14;
+  --bloom-size: 4px;
+  --bloom-opacity: 0.2;
 }
 
 body.bloom-high {
-  --bloom-size: 6px;
-  --bloom-opacity: 0.3;
+  --bloom-size: 10px;
+  --bloom-opacity: 0.45;
 }
 
 * {
@@ -202,7 +202,7 @@ body {
   100% { transform: translate(-4%, -3%) scale(1.15) rotate(0deg); }
 }
 @keyframes hue-cycle { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
-@keyframes bg-breathe { 0%,100% { opacity: 0.35; } 50% { opacity: 0.6; } }
+@keyframes bg-breathe { 0%,100% { opacity: 0.45; } 50% { opacity: 0.75; } }
 
 .crt-bg {
   position: fixed;
@@ -218,10 +218,10 @@ body {
   position: absolute;
   inset: -25%;
   background:
-    radial-gradient(38% 38% at 24% 30%, rgba(255,179,0,0.06), transparent 60%),
-    radial-gradient(44% 44% at 76% 66%, rgba(56,189,248,0.06), transparent 60%),
-    radial-gradient(34% 34% at 62% 18%, rgba(168,85,247,0.05), transparent 60%),
-    radial-gradient(40% 40% at 30% 80%, rgba(16,185,129,0.04), transparent 60%);
+    radial-gradient(38% 38% at 24% 30%, rgba(255,179,0,0.10), transparent 60%),
+    radial-gradient(44% 44% at 76% 66%, rgba(56,189,248,0.10), transparent 60%),
+    radial-gradient(34% 34% at 62% 18%, rgba(168,85,247,0.08), transparent 60%),
+    radial-gradient(40% 40% at 30% 80%, rgba(16,185,129,0.07), transparent 60%);
   animation: plasma-drift 22s ease-in-out infinite, hue-cycle 48s linear infinite;
   will-change: transform, filter;
 }
@@ -231,24 +231,33 @@ body {
   content: "";
   position: absolute;
   left: 0; right: 0; height: 35%;
-  background: linear-gradient(rgba(255,255,255,0) 0%, rgba(255,255,255,0.025) 50%, rgba(255,255,255,0) 100%);
-  animation: refresh-roll 7s linear infinite;
+  background: linear-gradient(rgba(255,255,255,0) 0%, rgba(255,255,255,0.045) 50%, rgba(255,255,255,0) 100%);
+  animation: refresh-roll 6s linear infinite;
 }
 
-/* CRT Scanlines Overlay — subtle so it never fights with text legibility */
+/* CRT Scanlines + aperture-grille phosphor stripes.
+   Horizontal scanlines (3px) plus faint vertical R/G/B subpixel columns give
+   the authentic shadow-mask CRT look while staying light enough to read over. */
 .crt-screen.scanlines::before {
   content: " ";
   display: block;
   position: fixed;
   top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%,
-    rgba(0, 0, 0, 0.05) 50%
-  );
-  background-size: 100% 4px;
+  background:
+    linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.10) 50%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.04),
+      rgba(0, 255, 0, 0.03),
+      rgba(0, 0, 255, 0.04)
+    );
+  background-size: 100% 3px, 4px 100%;
   z-index: 9999;
   pointer-events: none;
-  animation: scanline-roll 12s linear infinite;
+  animation: scanline-roll 10s linear infinite;
 }
 
 @keyframes scanline-roll {
@@ -257,20 +266,26 @@ body {
 }
 
 @keyframes crt-flicker {
-  0% { opacity: 0.997; }
-  50% { opacity: 1.0; }
-  100% { opacity: 0.997; }
+  0%   { opacity: 0.986; }
+  20%  { opacity: 1.0; }
+  40%  { opacity: 0.99; }
+  60%  { opacity: 0.998; }
+  80%  { opacity: 0.985; }
+  100% { opacity: 0.996; }
 }
 
 .crt-screen.flicker {
-  animation: crt-flicker 0.25s infinite;
+  animation: crt-flicker 0.18s infinite;
 }
 
-/* Screen Vignette Overlay */
+/* Screen Vignette Overlay — deeper corners + a soft inner glow for that
+   bulging-tube CRT look. */
 .crt-vignette {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(circle, transparent 75%, rgba(0, 0, 0, 0.35) 100%);
+  background:
+    radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.5) 100%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(120, 180, 255, 0.035), transparent 70%);
   pointer-events: none;
   z-index: 9998;
 }
