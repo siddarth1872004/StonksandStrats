@@ -26,6 +26,7 @@ import {
   sendAction, updateGameState, startRoomGame, endRoom, leaveRoom,
   updateHouseRules, updateGameMode, addBot, removeBot, updateBotDifficulty,
   touchHeartbeat, claimHost, markActionProcessed, subscribeToLive, resetRoomToLobby,
+  fetchUnprocessedActions,
 } from "./lib/roomClient";
 
 import {
@@ -79,8 +80,12 @@ export default function App() {
   const turnTimerRef = useRef(null);
   const timerKeyRef = useRef(null);
   const liveRef = useRef(null);
+  const processedActionsRef = useRef(new Set()); // host idempotency guard
+  const writeTimerRef = useRef(null);            // coalesced game_state writes
+  const pendingWriteRef = useRef(null);
 
   const [toast, setToast] = useState(null);
+  const [connected, setConnected] = useState(true); // realtime link health
 
   // Responsive layout
   const { isCompact } = useViewport();
@@ -303,13 +308,43 @@ export default function App() {
     }
   }, []);
 
+  // Coalesced game_state writer. Each write is the COMPLETE state, so collapsing
+  // rapid successive writes (AI build loops, animation micro-steps) into one
+  // trailing write is loss-free and dramatically cuts DB/realtime traffic.
+  const flushGameWrite = useCallback(() => {
+    if (writeTimerRef.current) { clearTimeout(writeTimerRef.current); writeTimerRef.current = null; }
+    const st = pendingWriteRef.current;
+    pendingWriteRef.current = null;
+    if (st && roomId) updateGameState(roomId, st).catch(console.error);
+  }, [roomId]);
+
+  const queueGameWrite = useCallback((newState) => {
+    pendingWriteRef.current = newState;
+    if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
+    writeTimerRef.current = setTimeout(flushGameWrite, 90);
+  }, [flushGameWrite]);
+
+  // Authoritative immediate write: cancels any pending coalesced write so an
+  // older queued state can never land after a start/reset/deadline transition.
+  const writeGameStateNow = useCallback((state) => {
+    if (writeTimerRef.current) { clearTimeout(writeTimerRef.current); writeTimerRef.current = null; }
+    pendingWriteRef.current = null;
+    if (!roomId) return Promise.resolve();
+    return updateGameState(roomId, state);
+  }, [roomId]);
+
+  const cancelPendingWrite = useCallback(() => {
+    if (writeTimerRef.current) { clearTimeout(writeTimerRef.current); writeTimerRef.current = null; }
+    pendingWriteRef.current = null;
+  }, []);
+
   // Commit a new state: run animations + persist to DB. Use everywhere instead of
   // setGameState+updateGameState so the host always gets animations too.
   const commitState = useCallback((newState) => {
     syncGameState(newState);
-    if (roomId) updateGameState(roomId, newState).catch(console.error);
+    if (roomId) queueGameWrite(newState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId, queueGameWrite]);
 
   // ── Supabase subscriptions ─────────────────────────────────────────────────
   useEffect(() => {
@@ -357,40 +392,48 @@ export default function App() {
           setScreen("LOBBY");
         }
       },
-      (ps) => setPlayers(ps || [])
+      (ps) => setPlayers(ps || []),
+      (status) => setConnected(status === "SUBSCRIBED")
     );
 
     return () => { unsubRoom(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  // Host subscribes to actions table
+  // Apply a single guest action row. Idempotent: an id is only ever processed
+  // once, so a realtime event and a safety-drain delivering the same row is safe.
+  const processActionRow = useCallback((actionRow) => {
+    if (!actionRow || processedActionsRef.current.has(actionRow.id)) return;
+    const currentState = gameStateRef.current;
+    if (!currentState) return; // not ready yet — a later drain will retry
+    processedActionsRef.current.add(actionRow.id);
+
+    const actionType = actionRow.action_type || actionRow.type;
+    const enginePayload = actionType === "propose_trade"
+      ? { fromId: actionRow.player_id, toId: actionRow.payload.toId, offer: actionRow.payload.offer }
+      : { ...actionRow.payload, playerId: actionRow.player_id };
+
+    const result = applyAction(currentState, { type: actionType, payload: enginePayload });
+    if (result.error) console.error("[host] action error:", result.error);
+    else commitState(result.state);
+    markActionProcessed(actionRow.id).catch(console.error);
+  }, [commitState]);
+
+  // Host subscribes to actions + drains any it missed (on connect and on a timer).
   useEffect(() => {
     if (!roomId || !isHost) return;
 
-    const unsubActions = subscribeToActions(roomId, actionRow => {
-      const currentState = gameStateRef.current;
-      if (!currentState) return;
+    const drain = () => fetchUnprocessedActions(roomId)
+      .then(rows => rows.forEach(processActionRow))
+      .catch(() => {});
 
-      let enginePayload;
-      const actionType = actionRow.action_type || actionRow.type;
-      if (actionType === "propose_trade") {
-        enginePayload = { fromId: actionRow.player_id, toId: actionRow.payload.toId, offer: actionRow.payload.offer };
-      } else {
-        enginePayload = { ...actionRow.payload, playerId: actionRow.player_id };
-      }
-
-      const result = applyAction(currentState, { type: actionType, payload: enginePayload });
-      if (result.error) { console.error("[host] action error:", result.error); return; }
-
-      commitState(result.state);
-      markActionProcessed(actionRow.id).catch(console.error);
-    });
+    const unsubActions = subscribeToActions(roomId, processActionRow);
+    drain(); // catch anything queued before this subscription existed
+    const drainInterval = setInterval(drain, 3000); // safety net for missed events
 
     actionsUnsubRef.current = unsubActions;
-    return () => { unsubActions(); actionsUnsubRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, isHost]);
+    return () => { unsubActions(); clearInterval(drainInterval); actionsUnsubRef.current = null; };
+  }, [roomId, isHost, processActionRow]);
 
   // ── Host migration watcher ─────────────────────────────────────────────────
   // Non-hosts periodically check if the host is stale and attempt to claim it
@@ -484,7 +527,7 @@ export default function App() {
     const withDeadline = { ...s, turn_deadline: deadline };
     gameStateRef.current = withDeadline;
     setGameState(withDeadline);
-    if (roomId) updateGameState(roomId, withDeadline).catch(console.error);
+    writeGameStateNow(withDeadline).catch(console.error);
 
     if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
     turnTimerRef.current = setTimeout(() => autoResolveTurn(actorId), seconds * 1000 + 400);
@@ -627,7 +670,8 @@ export default function App() {
     setGameState(newState);
     // Write the game state BEFORE flipping status to 'playing' so no client ever
     // sees status=playing with an empty state (which would bounce them to lobby).
-    await updateGameState(roomId, newState);
+    processedActionsRef.current.clear();
+    await writeGameStateNow(newState);
     await startRoomGame(roomId);
   };
 
@@ -636,6 +680,9 @@ export default function App() {
     stopHeartbeat();
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
     if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
+    if (writeTimerRef.current) { clearTimeout(writeTimerRef.current); writeTimerRef.current = null; }
+    pendingWriteRef.current = null;
+    processedActionsRef.current.clear();
     timerKeyRef.current = null;
     if (playerId) await leaveRoom(playerId);
     clearSession();
@@ -693,12 +740,14 @@ export default function App() {
   const handlePlayAgain = useCallback(async () => {
     playClick();
     if (!isHost || !roomId) return;
+    cancelPendingWrite();
+    processedActionsRef.current.clear();
     gameStateRef.current = null;
     setGameState(null);
     timerKeyRef.current = null;
     await resetRoomToLobby(roomId).catch(console.error);
     setScreen("LOBBY");
-  }, [isHost, roomId]);
+  }, [isHost, roomId, cancelPendingWrite]);
 
   const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
   const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
@@ -823,6 +872,10 @@ export default function App() {
               </span>
               <span style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: isHost ? "#fbbf24" : "#64748b", border: "1px solid", borderColor: isHost ? "rgba(251,191,36,0.35)" : "rgba(100,116,139,0.2)", padding: "2px 6px" }}>
                 {isHost ? "HOST" : "PLAYER"}{isBankrupt ? " · SPECTATOR" : ""}
+              </span>
+              <span title={connected ? "Realtime connected" : "Reconnecting…"} style={{ display: "flex", alignItems: "center", gap: "4px", fontFamily: "var(--font-retro)", fontSize: "8px", color: connected ? "#34d399" : "#fbbf24" }}>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: connected ? "#22c55e" : "#fbbf24", boxShadow: connected ? "0 0 5px #22c55e" : "0 0 5px #fbbf24", animation: connected ? "pulse-anim 2s infinite" : "blink-anim 0.8s infinite" }} />
+                {connected ? "LIVE" : "RECONNECTING"}
               </span>
             </>}
           </div>

@@ -121,7 +121,7 @@ export async function fetchPlayerById(playerId) {
 }
 
 // ── Realtime subscriptions ────────────────────────────────────────────────────
-export function subscribeToRoom(roomId, onRoomChange, onPlayersChange) {
+export function subscribeToRoom(roomId, onRoomChange, onPlayersChange, onStatus) {
   const channel = supabase
     .channel(`room:${roomId}`)
     .on('postgres_changes', {
@@ -130,8 +130,20 @@ export function subscribeToRoom(roomId, onRoomChange, onPlayersChange) {
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${roomId}`,
     }, () => fetchPlayers(roomId).then(onPlayersChange))
-    .subscribe();
+    .subscribe(status => onStatus?.(status));
   return () => supabase.removeChannel(channel);
+}
+
+// One-shot fetch of any unprocessed actions — lets a (re)connecting host drain
+// the queue so a guest action is never lost if a realtime event was missed.
+export async function fetchUnprocessedActions(roomId) {
+  const { data } = await supabase
+    .from('actions')
+    .select('*')
+    .eq('room_id', roomId)
+    .eq('processed', false)
+    .order('id', { ascending: true });
+  return data || [];
 }
 
 // Host subscribes to unprocessed action rows
