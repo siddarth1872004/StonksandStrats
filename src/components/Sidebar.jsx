@@ -4,6 +4,7 @@ import { ManageIcon, TradeIcon, SettingsIcon, HouseIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 import { calcNetWorth } from "../lib/gameEngine";
 import { EmoteBar } from "./Emotes";
+import { TradeBuilder, TradeOfferView } from "./TradeBroker";
 
 // Condense raw log lines into a deduped, concise activity stream for the feed.
 function abstractFeed(log) {
@@ -220,18 +221,26 @@ export default function Sidebar({
   onEndGame,
   onAction,
   onEmote,
-  onOpenTrade,
   onOpenSettings,
 }) {
   const [chatInput, setChatInput] = useState("");
   const [confirmEnd, setConfirmEnd] = useState(false);
-  const [tab, setTab] = useState("terminal"); // terminal | portfolio
+  const [tab, setTab] = useState("terminal"); // terminal | portfolio | trade
+  const [counterPrefill, setCounterPrefill] = useState(null);
   const chatEndRef = useRef(null);
 
   const chatLog = gameState?.chat_log || [];
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [chatLog.length]);
+
+  // When a trade offer involving me appears, jump to the Trade tab so it's seen.
+  const pending = gameState?.pending_trade;
+  const pendingKey = pending ? `${pending.from}->${pending.to}` : "";
+  const pendingInvolvesMe = pending && (pending.to === myPlayerId || pending.from === myPlayerId);
+  useEffect(() => {
+    if (pendingInvolvesMe) { setTab("trade"); setCounterPrefill(null); }
+  }, [pendingKey, pendingInvolvesMe]);
 
   if (!gameState) return null;
 
@@ -426,15 +435,20 @@ export default function Sidebar({
               </div>
             )}
 
-            {/* Trade (portfolio is now an inline tab below) */}
+            {/* Portfolio + Trade — open inline in the panel below (not popups) */}
             {!isBankrupt && (
-              <Btn
-                style={{ width: "100%", fontSize: "9px", padding: "8px 4px" }}
-                onClick={() => { playClick(); onOpenTrade?.(); }}
-                disabled={activeOpponents.length === 0 || inDebt}
-              >
-                <TradeIcon size={10} /><span>TRADE</span>
-              </Btn>
+              <div style={{ display: "flex", gap: "5px" }}>
+                <Btn style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }} onClick={() => { playClick(); setTab("portfolio"); }}>
+                  <ManageIcon size={10} /><span>PORTFOLIO</span>
+                </Btn>
+                <Btn
+                  style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }}
+                  onClick={() => { playClick(); setCounterPrefill(null); setTab("trade"); }}
+                  disabled={activeOpponents.length === 0 || inDebt}
+                >
+                  <TradeIcon size={10} /><span>TRADE</span>
+                </Btn>
+              </div>
             )}
 
             {/* Host: end game */}
@@ -462,27 +476,46 @@ export default function Sidebar({
       )}
 
 
-      {/* ── TABS: PORTFOLIO | TERMINAL (inline, no popups) ─────── */}
+      {/* ── TABS: TERMINAL | PORTFOLIO | TRADE (all inline, no popups) ── */}
       <div style={{ display: "flex", flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.12)", borderBottom: "1px solid rgba(255,179,0,0.12)" }}>
-        {[["terminal", "TERMINAL"], ["portfolio", "PORTFOLIO"]].map(([id, label]) => (
+        {[["terminal", "TERMINAL"], ["portfolio", "PORTFOLIO"], ["trade", "TRADE"]].map(([id, label]) => (
           <button key={id} onClick={() => { playClick(); setTab(id); }}
             style={{
-              flex: 1, fontFamily: "var(--font-retro)", fontSize: "8px", padding: "6px 4px",
+              flex: 1, fontFamily: "var(--font-retro)", fontSize: "8px", padding: "6px 3px",
               background: tab === id ? "rgba(255,179,0,0.1)" : "transparent",
               border: "none", borderBottom: `2px solid ${tab === id ? "#FFB300" : "transparent"}`,
-              color: tab === id ? "#FFB300" : "#64748b", cursor: "pointer", letterSpacing: "0.1em",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+              color: tab === id ? "#FFB300" : (id === "trade" && pendingInvolvesMe) ? "#22d3ee" : "#64748b",
+              cursor: "pointer", letterSpacing: "0.08em",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "3px",
             }}>
-            {id === "portfolio" ? <ManageIcon size={9} /> : "▌"} {label}
+            {id === "portfolio" ? <ManageIcon size={9} /> : id === "trade" ? <TradeIcon size={9} /> : "▌"}
+            {label}{id === "trade" && pendingInvolvesMe ? " ●" : ""}
           </button>
         ))}
       </div>
 
       {/* Tab content fills the remaining space */}
-      <div style={{ flex: stacked ? "none" : 1, height: stacked ? "200px" : "auto", minHeight: "100px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: stacked ? "none" : 1, height: stacked ? "240px" : "auto", minHeight: "120px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {tab === "portfolio" ? (
           <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "thin" }}>
             <PortfolioPanel gameState={gameState} myPlayerId={myPlayerId} onAction={onAction} />
+          </div>
+        ) : tab === "trade" ? (
+          <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "thin" }}>
+            {pendingInvolvesMe && !counterPrefill ? (
+              <TradeOfferView gameState={gameState} myPlayerId={myPlayerId} onAction={onAction}
+                onCounter={() => {
+                  const o = pending.offer || {};
+                  setCounterPrefill({
+                    targetPid: pending.from,
+                    give: { cash: o.to_money || 0, cards: o.to_cards || 0, props: o.to_properties || [] },
+                    get: { cash: o.from_money || 0, cards: o.from_cards || 0, props: o.from_properties || [] },
+                  });
+                }} />
+            ) : (
+              <TradeBuilder gameState={gameState} myPlayerId={myPlayerId} onAction={onAction}
+                prefill={counterPrefill} onClose={() => setCounterPrefill(null)} />
+            )}
           </div>
         ) : (
           <>

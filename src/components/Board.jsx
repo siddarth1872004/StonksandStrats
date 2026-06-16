@@ -83,7 +83,7 @@ function landingInfo(gameState, landing) {
 }
 
 /* ── Center status card (replaces the brand logo) ─────────────────── */
-function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, landing }) {
+function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnimations, landing }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const currentPlayer = gameState?.players?.find(p => p.id === currentTurnPlayerId);
   const inPlay = gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over";
@@ -96,7 +96,10 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
     ? { headline: `${currentPlayer?.name || "—"} is rolling`, sub: "Where will the token land?" }
     : (gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" });
   const latest = (gameState?.log || []).slice(-1)[0];
-  const land = inPlay ? landingInfo(gameState, landing) : null;
+  // The full tile-details card is shown only to the player who actually landed
+  // (and persists through their turn). Everyone else just sees the live news.
+  const land = (inPlay && !animationsBusy && landing && landing.pid === myPlayerId)
+    ? landingInfo(gameState, landing) : null;
 
   return (
     <div style={{
@@ -134,7 +137,7 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "9px" }}>
           <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}`, animation: "pulse-anim 1.8s infinite" }} />
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,9px)", color: "#64748b", letterSpacing: "0.25em" }}>LIVE STATUS</span>
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(6px,1cqw,9px)", color: "#64748b", letterSpacing: "0.25em" }}>LIVE NEWS</span>
         </div>
         <div style={{
           fontFamily: "var(--font-retro)", fontSize: "clamp(12px,2.6cqw,24px)", fontWeight: "bold",
@@ -255,7 +258,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
         overflow: "hidden",
         containerType: "size",
       }}>
-        <BoardLogo gameState={gameState} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} landing={landing} />
+        <BoardLogo gameState={gameState} myPlayerId={myPlayerId} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} landing={landing} />
       </div>
 
       {/* Render 40 tiles */}

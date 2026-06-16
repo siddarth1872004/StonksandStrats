@@ -45,7 +45,7 @@ function TradeColumn({ title, color, player, side, setSide, houses }) {
     ...s, props: s.props.includes(tid) ? s.props.filter(x => x !== tid) : [...s.props, tid],
   }));
   return (
-    <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
+    <div style={{ width: "100%", minWidth: 0, display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
       <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color, fontWeight: "bold" }}>{title}</div>
       <label style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>
         CASH (max ${player.money.toLocaleString()})
@@ -74,7 +74,7 @@ function TradeColumn({ title, color, player, side, setSide, houses }) {
 // Display-only side summary for the offer modal.
 function OfferSide({ title, color, money, cards, props }) {
   return (
-    <div style={{ flex: 1, minWidth: "150px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
+    <div style={{ width: "100%", minWidth: 0, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)", padding: "10px" }}>
       <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color, fontWeight: "bold", marginBottom: "8px" }}>{title}</div>
       <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#34d399", marginBottom: "4px" }}>${(money || 0).toLocaleString()}</div>
       {cards > 0 && <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#fbbf24", marginBottom: "4px" }}>{cards}× Jail card</div>}
@@ -89,8 +89,8 @@ function OfferSide({ title, color, money, cards, props }) {
   );
 }
 
-// ── Pending-offer modal: always mounted by App so incoming offers are never missed ──
-export function TradeOfferModal({ gameState, myPlayerId, onAction, onCounter }) {
+// ── Inline pending-offer view (rendered inside the sidebar Trade tab) ──
+export function TradeOfferView({ gameState, myPlayerId, onAction, onCounter }) {
   const pending = gameState?.pending_trade;
   if (!pending) return null;
 
@@ -101,43 +101,41 @@ export function TradeOfferModal({ gameState, myPlayerId, onAction, onCounter }) 
   const isProposer = pending.from === myPlayerId;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px", zIndex: 8300 }}>
-      <div className="glass-card" style={{ width: "min(94vw, 480px)", padding: "20px", borderTop: "4px solid #22d3ee" }}>
-        <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#22d3ee", fontWeight: "bold", textAlign: "center", letterSpacing: "0.15em", marginBottom: "14px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-          <TradeIcon size={13} /> TRADE OFFER
-        </h2>
-        <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
-          <OfferSide title={`${fromP?.name} GIVES`} color={tokenColor(fromP)} money={offer.from_money} cards={offer.from_cards} props={offer.from_properties} />
-          <OfferSide title={`${toP?.name} GIVES`} color={tokenColor(toP)} money={offer.to_money} cards={offer.to_cards} props={offer.to_properties} />
-        </div>
-        {isTarget ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✓ ACCEPT</button>
-              <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✕ REJECT</button>
-            </div>
-            {onCounter && (
-              <button onClick={() => { playClick(); onCounter(); }} className="btn-retro" style={{ width: "100%", fontSize: "10px", padding: "10px", borderColor: "#fbbf24", color: "#fbbf24" }}>
-                ⇄ COUNTER-OFFER
-              </button>
-            )}
-          </div>
-        ) : isProposer ? (
-          <button onClick={() => { playClick(); onAction("cancel_trade", {}); }} className="btn-retro btn-retro-red" style={{ width: "100%", fontSize: "10px", padding: "10px" }}>
-            <CloseIcon size={10} className="mr-1" /> WITHDRAW OFFER
-          </button>
-        ) : (
-          <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#64748b", textAlign: "center", padding: "8px" }}>
-            Waiting for {toP?.name} to respond…
-          </div>
-        )}
+    <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#22d3ee", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
+        <TradeIcon size={12} /> TRADE OFFER
       </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <OfferSide title={`${fromP?.name} GIVES`} color={tokenColor(fromP)} money={offer.from_money} cards={offer.from_cards} props={offer.from_properties} />
+        <OfferSide title={`${toP?.name} GIVES`} color={tokenColor(toP)} money={offer.to_money} cards={offer.to_cards} props={offer.to_properties} />
+      </div>
+      {isTarget ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "9px", padding: "9px" }}>✓ ACCEPT</button>
+            <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "9px", padding: "9px" }}>✕ REJECT</button>
+          </div>
+          {onCounter && (
+            <button onClick={() => { playClick(); onCounter(); }} className="btn-retro" style={{ width: "100%", fontSize: "9px", padding: "8px", borderColor: "#fbbf24", color: "#fbbf24" }}>
+              ⇄ COUNTER-OFFER
+            </button>
+          )}
+        </div>
+      ) : isProposer ? (
+        <button onClick={() => { playClick(); onAction("cancel_trade", {}); }} className="btn-retro btn-retro-red" style={{ width: "100%", fontSize: "9px", padding: "9px" }}>
+          <CloseIcon size={10} className="mr-1" /> WITHDRAW OFFER
+        </button>
+      ) : (
+        <div className="animate-pulse" style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#64748b", textAlign: "center", padding: "8px" }}>
+          Waiting for {toP?.name} to respond…
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Trade builder: a clean centered modal opened from the sidebar ──
-export default function TradeBroker({ gameState, myPlayerId, onAction, onClose, prefill = null }) {
+// ── Inline trade builder (rendered inside the sidebar Trade tab) ──
+export function TradeBuilder({ gameState, myPlayerId, onAction, prefill = null, onClose }) {
   const [targetPid, setTargetPid] = useState(prefill?.targetPid || "");
   const [give, setGive] = useState(prefill?.give || { cash: 0, cards: 0, props: [] });
   const [get, setGet] = useState(prefill?.get || { cash: 0, cards: 0, props: [] });
@@ -164,49 +162,49 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose, 
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm animate-scale-up" style={{ background: "rgba(0,0,0,0.8)", padding: "16px", zIndex: 8200 }}>
-      <div className="glass-card" style={{ width: "min(96vw, 560px)", maxHeight: "90vh", overflowY: "auto", padding: "18px", borderTop: "4px solid #38bdf8" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-          <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
-            <TradeIcon size={13} /> {isCounter ? "COUNTER-OFFER" : "PROPOSE A TRADE"}
-          </h2>
-          <button onClick={() => { playClick(); onClose?.(); }} style={{ background: "none", border: "none", cursor: "pointer" }}><CloseIcon size={14} color="#64748b" /></button>
-        </div>
-
-        {/* Partner picker */}
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b", marginBottom: "6px" }}>TRADE WITH</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
-          {others.length === 0 && <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#475569", fontStyle: "italic" }}>No one to trade with.</span>}
-          {others.map(p => {
-            const sel = p.id === targetPid;
-            return (
-              <button key={p.id} onClick={() => { playClick(); setTargetPid(p.id); setGet({ cash: 0, cards: 0, props: [] }); }}
-                style={{
-                  display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px",
-                  fontFamily: "var(--font-retro)", fontSize: "9px",
-                  background: sel ? `${tokenColor(p)}22` : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${sel ? tokenColor(p) : "rgba(255,255,255,0.1)"}`,
-                  color: sel ? "#fff" : "#94a3b8", cursor: "pointer",
-                }}>
-                <span style={{ width: "9px", height: "9px", background: tokenColor(p) }} />
-                {p.name}{p.is_bot ? " [AI]" : ""}
-              </button>
-            );
-          })}
-        </div>
-
-        {target && me && (
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "14px" }}>
-            <TradeColumn title="YOU GIVE" color="#38bdf8" player={me} side={give} setSide={setGive} houses={gameState?.houses} />
-            <TradeColumn title={`${target.name} GIVES`} color="#fbbf24" player={target} side={get} setSide={setGet} houses={gameState?.houses} />
-          </div>
+    <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
+          <TradeIcon size={12} /> {isCounter ? "COUNTER-OFFER" : "PROPOSE TRADE"}
+        </span>
+        {isCounter && (
+          <button onClick={() => { playClick(); onClose?.(); }} style={{ background: "none", border: "none", cursor: "pointer" }}><CloseIcon size={12} color="#64748b" /></button>
         )}
-
-        <button onClick={propose} disabled={!target || !hasOffer}
-          className="btn-retro btn-retro-green" style={{ width: "100%", fontSize: "11px", padding: "12px", fontWeight: "bold", opacity: (!target || !hasOffer) ? 0.4 : 1 }}>
-          <TradeIcon size={11} className="mr-1" /> {isCounter ? "SEND COUNTER-OFFER" : "SEND OFFER"}
-        </button>
       </div>
+
+      {/* Partner picker */}
+      <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b" }}>TRADE WITH</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+        {others.length === 0 && <span style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#475569", fontStyle: "italic" }}>No one to trade with.</span>}
+        {others.map(p => {
+          const sel = p.id === targetPid;
+          return (
+            <button key={p.id} onClick={() => { playClick(); setTargetPid(p.id); setGet({ cash: 0, cards: 0, props: [] }); }}
+              style={{
+                display: "flex", alignItems: "center", gap: "5px", padding: "5px 8px",
+                fontFamily: "var(--font-retro)", fontSize: "9px",
+                background: sel ? `${tokenColor(p)}22` : "rgba(255,255,255,0.03)",
+                border: `1px solid ${sel ? tokenColor(p) : "rgba(255,255,255,0.1)"}`,
+                color: sel ? "#fff" : "#94a3b8", cursor: "pointer",
+              }}>
+              <span style={{ width: "9px", height: "9px", background: tokenColor(p) }} />
+              {p.name}{p.is_bot ? " [AI]" : ""}
+            </button>
+          );
+        })}
+      </div>
+
+      {target && me && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <TradeColumn title="YOU GIVE" color="#38bdf8" player={me} side={give} setSide={setGive} houses={gameState?.houses} />
+          <TradeColumn title={`${target.name} GIVES`} color="#fbbf24" player={target} side={get} setSide={setGet} houses={gameState?.houses} />
+        </div>
+      )}
+
+      <button onClick={propose} disabled={!target || !hasOffer}
+        className="btn-retro btn-retro-green" style={{ width: "100%", fontSize: "10px", padding: "11px", fontWeight: "bold", opacity: (!target || !hasOffer) ? 0.4 : 1 }}>
+        <TradeIcon size={11} className="mr-1" /> {isCounter ? "SEND COUNTER-OFFER" : "SEND OFFER"}
+      </button>
     </div>
   );
 }

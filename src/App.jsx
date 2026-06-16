@@ -7,9 +7,6 @@ import Toast from "./components/Toast";
 import ConfirmDialog from "./components/ConfirmDialog";
 import { EmoteOverlay } from "./components/Emotes";
 import { useViewport } from "./lib/useViewport";
-// Trading is core gameplay and must never fail to open — keep it in the main
-// bundle (not code-split) so a stale dynamic-import chunk can never break it.
-import TradeBroker, { TradeOfferModal } from "./components/TradeBroker";
 
 // Heavy / rarely-mounted UI is code-split so the initial bundle stays small.
 const Diagnostics = lazy(() => import("./components/Diagnostics"));
@@ -163,8 +160,6 @@ export default function App() {
   // Modal visibility
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [showManage, setShowManage] = useState(false);
-  const [showTrade, setShowTrade] = useState(false);
-  const [tradePrefill, setTradePrefill] = useState(null); // counter-offer prefill
   const [showSettings, setShowSettings] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showConfirmBankruptcy, setShowConfirmBankruptcy] = useState(false);
@@ -278,11 +273,10 @@ export default function App() {
     else setScreen("LOBBY");
   };
 
-  // Show the "X landed on Y" card in the board center for a few seconds.
+  // Mark where a player landed. The card stays up (no auto-close) until the
+  // turn advances — syncGameState clears it when `current` changes.
   const showLanding = useCallback((pid, tileId) => {
     setLanding({ pid, tileId, key: Date.now() });
-    if (landingTimerRef.current) clearTimeout(landingTimerRef.current);
-    landingTimerRef.current = setTimeout(() => setLanding(null), 4500);
   }, []);
 
   const syncGameState = useCallback((newState) => {
@@ -342,6 +336,8 @@ export default function App() {
       const nextProps = newState.players?.reduce((s, p) => s + p.properties.length, 0) || 0;
       if (nextProps > prevProps) playBuy();
     }
+    // Clear the landing card once the turn moves on (player ended their turn).
+    if (prev && newState && prev.current !== newState.current) setLanding(null);
   }, [showLanding]);
 
   // Coalesced game_state writer. Each write is the COMPLETE state, so collapsing
@@ -830,20 +826,6 @@ export default function App() {
   }, [isHost, roomId, cancelPendingWrite]);
 
   const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
-
-  // Open the trade builder prefilled with the mirror of the pending offer so the
-  // recipient can tweak it and send it back as a counter-offer.
-  const handleCounterOffer = useCallback(() => {
-    const pt = gameStateRef.current?.pending_trade;
-    if (!pt) return;
-    const o = pt.offer || {};
-    setTradePrefill({
-      targetPid: pt.from,
-      give: { cash: o.to_money || 0, cards: o.to_cards || 0, props: o.to_properties || [] },
-      get:  { cash: o.from_money || 0, cards: o.from_cards || 0, props: o.from_properties || [] },
-    });
-    setShowTrade(true);
-  }, []);
   const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
   const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
@@ -1057,8 +1039,6 @@ export default function App() {
                   if (act === "declare_bankruptcy") handleBankruptcyClick();
                   else handleAction(act, pay);
                 }}
-                onOpenManage={() => setShowManage(true)}
-                onOpenTrade={() => { setTradePrefill(null); setShowTrade(true); }}
                 onOpenSettings={() => setShowSettings(true)}
               />
             );
@@ -1157,12 +1137,6 @@ export default function App() {
         )}
         {gameState?.phase === "auction" && (
           <Auction gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
-        )}
-        {showTrade && screen === "GAME" && (
-          <TradeBroker gameState={gameState} myPlayerId={playerId} onAction={handleAction} prefill={tradePrefill} onClose={() => { setShowTrade(false); setTradePrefill(null); }} />
-        )}
-        {gameState?.pending_trade && !showTrade && (
-          <TradeOfferModal gameState={gameState} myPlayerId={playerId} onAction={handleAction} onCounter={handleCounterOffer} />
         )}
         {showSettings && (
           <Settings
