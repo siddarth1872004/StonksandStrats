@@ -534,7 +534,7 @@ export default function App() {
 
     return () => { if (turnTimerRef.current) clearTimeout(turnTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, animationsBusy, gameState?.phase, gameState?.current, gameState?.debtor_id, gameState?.auction?.turn_idx]);
+  }, [isHost, animationsBusy, gameState?.phase, gameState?.current, gameState?.debtor_id, gameState?.auction?.active?.[gameState?.auction?.turn_idx], gameState?.auction?.active?.length]);
 
   // ── AI turn processor (host only) ─────────────────────────────────────────
   // Determines which bot (if any) needs to act in the current state and applies
@@ -595,8 +595,11 @@ export default function App() {
     aiTimerRef.current = setTimeout(processAITurn, randomAIDelay());
 
     return () => { if (aiTimerRef.current) clearTimeout(aiTimerRef.current); };
+    // Key on the actual auction actor id, not turn_idx: when a player passes the
+    // index can stay the same while pointing at a new bidder, which would
+    // otherwise stall the auction (the next bot never gets prompted).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState?.phase, gameState?.current, gameState?.auction?.turn_idx, gameState?.debtor_id, gameState?.pending_trade?.to, isHost, processAITurn]);
+  }, [gameState?.phase, gameState?.current, gameState?.auction?.active?.[gameState?.auction?.turn_idx], gameState?.auction?.active?.length, gameState?.debtor_id, gameState?.pending_trade?.to, isHost, processAITurn]);
 
   // ── Action dispatch ────────────────────────────────────────────────────────
   const buildEnginePayload = (type, payload) => {

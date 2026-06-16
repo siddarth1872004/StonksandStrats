@@ -1,6 +1,6 @@
 // src/boardData.js
 
-export const TILES = [
+const RAW_TILES = [
   { id: 0, name: "GO", type: "go", group: null, price: null, houseCost: null, mortgage: null, rent: null },
   { id: 1, name: "Mediterranean Ave", type: "property", group: "brown", price: 60, houseCost: 50, mortgage: 30, rent: [2, 10, 30, 90, 160, 250] },
   { id: 2, name: "Community Chest", type: "community_chest", group: null, price: null, houseCost: null, mortgage: null, rent: null },
@@ -42,6 +42,29 @@ export const TILES = [
   { id: 38, name: "Luxury Tax", type: "tax", group: null, price: 100, houseCost: null, mortgage: null, rent: null },
   { id: 39, name: "Boardwalk", type: "property", group: "dark_blue", price: 400, houseCost: 200, mortgage: 200, rent: [50, 200, 600, 1400, 1700, 2000] }
 ];
+
+// Re-price every purchasable tile on a smooth low→high gradient by board
+// position: cheap just after GO, premium just before GO. Government / special
+// squares (GO, Income Tax, Luxury Tax, Jail, Free Parking, Go To Jail, Chance,
+// Community Chest) keep their original values. Mortgage stays at half price and
+// each rent (plus house cost) scales with the new price so the original
+// risk/reward balance is preserved.
+const round10 = (n) => Math.round(n / 10) * 10;
+const gradientPrice = (id) => round10(50 + id * 9); // id 1 → $60 … id 39 → $400
+const PURCHASABLE = new Set(["property", "railroad", "utility"]);
+
+export const TILES = RAW_TILES.map((t) => {
+  if (!PURCHASABLE.has(t.type)) return t;
+  const price = gradientPrice(t.id);
+  const ratio = t.price ? price / t.price : 1;
+  return {
+    ...t,
+    price,
+    mortgage: round10(price / 2),
+    houseCost: t.houseCost ? round10(t.houseCost * ratio) : t.houseCost,
+    rent: t.rent ? t.rent.map((r) => Math.max(1, Math.round(r * ratio))) : t.rent,
+  };
+});
 
 export const GROUPS = {
   brown: [1, 3],
