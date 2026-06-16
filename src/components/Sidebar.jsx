@@ -285,9 +285,12 @@ export default function Sidebar({
                 )}
 
                 {phase === "buy_decision" && gameState.can_buy !== null && (
-                  <div style={{ display: "flex", gap: "5px" }}>
-                    <Btn variant="green" style={{ flex: 1, fontWeight: "bold", fontSize: "9px" }} onClick={() => onAction("buy_property")}>⌂ BUY</Btn>
-                    <Btn variant="red" style={{ flex: 1, fontWeight: "bold", fontSize: "9px" }} onClick={() => onAction("decline_buy")}>PASS</Btn>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "10px", padding: "10px" }} onClick={() => onAction("buy_property")}>⌂ BUY</Btn>
+                    <div style={{ display: "flex", gap: "5px" }}>
+                      <Btn variant="amber" style={{ flex: 1, fontWeight: "bold", fontSize: "9px" }} onClick={() => onAction("decline_buy", { auction: true })}>⚖ AUCTION</Btn>
+                      <Btn variant="red" style={{ flex: 1, fontWeight: "bold", fontSize: "9px" }} onClick={() => onAction("decline_buy", { auction: false })}>PASS</Btn>
+                    </div>
                   </div>
                 )}
 

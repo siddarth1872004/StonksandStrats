@@ -745,7 +745,7 @@ export function confirmPayment(state, { playerId }) {
   return { state: s };
 }
 
-export function declineBuy(state, { playerId }) {
+export function declineBuy(state, { playerId, auction }) {
   if (state.phase !== 'buy_decision') return { state, error: 'Not in buy_decision phase.' };
   if (playerId !== getCurrentPlayerId(state)) return { state, error: 'Not your turn.' };
 
@@ -753,13 +753,17 @@ export function declineBuy(state, { playerId }) {
   const tileId = s.can_buy;
   const p = getPlayer(s, playerId);
 
-  if (hr(s).skip_auction) {
-    addLog(s, `${p.name} skipped ${TILES.find(t => t.id === tileId)?.name}. Property returned to bank.`);
+  // Explicit player choice (PASS vs AUCTION buttons) wins; absent a choice,
+  // fall back to the skip_auction house rule.
+  const goAuction = auction === true ? true : auction === false ? false : !hr(s).skip_auction;
+
+  if (!goAuction) {
+    addLog(s, `${p.name} passed on ${TILES.find(t => t.id === tileId)?.name}. Property returned to bank.`);
     s.can_buy = null; s.phase = 'post_roll';
     return { state: s };
   }
 
-  addLog(s, `${p.name} skipped ${TILES.find(t => t.id === tileId)?.name}. Starting Auction!`);
+  addLog(s, `${p.name} sent ${TILES.find(t => t.id === tileId)?.name} to auction!`);
   return startAuction(s, tileId, playerId);
 }
 
@@ -1023,7 +1027,14 @@ export function endTurn(state, { playerId }) {
 }
 
 export function proposeTrade(state, { fromId, toId, offer }) {
-  if (state.pending_trade) return { state, error: 'Trade already pending.' };
+  // A counter-offer is a new proposal from the current target back to the
+  // current proposer — it's allowed to replace the pending trade.
+  let isCounter = false;
+  if (state.pending_trade) {
+    const pt = state.pending_trade;
+    isCounter = pt.to === fromId && pt.from === toId;
+    if (!isCounter) return { state, error: 'Trade already pending.' };
+  }
   if (fromId === toId) return { state, error: 'Cannot trade with yourself.' };
   const from = getPlayer(state, fromId);
   const to = getPlayer(state, toId);
@@ -1033,7 +1044,7 @@ export function proposeTrade(state, { fromId, toId, offer }) {
 
   const s = deepClone(state);
   s.pending_trade = { from: fromId, to: toId, offer };
-  addLog(s, `${from.name} proposed a trade to ${to.name}.`);
+  addLog(s, isCounter ? `${from.name} sent ${to.name} a counter-offer.` : `${from.name} proposed a trade to ${to.name}.`);
   return { state: s };
 }
 

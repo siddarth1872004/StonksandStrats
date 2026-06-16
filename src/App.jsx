@@ -141,6 +141,8 @@ export default function App() {
   // Transient per-token visual states for live token animations.
   const [tokenFx, setTokenFx] = useState({});       // pid -> 'gain' | 'loss'
   const [movingPids, setMovingPids] = useState({});  // pid -> true while hopping
+  const [landing, setLanding] = useState(null);      // { pid, tileId, key } center card
+  const landingTimerRef = useRef(null);
   const animQueueRef = useRef(null);
 
   // Client visual settings
@@ -162,6 +164,7 @@ export default function App() {
   const [selectedTileId, setSelectedTileId] = useState(null);
   const [showManage, setShowManage] = useState(false);
   const [showTrade, setShowTrade] = useState(false);
+  const [tradePrefill, setTradePrefill] = useState(null); // counter-offer prefill
   const [showSettings, setShowSettings] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showConfirmBankruptcy, setShowConfirmBankruptcy] = useState(false);
@@ -256,6 +259,13 @@ export default function App() {
     else setScreen("LOBBY");
   };
 
+  // Show the "X landed on Y" card in the board center for a few seconds.
+  const showLanding = useCallback((pid, tileId) => {
+    setLanding({ pid, tileId, key: Date.now() });
+    if (landingTimerRef.current) clearTimeout(landingTimerRef.current);
+    landingTimerRef.current = setTimeout(() => setLanding(null), 4500);
+  }, []);
+
   const syncGameState = useCallback((newState) => {
     const prev = gameStateRef.current;
     gameStateRef.current = newState;
@@ -275,11 +285,15 @@ export default function App() {
             setMovingPids(m => ({ ...m, [ev.pid]: true }));
             return animateHop(ev.pid, ev.from, ev.steps,
               (pid, pos) => setRenderedPositions(p => ({ ...p, [pid]: pos })), qInst)
-              .finally(() => setMovingPids(m => { const n = { ...m }; delete n[ev.pid]; return n; }));
+              .finally(() => {
+                setMovingPids(m => { const n = { ...m }; delete n[ev.pid]; return n; });
+                showLanding(ev.pid, ev.to);
+              });
           });
           break;
         case ANIM.MOVE_WARP:
           setRenderedPositions(p => ({ ...p, [ev.pid]: ev.to }));
+          showLanding(ev.pid, ev.to);
           break;
         case ANIM.MONEY_DELTA: {
           const deltaId = `${Date.now()}-${ev.pid}`;
@@ -309,7 +323,7 @@ export default function App() {
       const nextProps = newState.players?.reduce((s, p) => s + p.properties.length, 0) || 0;
       if (nextProps > prevProps) playBuy();
     }
-  }, []);
+  }, [showLanding]);
 
   // Coalesced game_state writer. Each write is the COMPLETE state, so collapsing
   // rapid successive writes (AI build loops, animation micro-steps) into one
@@ -714,6 +728,8 @@ export default function App() {
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
     if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
     if (writeTimerRef.current) { clearTimeout(writeTimerRef.current); writeTimerRef.current = null; }
+    if (landingTimerRef.current) { clearTimeout(landingTimerRef.current); landingTimerRef.current = null; }
+    setLanding(null);
     pendingWriteRef.current = null;
     processedActionsRef.current.clear();
     timerKeyRef.current = null;
@@ -795,6 +811,20 @@ export default function App() {
   }, [isHost, roomId, cancelPendingWrite]);
 
   const handleTileClick = useCallback((tid) => setSelectedTileId(tid), []);
+
+  // Open the trade builder prefilled with the mirror of the pending offer so the
+  // recipient can tweak it and send it back as a counter-offer.
+  const handleCounterOffer = useCallback(() => {
+    const pt = gameStateRef.current?.pending_trade;
+    if (!pt) return;
+    const o = pt.offer || {};
+    setTradePrefill({
+      targetPid: pt.from,
+      give: { cash: o.to_money || 0, cards: o.to_cards || 0, props: o.to_properties || [] },
+      get:  { cash: o.from_money || 0, cards: o.from_cards || 0, props: o.from_properties || [] },
+    });
+    setShowTrade(true);
+  }, []);
   const handleBankruptcyClick = () => { playClick(); setShowConfirmBankruptcy(true); };
   const handleConfirmBankruptcy = () => { setShowConfirmBankruptcy(false); handleAction("declare_bankruptcy"); };
   const handleSkipAnimations = () => { playClick(); if (animQueueRef.current) animQueueRef.current.skip(); };
@@ -989,6 +1019,7 @@ export default function App() {
                 onSkipAnimations={handleSkipAnimations}
                 tokenFx={tokenFx}
                 movingPids={movingPids}
+                landing={landing}
               />
             );
             const sidebar = (
@@ -1006,7 +1037,7 @@ export default function App() {
                   else handleAction(act, pay);
                 }}
                 onOpenManage={() => setShowManage(true)}
-                onOpenTrade={() => setShowTrade(true)}
+                onOpenTrade={() => { setTradePrefill(null); setShowTrade(true); }}
                 onOpenSettings={() => setShowSettings(true)}
               />
             );
@@ -1107,10 +1138,10 @@ export default function App() {
           <Auction gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
         )}
         {showTrade && screen === "GAME" && (
-          <TradeBroker gameState={gameState} myPlayerId={playerId} onAction={handleAction} onClose={() => setShowTrade(false)} />
+          <TradeBroker gameState={gameState} myPlayerId={playerId} onAction={handleAction} prefill={tradePrefill} onClose={() => { setShowTrade(false); setTradePrefill(null); }} />
         )}
-        {gameState?.pending_trade && (
-          <TradeOfferModal gameState={gameState} myPlayerId={playerId} onAction={handleAction} />
+        {gameState?.pending_trade && !showTrade && (
+          <TradeOfferModal gameState={gameState} myPlayerId={playerId} onAction={handleAction} onCounter={handleCounterOffer} />
         )}
         {showSettings && (
           <Settings

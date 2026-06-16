@@ -90,7 +90,7 @@ function OfferSide({ title, color, money, cards, props }) {
 }
 
 // ── Pending-offer modal: always mounted by App so incoming offers are never missed ──
-export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
+export function TradeOfferModal({ gameState, myPlayerId, onAction, onCounter }) {
   const pending = gameState?.pending_trade;
   if (!pending) return null;
 
@@ -111,9 +111,16 @@ export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
           <OfferSide title={`${toP?.name} GIVES`} color={tokenColor(toP)} money={offer.to_money} cards={offer.to_cards} props={offer.to_properties} />
         </div>
         {isTarget ? (
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✓ ACCEPT</button>
-            <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✕ REJECT</button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={() => { playClick(); onAction("respond_trade", { accept: true }); }} className="btn-retro btn-retro-green" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✓ ACCEPT</button>
+              <button onClick={() => { playClick(); onAction("respond_trade", { accept: false }); }} className="btn-retro btn-retro-red" style={{ flex: 1, fontSize: "10px", padding: "11px" }}>✕ REJECT</button>
+            </div>
+            {onCounter && (
+              <button onClick={() => { playClick(); onCounter(); }} className="btn-retro" style={{ width: "100%", fontSize: "10px", padding: "10px", borderColor: "#fbbf24", color: "#fbbf24" }}>
+                ⇄ COUNTER-OFFER
+              </button>
+            )}
           </div>
         ) : isProposer ? (
           <button onClick={() => { playClick(); onAction("cancel_trade", {}); }} className="btn-retro btn-retro-red" style={{ width: "100%", fontSize: "10px", padding: "10px" }}>
@@ -130,10 +137,11 @@ export function TradeOfferModal({ gameState, myPlayerId, onAction }) {
 }
 
 // ── Trade builder: a clean centered modal opened from the sidebar ──
-export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }) {
-  const [targetPid, setTargetPid] = useState("");
-  const [give, setGive] = useState({ cash: 0, cards: 0, props: [] });
-  const [get, setGet] = useState({ cash: 0, cards: 0, props: [] });
+export default function TradeBroker({ gameState, myPlayerId, onAction, onClose, prefill = null }) {
+  const [targetPid, setTargetPid] = useState(prefill?.targetPid || "");
+  const [give, setGive] = useState(prefill?.give || { cash: 0, cards: 0, props: [] });
+  const [get, setGet] = useState(prefill?.get || { cash: 0, cards: 0, props: [] });
+  const isCounter = !!prefill;
 
   const me = gameState?.players?.find(p => p.id === myPlayerId);
   const others = gameState?.players?.filter(p => !p.bankrupt && p.id !== myPlayerId) || [];
@@ -160,7 +168,7 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
       <div className="glass-card" style={{ width: "min(96vw, 560px)", maxHeight: "90vh", overflowY: "auto", padding: "18px", borderTop: "4px solid #38bdf8" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
           <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#38bdf8", fontWeight: "bold", letterSpacing: "0.12em", display: "flex", alignItems: "center", gap: "6px" }}>
-            <TradeIcon size={13} /> PROPOSE A TRADE
+            <TradeIcon size={13} /> {isCounter ? "COUNTER-OFFER" : "PROPOSE A TRADE"}
           </h2>
           <button onClick={() => { playClick(); onClose?.(); }} style={{ background: "none", border: "none", cursor: "pointer" }}><CloseIcon size={14} color="#64748b" /></button>
         </div>
@@ -196,7 +204,7 @@ export default function TradeBroker({ gameState, myPlayerId, onAction, onClose }
 
         <button onClick={propose} disabled={!target || !hasOffer}
           className="btn-retro btn-retro-green" style={{ width: "100%", fontSize: "11px", padding: "12px", fontWeight: "bold", opacity: (!target || !hasOffer) ? 0.4 : 1 }}>
-          <TradeIcon size={11} className="mr-1" /> SEND OFFER
+          <TradeIcon size={11} className="mr-1" /> {isCounter ? "SEND COUNTER-OFFER" : "SEND OFFER"}
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
-import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon } from "../lib/icons";
+import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 
 /* Plain-English description of what's happening right now. */
@@ -48,8 +48,41 @@ function describeStatus(gameState, cur) {
   }
 }
 
+/* Compact "X landed on Y" descriptor for the center landing card. */
+function landingInfo(gameState, landing) {
+  if (!landing) return null;
+  const player = gameState.players.find(p => p.id === landing.pid);
+  const tile = TILES.find(t => t.id === landing.tileId);
+  if (!player || !tile) return null;
+  const tokenCol = player.token_color || TOKEN_COLORS[player.token_shape || player.token] || "#38bdf8";
+  const bandColor = tile.group && GROUP_COLORS[tile.group] ? GROUP_COLORS[tile.group]
+    : tile.type === "railroad" ? "#cbd5e1" : tile.type === "utility" ? "#94a3b8" : "#64748b";
+
+  const ownerId = gameState.owner?.[String(tile.id)];
+  const mortgaged = gameState.mortgaged?.includes(tile.id);
+  let detail;
+  switch (tile.type) {
+    case "go": detail = "Collect $200 salary"; break;
+    case "tax": detail = `Pay $${tile.price} tax`; break;
+    case "chance": detail = "Draw a Chance card"; break;
+    case "community_chest": detail = "Draw a Community Chest card"; break;
+    case "jail": detail = "Just visiting"; break;
+    case "free_parking": detail = "Free parking — rest easy"; break;
+    case "go_to_jail": detail = "Go directly to Jail!"; break;
+    default:
+      if (mortgaged) detail = "Mortgaged — no rent";
+      else if (ownerId === undefined) detail = `Unowned — $${tile.price} to buy`;
+      else if (ownerId === player.id) detail = "You own this";
+      else {
+        const owner = gameState.players.find(p => p.id === ownerId);
+        detail = `Owned by ${owner?.name || "a rival"} — pay rent`;
+      }
+  }
+  return { player, tile, tokenCol, bandColor, detail };
+}
+
 /* ── Center status card (replaces the brand logo) ─────────────────── */
-function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
+function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, landing }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const currentPlayer = gameState?.players?.find(p => p.id === currentTurnPlayerId);
   const inPlay = gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over";
@@ -58,13 +91,41 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
   const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
   const status = gameState ? describeStatus(gameState, currentPlayer) : { headline: "", sub: "" };
   const latest = (gameState?.log || []).slice(-1)[0];
+  const land = inPlay ? landingInfo(gameState, landing) : null;
 
   return (
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       height: "100%", width: "100%", gap: "clamp(10px, 2.4cqw, 22px)", padding: "clamp(10px, 2.5cqw, 24px)",
     }}>
-      {/* Headline status */}
+      {/* Location landing card — shows whoever just landed and where */}
+      {land ? (
+        <div key={landing.key} className="animate-scale-up" style={{
+          textAlign: "center", background: "rgba(0,0,0,0.6)",
+          border: `1px solid ${land.tokenCol}66`, borderTop: `3px solid ${land.tokenCol}`,
+          padding: "clamp(8px,1.8cqw,16px) clamp(14px,3cqw,28px)", maxWidth: "94%", minWidth: "60%",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "6px" }}>
+            <div style={{ width: "clamp(14px,2.4cqw,22px)", height: "clamp(14px,2.4cqw,22px)" }}>
+              <TokenIcon name={land.player.token_shape || land.player.token} color={land.tokenCol} size="100%" />
+            </div>
+            <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(7px,1.2cqw,11px)", color: land.tokenCol, fontWeight: "bold" }}>
+              {land.player.name} landed on
+            </span>
+          </div>
+          <div style={{ height: "clamp(5px,1cqw,9px)", width: "70%", margin: "0 auto 7px", background: land.bandColor }} />
+          <div style={{
+            fontFamily: "var(--font-retro)", fontSize: "clamp(11px,2.4cqw,22px)", fontWeight: "bold",
+            color: "#f1f5f9", textShadow: `0 0 10px ${land.bandColor}70`, lineHeight: 1.35,
+          }}>
+            {land.tile.name}
+          </div>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.5cqw,13px)", color: "#94a3b8", marginTop: "7px" }}>
+            {land.detail}
+          </div>
+        </div>
+      ) : (
+      /* Headline status */
       <div style={{
         textAlign: "center", background: "rgba(0,0,0,0.55)",
         border: `1px solid ${accent}55`, borderTop: `3px solid ${accent}`,
@@ -84,6 +145,7 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
           {status.sub}
         </div>
       </div>
+      )}
 
       {/* Center dice */}
       {inPlay && displayDice && (
@@ -142,7 +204,7 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
 }
 
 /* ── Main Board component ────────────────────────────────────────── */
-function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations, tokenFx = {}, movingPids = {} }) {
+function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations, tokenFx = {}, movingPids = {}, landing = null }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const isMyTurn = currentTurnPlayerId === myPlayerId && gameState?.winner === null
     && gameState?.phase !== "lobby" && gameState?.phase !== "game_over";
@@ -187,7 +249,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
         overflow: "hidden",
         containerType: "size",
       }}>
-        <BoardLogo gameState={gameState} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} />
+        <BoardLogo gameState={gameState} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} landing={landing} />
       </div>
 
       {/* Render 40 tiles */}
@@ -226,8 +288,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
           position: "relative",
         };
 
-        const isChanceOrChest = tile.type === "chance" || tile.type === "community_chest";
-        const textSize = "clamp(4px, 0.9cqw, 8px)";
+        const textSize = "clamp(6px, 1.35cqw, 12px)";
 
         return (
           <div
@@ -268,16 +329,19 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
               {tile.group === "railroad" && (
                 <RailroadIcon size={10} color={ownerColor || "#8492A6"} />
               )}
-              {isChanceOrChest && (
+              {tile.type === "chance" && (
                 <span style={{
-                  fontSize: "clamp(8px, 1.6cqw, 14px)",
+                  fontSize: "clamp(10px, 2cqw, 18px)",
                   fontWeight: "bold",
-                  color: tile.type === "chance" ? "#fbbf24" : "#38bdf8",
-                  textShadow: tile.type === "chance" ? "0 0 4px #fbbf2480" : "0 0 4px #38bdf880",
+                  color: "#fbbf24",
+                  textShadow: "0 0 4px #fbbf2480",
                   lineHeight: 1,
                 }}>
-                  {tile.type === "chance" ? "?" : "C"}
+                  ?
                 </span>
+              )}
+              {tile.type === "community_chest" && (
+                <ChestIcon size={16} color="#38bdf8" />
               )}
 
               {/* Tile name */}
