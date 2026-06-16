@@ -32,7 +32,7 @@ import {
 
 import {
   playClick, playRoll, playMove, playBuy, playRent, playWin, playJail,
-  stopChiptune, setMuted, getMuted,
+  setMuted, getMuted,
 } from "./lib/audio";
 import {
   ConfettiCanvas, diffStates, ANIM, animateDice, animateHop, AnimationQueue,
@@ -741,7 +741,6 @@ export default function App() {
     setHouseRules({ ...DEFAULT_HOUSE_RULES });
     setGameMode("classic");
     setScreen("MENU");
-    stopChiptune();
   };
 
   // Lobby host controls

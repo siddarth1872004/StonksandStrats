@@ -1,6 +1,5 @@
 /* src/index.css */
 @import "@fontsource/press-start-2p/index.css";
-@import "@fontsource/vt323/index.css";
 /* Only the two weights actually used (normal + bold); 500/600 were dead payload. */
 @import "@fontsource/chakra-petch/400.css";
 @import "@fontsource/chakra-petch/700.css";
@@ -28,7 +27,6 @@
      x-height); Press Start 2P is reserved for big branding only. */
   --font-retro: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
   --font-display: "Press Start 2P", monospace;
-  --font-digital: "VT323", monospace;
   --font-sans: "Chakra Petch", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   /* Default Low Bloom Settings */

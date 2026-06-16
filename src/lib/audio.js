@@ -2,7 +2,6 @@
 
 let audioCtx = null;
 let isMuted = false;
-let chiptuneInterval = null;
 
 function getAudioContext() {
   if (isMuted) return null;
@@ -17,9 +16,6 @@ function getAudioContext() {
 
 export const setMuted = (muted) => {
   isMuted = muted;
-  if (muted && chiptuneInterval) {
-    stopChiptune();
-  }
 };
 
 export const getMuted = () => isMuted;
@@ -108,11 +104,6 @@ export const playRent = () => {
   playTone({ freq: 220, duration: 0.4, type: "sawtooth", volume: 0.15, slides: [[0.35, 110]] });
 };
 
-export const playAuction = () => {
-  // Medium pitch alert ping
-  playTone({ freq: 587.33, duration: 0.15, type: "sine", volume: 0.12 });
-};
-
 export const playWin = () => {
   // Triumphant retro chiptune fanfare
   const ctx = getAudioContext();
@@ -144,33 +135,3 @@ export const playJail = () => {
   playTone({ freq: 120, duration: 0.5, type: "sawtooth", volume: 0.15, slides: [[0.4, 60]] });
 };
 
-// Start a subtle background chiptune melody loop
-export const startChiptune = () => {
-  if (chiptuneInterval) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  // Simple bassline progression
-  const scale = [130.81, 146.83, 164.81, 196.00]; // C3, D3, E3, G3
-  let idx = 0;
-  
-  chiptuneInterval = setInterval(() => {
-    if (isMuted) return;
-    const baseFreq = scale[idx % scale.length];
-    
-    // Play dual oscillator harmony
-    playTone({ freq: baseFreq, duration: 0.4, type: "triangle", volume: 0.03 });
-    if (idx % 2 === 0) {
-      playTone({ freq: baseFreq * 2, duration: 0.2, type: "sine", volume: 0.015 });
-    }
-    
-    idx++;
-  }, 800);
-};
-
-export const stopChiptune = () => {
-  if (chiptuneInterval) {
-    clearInterval(chiptuneInterval);
-    chiptuneInterval = null;
-  }
-};
