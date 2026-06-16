@@ -2,6 +2,7 @@ import React from "react";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
 import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon, JailIcon, GoToJailIcon } from "../lib/icons";
+import { TileDetails } from "./TileDetails";
 import { playClick } from "../lib/audio";
 
 /* Plain-English description of what's happening right now. */
@@ -98,14 +99,16 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       height: "100%", width: "100%", gap: "clamp(10px, 2.4cqw, 22px)", padding: "clamp(10px, 2.5cqw, 24px)",
     }}>
-      {/* Location landing card — shows whoever just landed and where */}
+      {/* Landing on a tile shows the FULL tile info (same as clicking it),
+          headed by who landed. Replaces the status/dice for a few seconds. */}
       {land ? (
         <div key={landing.key} className="animate-scale-up" style={{
-          textAlign: "center", background: "rgba(0,0,0,0.6)",
+          width: "94%", maxHeight: "100%", overflowY: "auto",
+          background: "rgba(0,0,0,0.72)",
           border: `1px solid ${land.tokenCol}66`, borderTop: `3px solid ${land.tokenCol}`,
-          padding: "clamp(8px,1.8cqw,16px) clamp(14px,3cqw,28px)", maxWidth: "94%", minWidth: "60%",
+          padding: "clamp(10px,2cqw,18px)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "10px" }}>
             <div style={{ width: "clamp(14px,2.4cqw,22px)", height: "clamp(14px,2.4cqw,22px)" }}>
               <TokenIcon name={land.player.token_shape || land.player.token} color={land.tokenCol} size="100%" />
             </div>
@@ -113,19 +116,11 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
               {land.player.name} landed on
             </span>
           </div>
-          <div style={{ height: "clamp(5px,1cqw,9px)", width: "70%", margin: "0 auto 7px", background: land.bandColor }} />
-          <div style={{
-            fontFamily: "var(--font-retro)", fontSize: "clamp(11px,2.4cqw,22px)", fontWeight: "bold",
-            color: "#f1f5f9", textShadow: `0 0 10px ${land.bandColor}70`, lineHeight: 1.35,
-          }}>
-            {land.tile.name}
-          </div>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.5cqw,13px)", color: "#94a3b8", marginTop: "7px" }}>
-            {land.detail}
-          </div>
+          <TileDetails tileId={land.tile.id} gameState={gameState} />
         </div>
       ) : (
-      /* Headline status */
+      <>
+      {/* Headline status */}
       <div style={{
         textAlign: "center", background: "rgba(0,0,0,0.55)",
         border: `1px solid ${accent}55`, borderTop: `3px solid ${accent}`,
@@ -145,7 +140,6 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
           {status.sub}
         </div>
       </div>
-      )}
 
       {/* Center dice */}
       {inPlay && displayDice && (
@@ -198,6 +192,8 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations, land
         <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,2cqw,18px)", color: "#34d399", fontWeight: "bold", letterSpacing: "0.1em", textShadow: "0 0 10px rgba(52,211,153,0.4)" }}>
           STONKS &amp; STRATS
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -34,7 +34,7 @@ import {
 } from "./lib/gameEngine";
 
 import {
-  playClick, playRoll, playMove, playBuy, playRent, playWin, playJail,
+  playClick, playKey, playRoll, playMove, playBuy, playRent, playWin, playJail,
   stopChiptune, setMuted, getMuted,
 } from "./lib/audio";
 import {
@@ -192,6 +192,25 @@ export default function App() {
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
   // Bloom is always on (high) regardless of the saved setting.
   useEffect(() => { document.body.className = "bloom-high"; }, [bloomSetting]);
+
+  // Global ASMR mechanical-key feedback: every button click and every keystroke
+  // while typing. Both the global handler and any explicit playClick fire within
+  // the same event, and playKey is throttled so they collapse into one hit.
+  useEffect(() => {
+    const onClick = (e) => {
+      if (e.target?.closest?.("button, [role='button'], a, .btn-retro, select, input[type='checkbox'], input[type='radio']")) playKey();
+    };
+    const onKeydown = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") playKey();
+    };
+    window.addEventListener("click", onClick, true);
+    window.addEventListener("keydown", onKeydown, true);
+    return () => {
+      window.removeEventListener("click", onClick, true);
+      window.removeEventListener("keydown", onKeydown, true);
+    };
+  }, []);
 
   useEffect(() => {
     const q = new AnimationQueue();

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { TOKEN_COLORS } from "../boardData";
-import { ManageIcon, TradeIcon, SettingsIcon } from "../lib/icons";
+import { TOKEN_COLORS, TILES, GROUPS, GROUP_COLORS } from "../boardData";
+import { ManageIcon, TradeIcon, SettingsIcon, HouseIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 import { calcNetWorth } from "../lib/gameEngine";
 import { EmoteBar } from "./Emotes";
@@ -104,6 +104,112 @@ function TurnTimer({ deadline }) {
   );
 }
 
+// Inline portfolio: the player's deeds with build/sell/mortgage actions, shown
+// inside the sidebar tab (no separate window).
+function PortfolioPanel({ gameState, myPlayerId, onAction }) {
+  const p = gameState.players.find(x => x.id === myPlayerId);
+  const myProps = p?.properties || [];
+  const houses = gameState.houses || {};
+  const mortgaged = gameState.mortgaged || [];
+  const netWorth = calcNetWorth(gameState, myPlayerId);
+  const cash = p?.money || 0;
+
+  const grouped = {};
+  const misc = [];
+  for (const tid of myProps) {
+    const tile = TILES.find(t => t.id === tid);
+    if (!tile) continue;
+    if (tile.group && tile.group !== "railroad" && tile.group !== "utility") {
+      (grouped[tile.group] ||= []).push(tid);
+    } else misc.push(tid);
+  }
+
+  const act = (action, tid) => { playClick(); onAction(action, { tileId: tid }); };
+
+  const deed = (tid) => {
+    const tile = TILES.find(t => t.id === tid);
+    if (!tile) return null;
+    const isMort = mortgaged.includes(tid);
+    const h = houses[tid.toString()] || 0;
+    const hasColor = tile.group && tile.group !== "railroad" && tile.group !== "utility";
+    const gColor = hasColor ? GROUP_COLORS[tile.group] : tile.group === "railroad" ? "#94a3b8" : "#38bdf8";
+    const ownsAll = hasColor ? GROUPS[tile.group].every(sid => gameState.owner[sid.toString()] === myPlayerId) : false;
+    const groupHasHouses = hasColor ? GROUPS[tile.group].some(sid => (houses[sid.toString()] || 0) > 0) : false;
+    const canBuild = ownsAll && !isMort && h < 5 && cash >= (tile.houseCost || 0);
+    const canSell = h > 0;
+    const canMort = !isMort && !groupHasHouses;
+    const canRedeem = isMort && cash >= Math.round((tile.mortgage || 0) * 1.1);
+    return (
+      <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 5px", background: isMort ? "rgba(69,10,10,0.18)" : "rgba(0,0,0,0.3)", borderLeft: `3px solid ${isMort ? "#ef4444" : gColor}` }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.3vw,10px)", color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tile.name}</div>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: isMort ? "#ef4444" : "#475569" }}>
+            {isMort ? "MORTGAGED" : h === 5 ? "★ HOTEL" : h > 0 ? `${h} house${h > 1 ? "s" : ""}` : "unimproved"}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "3px", flexShrink: 0 }}>
+          {hasColor && ownsAll && !isMort && (
+            <>
+              <button title={`Build ($${tile.houseCost})`} disabled={!canBuild} onClick={() => act("build_house", tid)}
+                style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", cursor: canBuild ? "pointer" : "not-allowed", opacity: canBuild ? 1 : 0.35 }}>
+                <HouseIcon size={8} color="currentColor" />+
+              </button>
+              <button title="Sell house" disabled={!canSell} onClick={() => act("sell_house", tid)}
+                style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", cursor: canSell ? "pointer" : "not-allowed", opacity: canSell ? 1 : 0.35 }}>
+                <HouseIcon size={8} color="currentColor" />−
+              </button>
+            </>
+          )}
+          {!isMort ? (
+            <button title={`Mortgage (+$${tile.mortgage})`} disabled={!canMort} onClick={() => act("mortgage", tid)}
+              style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", cursor: canMort ? "pointer" : "not-allowed", opacity: canMort ? 1 : 0.35 }}>
+              MRTG
+            </button>
+          ) : (
+            <button title={`Redeem ($${Math.round((tile.mortgage || 0) * 1.1)})`} disabled={!canRedeem} onClick={() => act("unmortgage", tid)}
+              style={{ fontFamily: "var(--font-retro)", fontSize: "8px", padding: "3px 5px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", cursor: canRedeem ? "pointer" : "not-allowed", opacity: canRedeem ? 1 : 0.35 }}>
+              REDEEM
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "6px 8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-retro)", fontSize: "8px" }}>
+        <span style={{ color: "#FFB300" }}>NW ${netWorth.toLocaleString()}</span>
+        <span style={{ color: "#34d399" }}>CASH ${cash.toLocaleString()}</span>
+      </div>
+      {myProps.length === 0 ? (
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", textAlign: "center", padding: "20px 0" }}>
+          No deeds yet — buy properties to build your portfolio.
+        </div>
+      ) : (
+        <>
+          {Object.entries(grouped).map(([g, tids]) => (
+            <div key={g} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <span style={{ width: "9px", height: "9px", background: GROUP_COLORS[g] }} />
+                <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#94a3b8", letterSpacing: "0.1em" }}>{g.toUpperCase()}</span>
+                {GROUPS[g] && tids.length === GROUPS[g].length && <span style={{ fontFamily: "var(--font-retro)", fontSize: "6px", color: "#34d399", marginLeft: "auto" }}>★ MONOPOLY</span>}
+              </div>
+              {tids.map(deed)}
+            </div>
+          ))}
+          {misc.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#94a3b8", letterSpacing: "0.1em" }}>STATIONS & UTILITIES</span>
+              {misc.map(deed)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar({
   gameState,
   myPlayerId,
@@ -114,12 +220,12 @@ export default function Sidebar({
   onEndGame,
   onAction,
   onEmote,
-  onOpenManage,
   onOpenTrade,
   onOpenSettings,
 }) {
   const [chatInput, setChatInput] = useState("");
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [tab, setTab] = useState("terminal"); // terminal | portfolio
   const chatEndRef = useRef(null);
 
   const chatLog = gameState?.chat_log || [];
@@ -320,20 +426,15 @@ export default function Sidebar({
               </div>
             )}
 
-            {/* Portfolio + Trade row */}
+            {/* Trade (portfolio is now an inline tab below) */}
             {!isBankrupt && (
-              <div style={{ display: "flex", gap: "5px" }}>
-                <Btn style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }} onClick={() => { playClick(); onOpenManage(); }} disabled={inDebt}>
-                  <ManageIcon size={10} /><span>PORTFOLIO</span>
-                </Btn>
-                <Btn
-                  style={{ flex: 1, fontSize: "9px", padding: "8px 4px" }}
-                  onClick={() => { playClick(); onOpenTrade?.(); }}
-                  disabled={activeOpponents.length === 0 || inDebt}
-                >
-                  <TradeIcon size={10} /><span>TRADE</span>
-                </Btn>
-              </div>
+              <Btn
+                style={{ width: "100%", fontSize: "9px", padding: "8px 4px" }}
+                onClick={() => { playClick(); onOpenTrade?.(); }}
+                disabled={activeOpponents.length === 0 || inDebt}
+              >
+                <TradeIcon size={10} /><span>TRADE</span>
+              </Btn>
             )}
 
             {/* Host: end game */}
@@ -361,122 +462,78 @@ export default function Sidebar({
       )}
 
 
-      {/* ── LIVE FEED ─────────────────────────────────────────── */}
+      {/* ── MINIMIZED LIVE FEED (latest 2 lines) ──────────────── */}
       <div className="mk-section">
         <span>LIVE FEED</span>
         <span style={{ width: "6px", height: "6px", background: "#22c55e", borderRadius: "50%", display: "inline-block", animation: "pulse-anim 2s infinite" }} />
       </div>
-      <div style={{
-        flex: stacked ? "none" : 1,
-        height: stacked ? "150px" : "auto",
-        overflowY: "auto",
-        padding: "5px 10px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "0",
-        scrollbarWidth: "thin",
-        scrollbarColor: "rgba(255,179,0,0.12) transparent",
-        minHeight: "80px",
-      }}>
-        {abstractFeed(log).map((g, i) => {
+      <div style={{ flexShrink: 0, padding: "4px 10px", display: "flex", flexDirection: "column", gap: "0", maxHeight: "52px", overflow: "hidden" }}>
+        {abstractFeed(log).slice(0, 2).map((g, i) => {
           const { icon, color } = feedCategory(g.text);
-          const isLatest = i === 0;
-          const isRecent = i < 3;
           return (
-            <div
-              key={g.key}
-              className="feed-in"
-              style={{
-                fontFamily: "var(--font-retro)",
-                fontSize: "clamp(9px, 1.3vw, 11px)",
-                color: isLatest ? "#e5e7eb" : isRecent ? "#6b7280" : "#374151",
-                lineHeight: "1.7",
-                borderLeft: `2px solid ${isLatest ? color : isRecent ? `${color}40` : "rgba(255,255,255,0.03)"}`,
-                paddingLeft: "6px",
-                display: "flex",
-                gap: "4px",
-                alignItems: "flex-start",
-              }}
-            >
-              <span style={{ color: isLatest ? color : isRecent ? `${color}60` : "rgba(255,255,255,0.06)", flexShrink: 0 }}>{icon}</span>
-              <span style={{ wordBreak: "break-word", flex: 1 }}>{g.text}</span>
-              {g.count > 1 && (
-                <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "8px" }}>×{g.count}</span>
-              )}
+            <div key={g.key} className="feed-in" style={{
+              fontFamily: "var(--font-retro)", fontSize: "clamp(8px,1.2vw,10px)",
+              color: i === 0 ? "#e5e7eb" : "#6b7280", lineHeight: "1.6",
+              display: "flex", gap: "4px", alignItems: "flex-start",
+              overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+            }}>
+              <span style={{ color: i === 0 ? color : `${color}70`, flexShrink: 0 }}>{icon}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{g.text}</span>
+              {g.count > 1 && <span style={{ flexShrink: 0, color, opacity: 0.7, fontSize: "8px" }}>×{g.count}</span>}
             </div>
           );
         })}
       </div>
 
-      {/* ── CHAT STREAM ───────────────────────────────────────── */}
-      {chatLog.length > 0 && (
-        <div style={{
-          flexShrink: 0,
-          maxHeight: "110px",
-          overflowY: "auto",
-          padding: "4px 10px",
-          borderTop: "1px solid rgba(255,179,0,0.08)",
-          background: "rgba(0,0,0,0.2)",
-          scrollbarWidth: "thin",
-        }}>
-          {chatLog.slice(-40).map((c, i) => (
-            <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3vw,11px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
-              <span style={{ color: c.color || "#fbbf24", fontWeight: "bold" }}>{c.name}:</span> {c.text}
+      {/* ── TABS: PORTFOLIO | TERMINAL (inline, no popups) ─────── */}
+      <div style={{ display: "flex", flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.12)", borderBottom: "1px solid rgba(255,179,0,0.12)" }}>
+        {[["terminal", "TERMINAL"], ["portfolio", "PORTFOLIO"]].map(([id, label]) => (
+          <button key={id} onClick={() => { playClick(); setTab(id); }}
+            style={{
+              flex: 1, fontFamily: "var(--font-retro)", fontSize: "8px", padding: "6px 4px",
+              background: tab === id ? "rgba(255,179,0,0.1)" : "transparent",
+              border: "none", borderBottom: `2px solid ${tab === id ? "#FFB300" : "transparent"}`,
+              color: tab === id ? "#FFB300" : "#64748b", cursor: "pointer", letterSpacing: "0.1em",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+            }}>
+            {id === "portfolio" ? <ManageIcon size={9} /> : "▌"} {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content fills the remaining space */}
+      <div style={{ flex: stacked ? "none" : 1, height: stacked ? "200px" : "auto", minHeight: "100px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {tab === "portfolio" ? (
+          <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "thin" }}>
+            <PortfolioPanel gameState={gameState} myPlayerId={myPlayerId} onAction={onAction} />
+          </div>
+        ) : (
+          <>
+            {/* Chat / event terminal */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "5px 10px", scrollbarWidth: "thin", scrollbarColor: "rgba(255,179,0,0.12) transparent" }}>
+              {chatLog.length === 0 && (
+                <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#475569", fontStyle: "italic" }}>Terminal ready — say something…</div>
+              )}
+              {chatLog.slice(-60).map((c, i) => (
+                <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(9px,1.3vw,11px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>
+                  <span style={{ color: c.color || "#fbbf24", fontWeight: "bold" }}>{c.name}:</span> {c.text}
+                </div>
+              ))}
+              <div ref={chatEndRef} />
             </div>
-          ))}
-          <div ref={chatEndRef} />
-        </div>
-      )}
-
-      {/* ── EMOTES ────────────────────────────────────────────── */}
-      {onEmote && (
-        <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.25)" }}>
-          <EmoteBar onEmote={onEmote} compact />
-        </div>
-      )}
-
-      {/* ── CHAT INPUT ────────────────────────────────────────── */}
-      <form
-        onSubmit={handleChatSubmit}
-        style={{
-          display: "flex",
-          gap: "4px",
-          padding: "5px 8px",
-          borderTop: "1px solid rgba(255,179,0,0.1)",
-          background: "rgba(0,0,0,0.3)",
-          flexShrink: 0,
-        }}
-      >
-        <input
-          type="text"
-          value={chatInput}
-          onChange={e => setChatInput(e.target.value)}
-          placeholder="message…"
-          maxLength={80}
-          style={{
-            flex: 1,
-            padding: "6px",
-            fontSize: "clamp(8px,1.4vw,10px)",
-            fontFamily: "var(--font-retro)",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,179,0,0.15)",
-            color: "#cbd5e1",
-            outline: "none",
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            fontFamily: "var(--font-retro)",
-            fontSize: "10px",
-            background: "rgba(10,14,24,0.7)",
-            border: "1px solid rgba(255,179,0,0.2)",
-            color: "#FFB300",
-            padding: "4px 10px",
-            cursor: "pointer",
-          }}
-        >▶</button>
-      </form>
+            {onEmote && (
+              <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.25)" }}>
+                <EmoteBar onEmote={onEmote} compact />
+              </div>
+            )}
+            <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: "4px", padding: "5px 8px", borderTop: "1px solid rgba(255,179,0,0.1)", background: "rgba(0,0,0,0.3)", flexShrink: 0 }}>
+              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="message…" maxLength={80}
+                style={{ flex: 1, padding: "6px", fontSize: "clamp(8px,1.4vw,10px)", fontFamily: "var(--font-retro)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,179,0,0.15)", color: "#cbd5e1", outline: "none" }} />
+              <button type="submit" style={{ fontFamily: "var(--font-retro)", fontSize: "10px", background: "rgba(10,14,24,0.7)", border: "1px solid rgba(255,179,0,0.2)", color: "#FFB300", padding: "4px 10px", cursor: "pointer" }}>▶</button>
+            </form>
+          </>
+        )}
+      </div>
     </div>
   );
 }
