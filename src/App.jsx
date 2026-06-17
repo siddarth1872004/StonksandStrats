@@ -36,7 +36,7 @@ import {
   setMuted, getMuted,
 } from "./lib/audio";
 import {
-  ConfettiCanvas, diffStates, ANIM, animateDice, animateHop, AnimationQueue,
+  ConfettiCanvas, diffStates, ANIM, animateDice, animateHop, animateWait, AnimationQueue, MOVE_DELAY_MS,
 } from "./lib/animation";
 import { PlayIcon, CloseIcon, BankruptcyIcon, SoundIcon, MuteIcon } from "./lib/icons";
 
@@ -310,7 +310,8 @@ export default function App() {
           // above) so it never flashes at the destination while the dice animate;
           // the hop walks it forward when the queue reaches this step.
           setRenderedPositions(p => ({ ...p, [ev.pid]: ev.from }));
-          q.enqueue(qInst => {
+          q.enqueue(async qInst => {
+            await animateWait(MOVE_DELAY_MS, qInst);   // hold on the settled dice before moving
             playMove();
             setMovingPids(m => ({ ...m, [ev.pid]: true }));
             return animateHop(ev.pid, ev.from, ev.steps,
@@ -325,15 +326,18 @@ export default function App() {
           // Hold at the origin, then warp after any dice settle (sequenced through
           // the queue) so the jump doesn't pop before the roll is shown.
           setRenderedPositions(p => ({ ...p, [ev.pid]: ev.from }));
-          q.enqueue(() => new Promise(res => {
+          q.enqueue(async qInst => {
+            await animateWait(MOVE_DELAY_MS, qInst);   // hold on the settled dice before warping
             setMovingPids(m => ({ ...m, [ev.pid]: true }));
-            setTimeout(() => {
-              setRenderedPositions(p => ({ ...p, [ev.pid]: ev.to }));
-              setMovingPids(m => { const n = { ...m }; delete n[ev.pid]; return n; });
-              showLanding(ev.pid, ev.to);
-              res();
-            }, 320);
-          }));
+            await new Promise(res => {
+              setTimeout(() => {
+                setRenderedPositions(p => ({ ...p, [ev.pid]: ev.to }));
+                setMovingPids(m => { const n = { ...m }; delete n[ev.pid]; return n; });
+                showLanding(ev.pid, ev.to);
+                res();
+              }, 320);
+            });
+          });
           break;
         case ANIM.MONEY_DELTA: {
           const deltaId = `${Date.now()}-${ev.pid}`;
@@ -981,16 +985,8 @@ export default function App() {
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {cardOverlay && !use3D && (
-        <div className="fixed inset-0 z-[8500] flex items-center justify-center pointer-events-none">
-          <div className="px-8 py-6 animate-scale-up text-center max-w-xs" style={{ background: "#e6dcc2", color: "#1f2430", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.25)", borderTop: `4px solid ${cardOverlay.isChance ? "#f59e0b" : "#0ea5e9"}`, boxShadow: "0 14px 40px rgba(0,0,0,0.55)" }}>
-            <div className="font-mono text-[8px] font-bold tracking-widest mb-2" style={{ color: cardOverlay.isChance ? "#b45309" : "#0369a1" }}>
-              {cardOverlay.isChance ? "✦ CHANCE ✦" : "✦ COMMUNITY CHEST ✦"}
-            </div>
-            <div className="font-mono text-[10px] leading-relaxed" style={{ color: "#3a3320" }}>{cardOverlay.text}</div>
-          </div>
-        </div>
-      )}
+      {/* Chance / Community-Chest cards now render in the board's bottom-left
+          notification slot (both 2D and 3D), so no centered overlay here. */}
 
       {(() => {
         const pp = gameState?.pending_payment;
@@ -1137,6 +1133,7 @@ export default function App() {
                 tokenFx={tokenFx}
                 movingPids={movingPids}
                 landing={landing}
+                card={cardOverlay}
               />
             );
             const sidebar = (

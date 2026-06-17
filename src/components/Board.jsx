@@ -2,58 +2,18 @@ import React from "react";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
 import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon, JailIcon, GoToJailIcon } from "../lib/icons";
-import { TileDetails } from "./TileDetails";
 import { playClick } from "../lib/audio";
 import { liveNewsLine } from "../lib/liveNews";
-
-/* Compact "X landed on Y" descriptor for the center landing card. */
-function landingInfo(gameState, landing) {
-  if (!landing) return null;
-  const player = gameState.players.find(p => p.id === landing.pid);
-  const tile = TILES.find(t => t.id === landing.tileId);
-  if (!player || !tile) return null;
-  const tokenCol = player.token_color || TOKEN_COLORS[player.token_shape || player.token] || "#38bdf8";
-  const bandColor = tile.group && GROUP_COLORS[tile.group] ? GROUP_COLORS[tile.group]
-    : tile.type === "railroad" ? "#cbd5e1" : tile.type === "utility" ? "#94a3b8" : "#64748b";
-
-  const ownerId = gameState.owner?.[String(tile.id)];
-  const mortgaged = gameState.mortgaged?.includes(tile.id);
-  let detail;
-  switch (tile.type) {
-    case "go": detail = "Collect $200 salary"; break;
-    case "tax": detail = `Pay $${tile.price} tax`; break;
-    case "chance": detail = "Draw a Chance card"; break;
-    case "community_chest": detail = "Draw a Community Chest card"; break;
-    case "jail": detail = "Just visiting"; break;
-    case "free_parking": detail = "Free parking — rest easy"; break;
-    case "go_to_jail": detail = "Go directly to Jail!"; break;
-    default:
-      if (mortgaged) detail = "Mortgaged — no rent";
-      else if (ownerId === undefined) detail = `Unowned — $${tile.price} to buy`;
-      else if (ownerId === player.id) detail = "You own this";
-      else {
-        const owner = gameState.players.find(p => p.id === ownerId);
-        detail = `Owned by ${owner?.name || "a rival"} — pay rent`;
-      }
-  }
-  return { player, tile, tokenCol, bandColor, detail };
-}
+import { LandingCard, CardNotif } from "./NotifCards";
 
 /* ── Center status card (replaces the brand logo) ─────────────────── */
-function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnimations, landing }) {
-  const currentTurnPlayerId = gameState?.order?.[gameState?.current];
-  const currentPlayer = gameState?.players?.find(p => p.id === currentTurnPlayerId);
+function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
   const inPlay = gameState && gameState.phase !== "lobby" && gameState.phase !== "game_over";
   const displayDice = animDice || gameState?.dice;
   const speedDie = gameState?.speed_die;
-  const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
   // One big bold headline carries EVERYTHING — actionable prompts ("can buy",
   // "owes rent", "auction") plus the freshest event ("bought", "rolled 4+3").
   const newsLine = liveNewsLine(gameState, animationsBusy);
-  // The full tile-details card is shown only to the player who actually landed
-  // (and persists through their turn). Everyone else just sees the live news.
-  const land = (inPlay && !animationsBusy && landing && landing.pid === myPlayerId)
-    ? landingInfo(gameState, landing) : null;
 
   return (
     <div style={{
@@ -64,45 +24,25 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
       {/* margin:auto centers the block when it fits and lets it scroll when it's
           taller than the board centre — never clipped. */}
       <div style={{ margin: "auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(10px, 2.4cqw, 22px)" }}>
-      {/* Landing on a tile shows the FULL tile info (same as clicking it),
-          headed by who landed. Replaces the status/dice for a few seconds. */}
-      {land ? (
-        <div key={landing.key} className="animate-scale-up" style={{
-          width: "94%", maxHeight: "100%", overflowY: "auto",
-          background: "rgba(0,0,0,0.72)",
-          border: `1px solid ${land.tokenCol}66`, borderTop: `3px solid ${land.tokenCol}`,
-          padding: "clamp(10px,2cqw,18px)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "10px" }}>
-            <div style={{ width: "clamp(14px,2.4cqw,22px)", height: "clamp(14px,2.4cqw,22px)" }}>
-              <TokenIcon name={land.player.token_shape || land.player.token} color={land.tokenCol} size="100%" />
-            </div>
-            <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.5cqw,15px)", color: land.tokenCol, fontWeight: "bold" }}>
-              {land.player.name} landed on
-            </span>
-          </div>
-          <TileDetails tileId={land.tile.id} gameState={gameState} />
-        </div>
-      ) : (
       <>
-      {/* Headline status */}
+      {/* Headline status — tan board card */}
       <div style={{
         textAlign: "center",
-        background: "linear-gradient(180deg, rgba(6,8,14,0.75), rgba(0,0,0,0.5))",
-        border: `1px solid ${accent}40`, borderTop: `3px solid ${accent}`, borderRadius: "8px",
-        padding: "clamp(10px,2.2cqw,20px) clamp(14px,3cqw,28px)", maxWidth: "96%", minWidth: "62%",
-        boxShadow: `0 0 26px ${accent}22, inset 0 0 30px rgba(0,0,0,0.5)`,
+        background: "#e6dcc2", color: "#1f2430",
+        border: "1px solid rgba(0,0,0,0.25)", borderRadius: "10px",
+        padding: "clamp(10px,2.2cqw,18px) clamp(14px,3cqw,28px)", maxWidth: "96%", minWidth: "62%",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "clamp(8px,1.4cqw,12px)" }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}`, animation: "pulse-anim 1.8s infinite" }} />
-          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4cqw,13px)", color: "#FFB300", letterSpacing: "0.24em", fontWeight: "bold" }}>LIVE NEWS</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "clamp(6px,1.2cqw,10px)" }}>
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#b45309", animation: "pulse-anim 1.8s infinite" }} />
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4cqw,13px)", color: "#b45309", letterSpacing: "0.24em", fontWeight: "bold" }}>LIVE NEWS</span>
         </div>
         {/* Every event flows through here as one big, bold headline (no small
             sub-text). During the roll we hold the suspense instead of spoiling
             the outcome. */}
         <div key={newsLine} className={animationsBusy ? "" : "feed-in"} style={{
           fontFamily: "var(--font-retro)", fontSize: "clamp(16px,2.8cqw,27px)", fontWeight: "bold",
-          color: accent, textShadow: `0 0 14px ${accent}80`, lineHeight: 1.3,
+          color: "#1f2430", lineHeight: 1.25,
           overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
         }}>
           {newsLine}
@@ -151,17 +91,20 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
         </div>
       )}
       </>
-      )}
       </div>
     </div>
   );
 }
 
 /* ── Main Board component ────────────────────────────────────────── */
-function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations, tokenFx = {}, movingPids = {}, landing = null }) {
+function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice, animationsBusy, onSkipAnimations, tokenFx = {}, movingPids = {}, landing = null, card = null }) {
   const currentTurnPlayerId = gameState?.order?.[gameState?.current];
   const isMyTurn = currentTurnPlayerId === myPlayerId && gameState?.winner === null
     && gameState?.phase !== "lobby" && gameState?.phase !== "game_over";
+
+  // Bottom-left notification card (shared design with the 3D board): a drawn
+  // Chance/Chest card takes priority, else the detailed landing card for me.
+  const landTile = landing && landing.pid === myPlayerId ? TILES.find(t => t.id === landing.tileId) : null;
 
   // id → player lookup, rebuilt only when the player list changes (not on every
   // animation frame), so per-tile owner resolution is O(1) instead of a .find().
@@ -191,16 +134,16 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
       display: "grid",
       gridTemplateColumns: "repeat(13, 1fr)",
       gridTemplateRows: "repeat(13, 1fr)",
-      background: "#000000",
-      border: `3px solid ${isMyTurn ? "rgba(52,211,153,0.75)" : "rgba(255,179,0,0.5)"}`,
+      background: "#241f19",
+      border: `3px solid ${isMyTurn ? "rgba(52,211,153,0.85)" : "rgba(0,0,0,0.4)"}`,
       boxShadow: isMyTurn
-        ? "0 0 40px rgba(52,211,153,0.25), inset 0 0 20px rgba(0,0,0,0.6)"
-        : "0 0 30px rgba(255,179,0,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+        ? "0 0 40px rgba(52,211,153,0.25)"
+        : "0 10px 30px rgba(0,0,0,0.5)",
       transition: "border-color 0.4s, box-shadow 0.4s",
       position: "relative",
       flexShrink: 0,
     }}>
-      {/* Board Center Area */}
+      {/* Board Center Area — green felt playfield */}
       <div style={{
         gridColumn: "3 / 12",
         gridRow: "3 / 12",
@@ -208,13 +151,13 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle, #101218 0%, #030405 100%)",
-        border: "1px solid rgba(148,163,184,0.12)",
+        background: "radial-gradient(circle, #1c4636 0%, #143528 100%)",
+        border: "1px solid rgba(0,0,0,0.3)",
         position: "relative",
         overflow: "hidden",
         containerType: "size",
       }}>
-        <BoardLogo gameState={gameState} myPlayerId={myPlayerId} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} landing={landing} />
+        <BoardLogo gameState={gameState} animDice={animDice} animationsBusy={animationsBusy} onSkipAnimations={onSkipAnimations} />
       </div>
 
       {/* Render 40 tiles */}
@@ -236,13 +179,13 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
           gridRowStart: coords.rowStart,
           gridRowEnd: coords.rowStart + coords.rowSpan,
           border: isMortgaged
-            ? "1px dashed rgba(239,68,68,0.7)"
+            ? "1px dashed rgba(185,28,28,0.8)"
             : ownerColor
-              ? `1.5px solid ${ownerColor}`
-              : "1px solid rgba(148,163,184,0.16)",
-          background: ownerColor
-            ? `linear-gradient(160deg, ${ownerColor}33 0%, ${ownerColor}14 100%)`
-            : "linear-gradient(160deg, #0e1016 0%, #050608 100%)",
+              ? `2px solid ${ownerColor}`
+              : "1px solid rgba(0,0,0,0.18)",
+          background: isMortgaged
+            ? "linear-gradient(160deg, #d9c7a0 0%, #cbb888 100%)"
+            : "linear-gradient(160deg, #ece2c8 0%, #d8c9a6 100%)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
@@ -250,7 +193,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
           overflow: "hidden",
           padding: "1px",
           transition: "background 0.15s, box-shadow 0.15s",
-          boxShadow: ownerColor ? `inset 0 0 10px ${ownerColor}22` : "inset 0 0 8px rgba(0,0,0,0.6)",
+          boxShadow: ownerColor ? `inset 0 0 10px ${ownerColor}44` : "inset 0 0 6px rgba(0,0,0,0.12)",
           position: "relative",
         };
 
@@ -261,8 +204,8 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
             key={tid}
             style={cellStyle}
             onClick={() => onTileClick(tid)}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.12)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = ownerColor ? `linear-gradient(160deg, ${ownerColor}33 0%, ${ownerColor}14 100%)` : "linear-gradient(160deg, #0e1016 0%, #050608 100%)"; }}
+            onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(160deg, #f6eed7 0%, #ead9b1 100%)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = cellStyle.background; }}
           >
             {/* 1. Property group color band */}
             {tile.group && tile.group !== "railroad" && tile.group !== "utility" && (
@@ -322,7 +265,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                 fontSize: textSize,
                 fontWeight: "bold",
                 textAlign: "center",
-                color: isMortgaged ? "#ef4444" : ownerColor ? "#fff" : "#cbd5e1",
+                color: isMortgaged ? "#b91c1c" : "#1f2430",
                 lineHeight: 1.1,
                 wordBreak: "break-word",
                 hyphens: "auto",
@@ -344,7 +287,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                 <span style={{
                   fontFamily: "var(--font-retro)",
                   fontSize: "clamp(7px, 1.1cqw, 12px)",
-                  color: "#38bdf8",
+                  color: "#0f766e",
                   fontWeight: "bold",
                 }}>
                   ${tile.price}
@@ -375,8 +318,9 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                 gap: "1px",
                 justifyContent: "center",
                 alignItems: "center",
-                background: "rgba(0,0,0,0.5)",
-                padding: "1px",
+                background: "rgba(20,53,40,0.55)",
+                borderRadius: "4px",
+                padding: "1px 2px",
                 flexShrink: 0,
                 maxWidth: "100%",
               }}>
@@ -421,6 +365,9 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
           </div>
         );
       })}
+
+      {/* Bottom-left notification card (shared with the 3D board) */}
+      {card ? <CardNotif card={card} /> : landTile && <LandingCard tile={landTile} gameState={gameState} />}
     </div>
   );
 }

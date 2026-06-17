@@ -2,9 +2,10 @@ import { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls as ThreeOrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { TILES, GROUP_COLORS, GROUPS, TOKEN_COLORS } from "../boardData";
-import { getTileGridCoords, DICE_ROLL_MS } from "../lib/animation";
+import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
+import { getTileGridCoords, DICE_ROLL_MS, MOVE_DELAY_MS } from "../lib/animation";
 import { liveNewsLine } from "../lib/liveNews";
+import { LandingCard, CardNotif } from "./NotifCards";
 
 /* ── Full 3D Monopoly board (low-poly, Krunker-style) ──────────────────────
    • Printed tile faces (group band + name + price) baked to a canvas texture,
@@ -17,8 +18,8 @@ const U = 1.6;
 const GRID_CENTER = 7.5;
 const TILE_H = 0.5;
 const REST_Y = TILE_H / 2;          // tokens rest ON the tile, not buried in it
-const DICE_TUMBLE = DICE_ROLL_MS / 1000;  // how long the dice juggle before settling
-const ROLL_VIEW = DICE_TUMBLE + 0.3;      // auto-cams frame the roll this long before tracking the token
+const DICE_TUMBLE = DICE_ROLL_MS / 1000;                    // how long the dice juggle before settling
+const ROLL_VIEW = DICE_TUMBLE + MOVE_DELAY_MS / 1000 + 0.2; // auto-cams frame the roll until the token actually moves
 
 function tileTransform(id) {
   const c = getTileGridCoords(id);
@@ -655,120 +656,6 @@ function DiceFace({ v, size = 34 }) {
       {(PIPS[v] || []).map(([px, py], i) => (
         <span key={i} style={{ position: "absolute", left: `${px * 100}%`, top: `${py * 100}%`, transform: "translate(-50%,-50%)", width: size * 0.17, height: size * 0.17, borderRadius: "50%", background: "#15151a" }} />
       ))}
-    </div>
-  );
-}
-
-/* Tan landing card (matches the board) shown to the player who just landed. */
-const LAND_DESC = {
-  go: "Collect $200 salary.",
-  tax: null,
-  chance: "Draw a Chance card.",
-  community_chest: "Draw a Community Chest card.",
-  jail: "Just visiting — no effect.",
-  free_parking: "Free rest — nothing happens.",
-  go_to_jail: "Go directly to Jail!",
-};
-const GROUP_LABEL = {
-  brown: "Brown", light_blue: "Light Blue", pink: "Pink", orange: "Orange",
-  red: "Red", yellow: "Yellow", green: "Green", dark_blue: "Dark Blue",
-};
-const RAIL_RENT = [25, 50, 100, 200];
-
-function LandingCard({ tile, gameState }) {
-  const band = bandColor(tile);
-  const ownerId = gameState?.owner?.[tile.id.toString()];
-  const ownerObj = ownerId !== undefined ? gameState.players?.find((p) => p.id === ownerId) : null;
-  const ownerCol = ownerObj ? tokenColor(ownerObj) : null;
-  const mortgaged = gameState?.mortgaged?.includes(tile.id);
-  const houses = gameState?.houses?.[tile.id.toString()] || 0;
-  const ownsGroup = ownerId !== undefined && GROUPS[tile.group]?.every((sid) => gameState.owner[sid.toString()] === ownerId);
-
-  // Detailed rent ladder, with the level that's currently in force highlighted.
-  const rows = [];
-  if (tile.type === "property") {
-    rows.push(["Base rent", tile.rent[0], houses === 0 && !ownsGroup]);
-    rows.push(["Full set ×2", tile.rent[0] * 2, houses === 0 && ownsGroup]);
-    rows.push(["1 house", tile.rent[1], houses === 1]);
-    rows.push(["2 houses", tile.rent[2], houses === 2]);
-    rows.push(["3 houses", tile.rent[3], houses === 3]);
-    rows.push(["4 houses", tile.rent[4], houses === 4]);
-    rows.push(["Hotel", tile.rent[5], houses === 5]);
-  } else if (tile.type === "railroad") {
-    RAIL_RENT.forEach((r, i) => rows.push([`${i + 1} station${i ? "s" : ""}`, r, false]));
-  } else if (tile.type === "utility") {
-    rows.push(["1 owned", "4× dice", false]);
-    rows.push(["Both owned", "10× dice", false]);
-  }
-
-  const groupLabel = GROUP_LABEL[tile.group] || (tile.type === "railroad" ? "Station" : tile.type === "utility" ? "Utility" : null);
-  const desc = tile.type === "tax" ? `Pay $${tile.price}${tile.id === 4 ? " (or 10% of net worth)" : ""}.` : LAND_DESC[tile.type];
-
-  return (
-    <div style={{
-      position: "absolute", bottom: "14px", left: "14px",
-      width: "min(248px, 70%)", pointerEvents: "none",
-      background: "#e6dcc2", color: "#1f2430", borderRadius: "9px", overflow: "hidden",
-      border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 10px 30px rgba(0,0,0,0.55)",
-      fontFamily: "var(--font-retro)",
-    }} className="animate-scale-up">
-      {band && <div style={{ height: "7px", background: band }} />}
-      <div style={{ padding: "8px 11px 10px" }}>
-        <div style={{ fontSize: "8px", letterSpacing: "0.18em", color: "#7c6f4f", fontWeight: "bold" }}>YOU LANDED ON</div>
-        <div style={{ fontSize: "15px", fontWeight: "bold", margin: "1px 0 4px", lineHeight: 1.1 }}>{tile.name}</div>
-
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "10px", color: "#5c5232", marginBottom: rows.length ? "6px" : "0" }}>
-          {groupLabel && <span><b style={{ color: "#43391f" }}>{groupLabel}</b></span>}
-          {tile.price != null && <span>Price <b style={{ color: "#0f766e" }}>${tile.price.toLocaleString()}</b></span>}
-          {tile.mortgage != null && <span>Mortgage <b style={{ color: "#43391f" }}>${tile.mortgage}</b></span>}
-          {tile.houseCost != null && <span>House <b style={{ color: "#43391f" }}>${tile.houseCost}</b></span>}
-        </div>
-
-        {rows.length > 0 && (
-          <div style={{ borderTop: "1px solid rgba(0,0,0,0.12)", paddingTop: "5px" }}>
-            {rows.map(([label, val, on], i) => (
-              <div key={i} style={{
-                display: "flex", justifyContent: "space-between", fontSize: "10px", padding: "1px 4px",
-                borderRadius: "3px", background: on ? "rgba(15,118,110,0.16)" : "transparent",
-                color: on ? "#0f5e57" : "#3a3320", fontWeight: on ? "bold" : "normal",
-              }}>
-                <span>{label}</span>
-                <span>{typeof val === "number" ? `$${val.toLocaleString()}` : val}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {desc && <div style={{ fontSize: "10px", color: "#3a3320", marginTop: "5px" }}>{desc}</div>}
-        <div style={{ fontSize: "10px", marginTop: "5px", color: mortgaged ? "#b91c1c" : "#43391f", fontWeight: "bold" }}>
-          {mortgaged ? "⚑ Mortgaged — no rent"
-            : ownerObj ? <>Owned by <span style={{ color: ownerCol }}>{ownerObj.name}</span>{ownsGroup ? " · full set" : ""}</>
-            : tile.price != null ? "Unowned — available to buy" : ""}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* Chance / Community-Chest card shown in the same bottom-left slot as the
-   landing card, so all draws read from one consistent place. */
-function CardNotif({ card }) {
-  const accent = card.isChance ? "#f59e0b" : "#38bdf8";
-  return (
-    <div style={{
-      position: "absolute", bottom: "16px", left: "16px",
-      width: "min(300px, 78%)", pointerEvents: "none",
-      background: "#e6dcc2", color: "#1f2430", borderRadius: "10px", overflow: "hidden",
-      border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 12px 34px rgba(0,0,0,0.55)",
-      fontFamily: "var(--font-retro)",
-    }} className="animate-scale-up">
-      <div style={{ height: "8px", background: accent }} />
-      <div style={{ padding: "10px 14px 12px" }}>
-        <div style={{ fontSize: "10px", letterSpacing: "0.18em", fontWeight: "bold", color: card.isChance ? "#b45309" : "#0369a1" }}>
-          {card.isChance ? "✦ CHANCE" : "✦ COMMUNITY CHEST"}
-        </div>
-        <div style={{ fontSize: "13px", color: "#3a3320", marginTop: "5px", lineHeight: 1.4 }}>{card.text}</div>
-      </div>
     </div>
   );
 }

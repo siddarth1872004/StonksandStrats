@@ -123,6 +123,18 @@ export function diffStates(prev, next) {
 // dice have settled and the result is revealed.
 export const DICE_ROLL_MS = 1700;
 
+// Beat of stillness after the dice settle, before the token starts moving, so
+// the result registers and the next move isn't spoiled by an instant jump.
+export const MOVE_DELAY_MS = 1500;
+
+// A cancellable pause that the queue's skip() can fast-forward.
+export function animateWait(ms, queueInstance) {
+  return new Promise(resolve => {
+    const id = setTimeout(resolve, ms);
+    if (queueInstance) queueInstance.registerInterval(id, resolve);
+  });
+}
+
 export function animateDice(finalD1, finalD2, setDiceDisplay, queueInstance) {
   return new Promise(resolve => {
     const FRAME_MS = 80;
