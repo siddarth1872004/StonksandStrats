@@ -407,6 +407,50 @@ function Pawn({ player, targetId, offset, active }) {
   );
 }
 
+/* Low-poly neon city sitting in the empty centre of the board. Deterministic
+   layout (seeded) so it never reshuffles; buildings glow faintly at night. */
+function CityCenter() {
+  const buildings = useMemo(() => {
+    const COLORS = ["#0ea5e9", "#f59e0b", "#34d399", "#a855f7", "#ef4444", "#e2e8f0"];
+    let seed = 1337;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    const arr = [];
+    for (let i = 0; i < 22; i++) {
+      const r = 0.6 + rnd() * 3.4;
+      const a = rnd() * Math.PI * 2;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      // taller toward the centre for a skyline silhouette
+      const h = (0.7 + rnd() * 2.4) * (1.6 - r / 4.5);
+      const w = 0.45 + rnd() * 0.55;
+      const d = 0.45 + rnd() * 0.55;
+      arr.push({ x, z, w, h: Math.max(0.5, h), d, col: COLORS[i % COLORS.length] });
+    }
+    return arr;
+  }, []);
+
+  return (
+    <group position={[0, 0.1, 0]}>
+      {/* city ground plate */}
+      <mesh position={[0, -0.02, 0]}>
+        <cylinderGeometry args={[4.3, 4.3, 0.12, 32]} />
+        <meshStandardMaterial color="#0b0f18" flatShading metalness={0.3} roughness={0.8} />
+      </mesh>
+      {buildings.map((b, i) => (
+        <mesh key={i} position={[b.x, b.h / 2, b.z]}>
+          <boxGeometry args={[b.w, b.h, b.d]} />
+          <meshStandardMaterial color="#121823" flatShading emissive={b.col} emissiveIntensity={0.35} metalness={0.2} roughness={0.6} />
+        </mesh>
+      ))}
+      {/* faint glow disc under the skyline */}
+      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[4.2, 32]} />
+        <meshBasicMaterial color="#0a1a2e" transparent opacity={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
 /* Orbit camera — drag to rotate, scroll to zoom (clamped). When `follow` is on,
    the orbit pivot (and camera) glide to keep your own token centred, so the
    view tracks your piece as it moves while you can still orbit around it. */
@@ -420,7 +464,7 @@ function Controls({ follow, followRef }) {
     c.dampingFactor = 0.08;
     c.minDistance = 10;
     c.maxDistance = 46;
-    c.maxPolarAngle = Math.PI / 2.15;
+    c.maxPolarAngle = Math.PI / 2.6;   // stay well above the horizon — never see under the board
     c.minPolarAngle = Math.PI / 8;
     c.target.set(0, 0, 0);
     ref.current = c;
@@ -484,6 +528,9 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, follow, fo
         <boxGeometry args={[U * 8.4, 0.3, U * 8.4]} />
         <meshStandardMaterial color="#111116" flatShading />
       </mesh>
+
+      <CityCenter />
+
 
       {TILES.map((tile) => {
         const ownerId = gameState?.owner?.[tile.id.toString()];
