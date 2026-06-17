@@ -1120,6 +1120,8 @@ export default function App() {
                   myPlayerId={playerId}
                   onTileClick={handleTileClick}
                   renderedPositions={renderedPositions}
+                  animationsBusy={animationsBusy}
+                  landing={landing}
                 />
               </Suspense>
             ) : (

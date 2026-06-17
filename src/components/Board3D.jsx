@@ -2,8 +2,9 @@ import { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls as ThreeOrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
+import { TILES, GROUP_COLORS, GROUPS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
+import { liveNewsLine } from "../lib/liveNews";
 
 /* ── Full 3D Monopoly board (low-poly, Krunker-style) ──────────────────────
    • Printed tile faces (group band + name + price) baked to a canvas texture,
@@ -618,16 +619,79 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, follow, fo
   );
 }
 
-export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {} }) {
-  const latest = (gameState?.log || []).slice(-1)[0];
+/* Tan landing card (matches the board) shown to the player who just landed. */
+const LAND_DESC = {
+  go: "Collect $200 salary.",
+  tax: null,
+  chance: "Draw a Chance card.",
+  community_chest: "Draw a Community Chest card.",
+  jail: "Just visiting — no effect.",
+  free_parking: "Free rest — nothing happens.",
+  go_to_jail: "Go directly to Jail!",
+};
+function LandingCard({ tile, gameState }) {
+  const band = bandColor(tile);
+  const ownerId = gameState?.owner?.[tile.id.toString()];
+  const ownerObj = ownerId !== undefined ? gameState.players?.find((p) => p.id === ownerId) : null;
+  const ownerCol = ownerObj ? tokenColor(ownerObj) : null;
+  const mortgaged = gameState?.mortgaged?.includes(tile.id);
+  const houses = gameState?.houses?.[tile.id.toString()] || 0;
+
+  let rentLine = null;
+  if (tile.type === "property") {
+    if (houses > 0) rentLine = `Rent $${tile.rent[houses].toLocaleString()} · ${houses === 5 ? "Hotel" : `${houses} house${houses > 1 ? "s" : ""}`}`;
+    else {
+      const ownsGroup = ownerId !== undefined && GROUPS[tile.group]?.every((sid) => gameState.owner[sid.toString()] === ownerId);
+      rentLine = `Rent $${(ownsGroup ? tile.rent[0] * 2 : tile.rent[0]).toLocaleString()}${ownsGroup ? " · Monopoly" : ""}`;
+    }
+  } else if (tile.type === "railroad") rentLine = "Rent $25–$200 by stations owned";
+  else if (tile.type === "utility") rentLine = "Rent 4× or 10× the dice";
+
+  const desc = tile.type === "tax" ? `Pay $${tile.price}${tile.id === 4 ? " (or 10% net worth)" : ""}.` : LAND_DESC[tile.type];
+
+  return (
+    <div style={{
+      position: "absolute", bottom: "46px", left: "50%", transform: "translateX(-50%)",
+      width: "min(330px, 82%)", pointerEvents: "none",
+      background: "#e6dcc2", color: "#1f2430", borderRadius: "10px", overflow: "hidden",
+      border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 12px 34px rgba(0,0,0,0.55)",
+      fontFamily: "var(--font-retro)",
+    }} className="animate-scale-up">
+      {band && <div style={{ height: "8px", background: band }} />}
+      <div style={{ padding: "10px 14px 12px" }}>
+        <div style={{ fontSize: "10px", letterSpacing: "0.18em", color: "#7c6f4f", fontWeight: "bold" }}>YOU LANDED ON</div>
+        <div style={{ fontSize: "18px", fontWeight: "bold", margin: "2px 0 6px" }}>{tile.name}</div>
+        {tile.price != null && (
+          <div style={{ fontSize: "13px", color: "#0f766e", fontWeight: "bold" }}>Price ${tile.price.toLocaleString()}</div>
+        )}
+        {rentLine && <div style={{ fontSize: "12px", color: "#3a3320", marginTop: "3px" }}>{rentLine}</div>}
+        {desc && <div style={{ fontSize: "12px", color: "#3a3320", marginTop: "3px" }}>{desc}</div>}
+        <div style={{ fontSize: "12px", marginTop: "6px", color: mortgaged ? "#b91c1c" : "#43391f" }}>
+          {mortgaged ? "⚑ Mortgaged — no rent"
+            : ownerObj ? <>Owned by <span style={{ color: ownerCol, fontWeight: "bold" }}>{ownerObj.name}</span></>
+            : tile.price != null ? "Unowned — available to buy" : ""}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {}, animationsBusy = false, landing = null }) {
+  const news = liveNewsLine(gameState, animationsBusy);
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
-  const [follow, setFollow] = useState(false);
-  const [adaptive, setAdaptive] = useState(false);
+  // Single camera mode + a dropdown to pick it.
+  const [camMode, setCamMode] = useState("free"); // free | follow | adaptive
+  const [camMenu, setCamMenu] = useState(false);
+  const me = gameState?.players?.find((p) => p.id === myPlayerId);
+  const follow = camMode === "follow" && !!me;
+  const adaptive = camMode === "adaptive";
+
+  // Show the landing detail card to the player who just landed (until they move on).
+  const landTile = landing && landing.pid === myPlayerId ? TILES.find((t) => t.id === landing.tileId) : null;
 
   // Live world position of the local player's token (follow cam).
   const followRef = useRef({ x: 0, z: 0 });
-  const me = gameState?.players?.find((p) => p.id === myPlayerId);
   if (me) {
     const pos = renderedPositions[myPlayerId] !== undefined ? renderedPositions[myPlayerId] : me.position;
     const tt = tileTransform(pos);
@@ -659,51 +723,67 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         gl={{ antialias: true, powerPreference: "high-performance" }}
         style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 35%, #121214 0%, #050506 70%, #000000 100%)" }}
       >
-        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} follow={follow && !!me} followRef={followRef} adaptive={adaptive} currentRef={currentRef} />
+        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} follow={follow} followRef={followRef} adaptive={adaptive} currentRef={currentRef} />
       </Canvas>
 
-      {/* Camera mode toggles */}
-      <div style={{ position: "absolute", top: "12px", left: "12px", zIndex: 5, display: "flex", flexDirection: "column", gap: "6px" }}>
-        {me && (
-          <button
-            onClick={() => { setFollow((f) => !f); setAdaptive(false); }}
-            style={{
-              cursor: "pointer", textAlign: "left",
-              fontFamily: "var(--font-retro)", fontSize: "12px", fontWeight: "bold", letterSpacing: "0.06em",
-              padding: "6px 11px", borderRadius: "7px", border: "1px solid",
-              background: follow ? "rgba(52,211,153,0.16)" : "rgba(0,0,0,0.5)",
-              borderColor: follow ? "#34d399" : "rgba(148,163,184,0.4)",
-              color: follow ? "#34d399" : "#cbd5e1",
-            }}
-          >
-            {follow ? "◉ FOLLOWING YOU" : "○ LOCK ON ME"}
-          </button>
-        )}
+      {/* Camera settings — icon button + dropdown */}
+      <div style={{ position: "absolute", top: "12px", left: "12px", zIndex: 6 }}>
         <button
-          onClick={() => { setAdaptive((a) => !a); setFollow(false); }}
+          onClick={() => setCamMenu((o) => !o)}
+          title="Camera settings"
           style={{
-            cursor: "pointer", textAlign: "left",
-            fontFamily: "var(--font-retro)", fontSize: "12px", fontWeight: "bold", letterSpacing: "0.06em",
-            padding: "6px 11px", borderRadius: "7px", border: "1px solid",
-            background: adaptive ? "rgba(56,189,248,0.16)" : "rgba(0,0,0,0.5)",
-            borderColor: adaptive ? "#38bdf8" : "rgba(148,163,184,0.4)",
-            color: adaptive ? "#38bdf8" : "#cbd5e1",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: "5px",
+            padding: "7px 9px", borderRadius: "8px", border: "1px solid",
+            background: camMode !== "free" ? "rgba(56,189,248,0.16)" : "rgba(0,0,0,0.55)",
+            borderColor: camMode !== "free" ? "#38bdf8" : "rgba(148,163,184,0.4)",
+            color: camMode !== "free" ? "#38bdf8" : "#cbd5e1",
           }}
         >
-          {adaptive ? "◉ ADAPTIVE CAM" : "○ ADAPTIVE CAM"}
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8h3l2-2.5h8L18 8h3v11H3z" /><circle cx="12" cy="13" r="3.4" />
+          </svg>
+          <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", fontWeight: "bold" }}>▾</span>
         </button>
+        {camMenu && (
+          <div style={{ marginTop: "6px", minWidth: "180px", background: "rgba(8,10,16,0.96)", border: "1px solid rgba(148,163,184,0.3)", borderRadius: "8px", overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+            {[
+              { id: "free", label: "Free orbit", desc: "Drag / zoom freely" },
+              ...(me ? [{ id: "follow", label: "Lock on me", desc: "Follow your token" }] : []),
+              { id: "adaptive", label: "Adaptive", desc: "Zoom to active player" },
+            ].map((o) => (
+              <button
+                key={o.id}
+                onClick={() => { setCamMode(o.id); setCamMenu(false); }}
+                style={{
+                  display: "block", width: "100%", textAlign: "left", cursor: "pointer", border: "none",
+                  padding: "9px 12px", background: camMode === o.id ? "rgba(56,189,248,0.15)" : "transparent",
+                  borderLeft: `3px solid ${camMode === o.id ? "#38bdf8" : "transparent"}`,
+                  color: camMode === o.id ? "#38bdf8" : "#e2e8f0", fontFamily: "var(--font-retro)",
+                }}
+              >
+                <div style={{ fontSize: "13px", fontWeight: "bold" }}>{o.label}</div>
+                <div style={{ fontSize: "11px", color: "#64748b" }}>{o.desc}</div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {latest && (
-        <div style={{ position: "absolute", top: "12px", left: "50%", transform: "translateX(-50%)", maxWidth: "86%", pointerEvents: "none", textAlign: "center" }}>
+      {/* LIVE NEWS — rich one-liner */}
+      {news && (
+        <div style={{ position: "absolute", top: "12px", left: "50%", transform: "translateX(-50%)", maxWidth: "78%", pointerEvents: "none", textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4vw,13px)", color: "#FFB300", letterSpacing: "0.22em", fontWeight: "bold", marginBottom: "4px" }}>● LIVE NEWS</div>
-          <div key={latest} className="feed-in" style={{
+          <div key={news} className="feed-in" style={{
             fontFamily: "var(--font-retro)", fontSize: "clamp(15px,2.2vw,26px)", fontWeight: "bold",
             color: "#e2e8f0", textShadow: "0 0 14px rgba(56,189,248,0.5), 0 2px 6px #000", lineHeight: 1.3,
             display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-          }}>{latest}</div>
+          }}>{news}</div>
         </div>
       )}
+
+      {/* Landing detail card (tan, matches the board) for the player who landed */}
+      {landTile && <LandingCard tile={landTile} gameState={gameState} />}
+
       {currentName && (
         <div style={{ position: "absolute", bottom: "10px", left: "50%", transform: "translateX(-50%)", pointerEvents: "none",
           fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.4vw,15px)", color: "#94a3b8", letterSpacing: "0.1em",

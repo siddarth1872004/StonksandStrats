@@ -4,50 +4,7 @@ import { getTileGridCoords } from "../lib/animation";
 import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon, JailIcon, GoToJailIcon } from "../lib/icons";
 import { TileDetails } from "./TileDetails";
 import { playClick } from "../lib/audio";
-
-/* Plain-English description of what's happening right now. */
-function describeStatus(gameState, cur) {
-  const s = gameState;
-  const name = cur?.name || "—";
-  if (s.winner !== null || s.phase === "game_over") {
-    const w = s.players.find(p => p.id === s.winner);
-    return { headline: `${w?.name || "Someone"} wins!`, sub: "Game over" };
-  }
-  if (s.pending_trade) {
-    const f = s.players.find(p => p.id === s.pending_trade.from);
-    const t = s.players.find(p => p.id === s.pending_trade.to);
-    return { headline: "Trade on the table", sub: `${f?.name} → ${t?.name} awaiting reply` };
-  }
-  switch (s.phase) {
-    case "debt": {
-      const d = s.players.find(p => p.id === s.debtor_id);
-      return { headline: `${d?.name} is short on cash`, sub: `Must raise $${Math.max(0, -(d?.money || 0)).toLocaleString()} or go bankrupt` };
-    }
-    case "auction": {
-      const a = s.auction;
-      const tile = TILES.find(t => t.id === a?.tile);
-      const bidder = a?.current_bidder ? s.players.find(p => p.id === a.current_bidder)?.name : null;
-      return { headline: `Auction: ${tile?.name || ""}`, sub: bidder ? `High bid $${a.current_bid} · ${bidder}` : "No bids yet" };
-    }
-    case "payment": {
-      const pp = s.pending_payment;
-      const to = pp?.toPid ? s.players.find(p => p.id === pp.toPid)?.name : "the Bank";
-      return { headline: `${name} owes $${(pp?.amount || 0).toLocaleString()}`, sub: `Paying ${to}${pp?.reason ? ` · ${pp.reason}` : ""}` };
-    }
-    case "buy_decision": {
-      const tile = TILES.find(t => t.id === s.can_buy);
-      return { headline: `${name} can buy ${tile?.name || ""}`, sub: `Price $${tile?.price?.toLocaleString() || "?"}` };
-    }
-    case "speed_bus":
-      return { headline: `${name} caught the bus`, sub: "Choosing how far to ride" };
-    case "post_roll":
-      return { headline: `${name} is set`, sub: "Building or ending the turn" };
-    case "turn":
-    default:
-      if (cur?.in_jail) return { headline: `${name} is in Jail`, sub: "Rolling for doubles or paying out" };
-      return { headline: `${name}'s turn`, sub: "Ready to roll" };
-  }
-}
+import { liveNewsLine } from "../lib/liveNews";
 
 /* Compact "X landed on Y" descriptor for the center landing card. */
 function landingInfo(gameState, landing) {
@@ -90,13 +47,9 @@ function BoardLogo({ gameState, myPlayerId, animDice, animationsBusy, onSkipAnim
   const displayDice = animDice || gameState?.dice;
   const speedDie = gameState?.speed_die;
   const accent = currentPlayer ? (currentPlayer.token_color || TOKEN_COLORS[currentPlayer.token_shape || currentPlayer.token] || "#38bdf8") : "#38bdf8";
-  const latest = (gameState?.log || []).slice(-1)[0];
-  // One big bold headline carries EVERYTHING: while the dice/token animate we
-  // hold the suspense; otherwise we surface the most recent event from the log
-  // (buys, rent, cards, trades, jail…) so no event is relegated to small text.
-  const newsLine = animationsBusy
-    ? `${currentPlayer?.name || "—"} is rolling…`
-    : (latest || (gameState ? describeStatus(gameState, currentPlayer).headline : ""));
+  // One big bold headline carries EVERYTHING — actionable prompts ("can buy",
+  // "owes rent", "auction") plus the freshest event ("bought", "rolled 4+3").
+  const newsLine = liveNewsLine(gameState, animationsBusy);
   // The full tile-details card is shown only to the player who actually landed
   // (and persists through their turn). Everyone else just sees the live news.
   const land = (inPlay && !animationsBusy && landing && landing.pid === myPlayerId)
