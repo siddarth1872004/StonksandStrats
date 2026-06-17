@@ -1,6 +1,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { OrbitControls as ThreeOrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
 
@@ -55,58 +56,85 @@ function sideRot(id) {
   return 0;                                  // corners
 }
 
-/* Draw a tile's printed face onto a canvas → CanvasTexture. Logical layout is
-   always "band at inner edge, name, then price toward the outer edge"; we rotate
-   the canvas per side so it reads correctly from outside the board. */
+// Wrap text to a max width (honouring explicit \n), return the lines.
+function wrapWords(ctx, text, maxW) {
+  const out = [];
+  text.split("\n").forEach((seg) => {
+    const words = seg.split(" ");
+    let line = "";
+    words.forEach((w) => {
+      const test = line ? `${line} ${w}` : w;
+      if (line && ctx.measureText(test).width > maxW) { out.push(line); line = w; }
+      else line = test;
+    });
+    if (line) out.push(line);
+  });
+  return out;
+}
+// Draw text centred at (cx,cy), shrinking from startSize until it fits the box.
+function drawFittedText(ctx, text, cx, cy, maxW, maxH, startSize) {
+  for (let size = startSize; size >= 8; size--) {
+    ctx.font = `700 ${size}px "Chakra Petch", system-ui, sans-serif`;
+    const lines = wrapWords(ctx, text, maxW);
+    const lineH = size * 1.14;
+    if (lines.length * lineH <= maxH || size === 8) {
+      const startY = cy - ((lines.length - 1) * lineH) / 2;
+      lines.forEach((ln, i) => ctx.fillText(ln, cx, startY + i * lineH));
+      return;
+    }
+  }
+}
+
+/* Draw a tile's printed face onto a canvas → CanvasTexture. Uses a FIXED pixel
+   density so text is the same size on every tile (no per-tile goofy scaling),
+   and the canvas keeps the tile's real aspect so nothing is stretched. The
+   drawing is rotated per side so the name reads outward from the board. */
 function makeTileTexture(tile) {
   const t = tileTransform(tile.id);
   const rot = sideRot(tile.id);
-  const swap = rot === 1 || rot === 3;
-  // canvas matches tile aspect (post-rotation) so text isn't stretched
-  const cw = Math.round((swap ? t.d : t.w) * 80);
-  const ch = Math.round((swap ? t.w : t.d) * 80);
+  const DENSITY = 120;                 // px per world unit — constant for all tiles
+  const cw = Math.max(96, Math.round(t.w * DENSITY));
+  const ch = Math.max(96, Math.round(t.d * DENSITY));
   const canvas = document.createElement("canvas");
   canvas.width = cw; canvas.height = ch;
   const ctx = canvas.getContext("2d");
 
-  // base
   ctx.fillStyle = "#0d121d";
   ctx.fillRect(0, 0, cw, ch);
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = Math.max(2, cw * 0.03);
-  ctx.strokeRect(0, 0, cw, ch);
+  ctx.strokeStyle = "rgba(255,255,255,0.10)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(1.5, 1.5, cw - 3, ch - 3);
 
-  // logical drawing space (band at top = inner edge)
+  // rotate the drawing so it reads outward; logical box matches that rotation
   ctx.save();
   ctx.translate(cw / 2, ch / 2);
   ctx.rotate((rot * Math.PI) / 2);
-  const lw = swap ? ch : cw;
-  const lh = swap ? cw : ch;
+  const even = rot % 2 === 0;
+  const lw = even ? cw : ch;   // reading width (left→right)
+  const lh = even ? ch : cw;   // inner→outer
   ctx.translate(-lw / 2, -lh / 2);
 
   const band = bandColor(tile);
   const isProp = tile.type === "property";
-  const bandH = isProp ? lh * 0.22 : 0;
-  if (band && isProp) { ctx.fillStyle = band; ctx.fillRect(0, 0, lw, bandH); }
+  const bandH = isProp ? Math.min(lh * 0.2, 28) : 0;
+  if (isProp && band) {
+    ctx.fillStyle = band; ctx.fillRect(0, 0, lw, bandH);
+    ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(0, bandH - 2, lw, 2);
+  }
 
-  ctx.fillStyle = "#eef3ff";
+  const special = SPECIAL_LABEL[tile.type];
+  const raw = special ? special : tile.name.toUpperCase();
+  ctx.fillStyle = special ? (band || "#eef3ff") : "#eef3ff";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const special = SPECIAL_LABEL[tile.type];
-  const name = special !== undefined && special !== null ? special
-    : special === null ? tile.name.toUpperCase()
-    : tile.name.toUpperCase();
-  const lines = (name || tile.name.toUpperCase()).split("\n");
-  let fs = Math.min(lw * 0.17, lh * 0.16);
-  if (special) { fs = Math.min(lw * 0.2, lh * 0.18); ctx.fillStyle = band || "#eef3ff"; }
-  ctx.font = `700 ${fs}px "Chakra Petch", system-ui, sans-serif`;
-  const nameY = bandH + (lh - bandH) * (tile.price ? 0.4 : 0.5);
-  lines.forEach((ln, i) => ctx.fillText(ln, lw / 2, nameY + (i - (lines.length - 1) / 2) * fs * 1.1));
+  const top = bandH + 4;
+  const bottom = tile.price ? lh - 24 : lh - 4;
+  drawFittedText(ctx, raw, lw / 2, (top + bottom) / 2, lw * 0.86, bottom - top, special ? 24 : 18);
 
   if (tile.price) {
     ctx.fillStyle = "#7dd3fc";
-    ctx.font = `700 ${lw * 0.18}px "Chakra Petch", system-ui, sans-serif`;
-    ctx.fillText(`$${tile.price}`, lw / 2, lh * 0.86);
+    ctx.font = `700 15px "Chakra Petch", system-ui, sans-serif`;
+    ctx.fillText(`$${tile.price}`, lw / 2, lh - 12);
   }
   ctx.restore();
 
@@ -278,13 +306,24 @@ function Pawn({ player, targetId, offset, active }) {
   );
 }
 
-/* Fixed, framed camera — same view for everyone, no orbit. */
-function FixedCamera() {
-  const { camera } = useThree();
+/* Orbit camera — drag to rotate, scroll to zoom (clamped). */
+function Controls() {
+  const { camera, gl } = useThree();
+  const ref = useRef();
   useEffect(() => {
-    camera.position.set(0, 21, 17);
-    camera.lookAt(0, 0, 0);
-  }, [camera]);
+    const c = new ThreeOrbitControls(camera, gl.domElement);
+    c.enablePan = false;
+    c.enableDamping = true;
+    c.dampingFactor = 0.08;
+    c.minDistance = 12;
+    c.maxDistance = 46;
+    c.maxPolarAngle = Math.PI / 2.15;
+    c.minPolarAngle = Math.PI / 8;
+    c.target.set(0, 0, 0);
+    ref.current = c;
+    return () => c.dispose();
+  }, [camera, gl]);
+  useFrame(() => ref.current && ref.current.update());
   return null;
 }
 
@@ -314,7 +353,7 @@ function Scene({ gameState, onTileClick, renderedPositions, textures }) {
 
   return (
     <>
-      <FixedCamera />
+      <Controls />
       <ambientLight intensity={0.78} />
       <directionalLight position={[14, 26, 12]} intensity={1.1} />
       <directionalLight position={[-12, 10, -14]} intensity={0.4} color="#38bdf8" />
@@ -391,7 +430,7 @@ export default function Board3D({ gameState, onTileClick, renderedPositions = {}
         <div style={{ position: "absolute", bottom: "10px", left: "50%", transform: "translateX(-50%)", pointerEvents: "none",
           fontFamily: "var(--font-retro)", fontSize: "clamp(11px,1.4vw,15px)", color: "#94a3b8", letterSpacing: "0.1em",
           background: "rgba(0,0,0,0.45)", padding: "4px 12px", borderRadius: "6px", border: "1px solid rgba(255,179,0,0.18)" }}>
-          {currentName}'s turn
+          {currentName}'s turn · drag to orbit · scroll to zoom
         </div>
       )}
     </div>
