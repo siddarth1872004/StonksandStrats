@@ -143,6 +143,7 @@ export default function App() {
   const landingTimerRef = useRef(null);
   const animQueueRef = useRef(null);
   const animationsBusyRef = useRef(false);
+  const lastAiAtRef = useRef(0); // when the host last applied a bot action (watchdog throttle)
   // Monotonic version of the last game_state we committed/applied. Lets clients
   // drop stale or duplicate states (the same update arrives over BOTH the
   // broadcast fast-path and the ~1s postgres_changes echo, and the two can land
@@ -677,6 +678,7 @@ export default function App() {
     if (result.error) { console.error("[AI]", result.error); return; }
 
     commitState(result.state);
+    lastAiAtRef.current = Date.now();
 
     // If the same bot still has a move in the same phase (e.g. build_house loop),
     // self-schedule instead of waiting for the useEffect to notice.
@@ -723,6 +725,22 @@ export default function App() {
     // otherwise stall the auction (the next bot never gets prompted).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState?.phase, gameState?.current, gameState?.auction?.active?.[gameState?.auction?.turn_idx], gameState?.auction?.active?.length, gameState?.debtor_id, gameState?.pending_trade?.to, isHost, animationsBusy, processAITurn]);
+
+  // ── AI watchdog (host only) ────────────────────────────────────────────────
+  // Safety net: if a bot ever stops getting scheduled (e.g. an auction effect
+  // that didn't re-fire), this kicks it back into motion. processAITurn no-ops
+  // when no bot is actually due, so this can't act out of turn.
+  useEffect(() => {
+    if (!isHost) return;
+    const iv = setInterval(() => {
+      const s = gameStateRef.current;
+      if (!s || s.phase === "lobby" || s.phase === "game_over") return;
+      if (animationsBusyRef.current) return;
+      if (Date.now() - lastAiAtRef.current < 2500) return; // a bot acted recently — leave it
+      processAITurn();
+    }, 1500);
+    return () => clearInterval(iv);
+  }, [isHost, processAITurn]);
 
   // ── Action dispatch ────────────────────────────────────────────────────────
   const buildEnginePayload = (type, payload) => {
