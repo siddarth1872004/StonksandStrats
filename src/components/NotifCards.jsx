@@ -35,7 +35,7 @@ const tokenColor = (p) => p.token_color || TOKEN_COLORS[p.token_shape || p.token
 
 const SHELL = {
   position: "absolute", bottom: "14px", left: "14px",
-  width: "min(248px, 70%)", pointerEvents: "none", zIndex: 7,
+  width: "min(300px, 78%)", pointerEvents: "none", zIndex: 7,
   background: "#e6dcc2", color: "#1f2430", borderRadius: "9px", overflow: "hidden",
   border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 10px 30px rgba(0,0,0,0.55)",
   fontFamily: "var(--font-retro)",
@@ -72,12 +72,12 @@ export function LandingCard({ tile, gameState }) {
 
   return (
     <div style={SHELL} className="animate-scale-up">
-      {band && <div style={{ height: "7px", background: band }} />}
-      <div style={{ padding: "8px 11px 10px" }}>
-        <div style={{ fontSize: "8px", letterSpacing: "0.18em", color: "#7c6f4f", fontWeight: "bold" }}>YOU LANDED ON</div>
-        <div style={{ fontSize: "15px", fontWeight: "bold", margin: "1px 0 4px", lineHeight: 1.1 }}>{tile.name}</div>
+      {band && <div style={{ height: "8px", background: band }} />}
+      <div style={{ padding: "10px 13px 12px" }}>
+        <div style={{ fontSize: "9px", letterSpacing: "0.18em", color: "#7c6f4f", fontWeight: "bold" }}>YOU LANDED ON</div>
+        <div style={{ fontSize: "17px", fontWeight: "bold", margin: "1px 0 5px", lineHeight: 1.1 }}>{tile.name}</div>
 
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "10px", color: "#5c5232", marginBottom: rows.length ? "6px" : "0" }}>
+        <div style={{ display: "flex", gap: "9px", flexWrap: "wrap", fontSize: "11px", color: "#5c5232", marginBottom: rows.length ? "7px" : "0" }}>
           {groupLabel && <span><b style={{ color: "#43391f" }}>{groupLabel}</b></span>}
           {tile.price != null && <span>Price <b style={{ color: "#0f766e" }}>${tile.price.toLocaleString()}</b></span>}
           {tile.mortgage != null && <span>Mortgage <b style={{ color: "#43391f" }}>${tile.mortgage}</b></span>}
@@ -88,7 +88,7 @@ export function LandingCard({ tile, gameState }) {
           <div style={{ borderTop: "1px solid rgba(0,0,0,0.12)", paddingTop: "5px" }}>
             {rows.map(([label, val, on], i) => (
               <div key={i} style={{
-                display: "flex", justifyContent: "space-between", fontSize: "10px", padding: "1px 4px",
+                display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "1.5px 4px",
                 borderRadius: "3px", background: on ? "rgba(15,118,110,0.16)" : "transparent",
                 color: on ? "#0f5e57" : "#3a3320", fontWeight: on ? "bold" : "normal",
               }}>
@@ -99,8 +99,8 @@ export function LandingCard({ tile, gameState }) {
           </div>
         )}
 
-        {desc && <div style={{ fontSize: "10px", color: "#3a3320", marginTop: "5px" }}>{desc}</div>}
-        <div style={{ fontSize: "10px", marginTop: "5px", color: mortgaged ? "#b91c1c" : "#43391f", fontWeight: "bold" }}>
+        {desc && <div style={{ fontSize: "11px", color: "#3a3320", marginTop: "6px" }}>{desc}</div>}
+        <div style={{ fontSize: "11px", marginTop: "6px", color: mortgaged ? "#b91c1c" : "#43391f", fontWeight: "bold" }}>
           {mortgaged ? "⚑ Mortgaged — no rent"
             : ownerObj ? <>Owned by <span style={{ color: ownerCol }}>{ownerObj.name}</span>{ownsGroup ? " · full set" : ""}</>
             : tile.price != null ? "Unowned — available to buy" : ""}
@@ -116,12 +116,12 @@ export function CardNotif({ card }) {
   const accent = card.isChance ? "#f59e0b" : "#38bdf8";
   return (
     <div style={SHELL} className="animate-scale-up">
-      <div style={{ height: "7px", background: accent }} />
-      <div style={{ padding: "8px 11px 10px" }}>
-        <div style={{ fontSize: "9px", letterSpacing: "0.18em", fontWeight: "bold", color: card.isChance ? "#b45309" : "#0369a1" }}>
+      <div style={{ height: "8px", background: accent }} />
+      <div style={{ padding: "10px 13px 12px" }}>
+        <div style={{ fontSize: "10px", letterSpacing: "0.18em", fontWeight: "bold", color: card.isChance ? "#b45309" : "#0369a1" }}>
           {card.isChance ? "✦ CHANCE" : "✦ COMMUNITY CHEST"}
         </div>
-        <div style={{ fontSize: "12px", color: "#3a3320", marginTop: "5px", lineHeight: 1.4 }}>{card.text}</div>
+        <div style={{ fontSize: "13px", color: "#3a3320", marginTop: "6px", lineHeight: 1.4 }}>{card.text}</div>
       </div>
     </div>
   );
