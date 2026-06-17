@@ -18,7 +18,7 @@ export function PropertyDetailModal({ tileId, gameState, onClose }) {
       >
         <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-900">
           <span className="font-mono text-[9px] text-slate-500 uppercase">INSPECT TILE</span>
-          <button className="btn-retro px-2 py-0.5 bg-slate-950 text-[9px]" onClick={onClose}>
+          <button className="btn-retro px-2 py-0.5 text-[9px]" onClick={onClose}>
             <CloseIcon size={10} className="mr-1" /> CLOSE
           </button>
         </div>

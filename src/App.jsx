@@ -151,9 +151,6 @@ export default function App() {
   const lastSeqRef = useRef(0);
 
   // Client visual settings
-  const [scanlinesActive, setScanlinesActive] = useState(
-    () => localStorage.getItem("stonks_scanlines") !== "false"
-  );
   const [bloomSetting, setBloomSetting] = useState(
     () => localStorage.getItem("stonks_bloom") || "low"
   );
@@ -217,8 +214,23 @@ export default function App() {
       (navigator.deviceMemory || 8) <= 4 ||
       window.matchMedia("(max-width: 820px)").matches ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    document.body.className = lowPower ? "bloom-high low-power" : "bloom-high";
+    document.body.className = `bloom-${bloomSetting === "high" ? "high" : "low"}${lowPower ? " low-power" : ""}`;
   }, [bloomSetting]);
+
+  // QoL: a subtle "Your turn!" nudge when it becomes the local player's turn, so
+  // you never miss it (fires only on the turn transition, not every state echo).
+  const prevTurnIdRef = useRef(null);
+  useEffect(() => {
+    if (screen !== "GAME" || !gameState) return;
+    const curId = gameState.order?.[gameState.current];
+    if (curId === prevTurnIdRef.current) return;
+    prevTurnIdRef.current = curId;
+    const me = gameState.players?.find(p => p.id === playerId);
+    if (curId === playerId && me && !me.bankrupt && gameState.winner == null) {
+      setToast({ message: "Your turn!", type: "success" });
+      playClick();
+    }
+  }, [gameState, screen, playerId]);
 
   useEffect(() => {
     const q = new AnimationQueue();
@@ -1253,7 +1265,6 @@ export default function App() {
         {showSettings && (
           <Settings
             isOpen={showSettings} onClose={() => setShowSettings(false)}
-            scanlinesActive={scanlinesActive} setScanlinesActive={setScanlinesActive}
             bloomSetting={bloomSetting} setBloomSetting={setBloomSetting}
           />
         )}

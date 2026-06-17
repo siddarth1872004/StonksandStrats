@@ -509,14 +509,19 @@ function Pawn({ player, targetId, offset, active }) {
   );
 }
 
-/* Orbit camera with selectable modes. The two "auto" modes (follow / adaptive)
-   first frame the dice in the centre while they tumble, then glide to track the
-   relevant token once the roll has been shown. `top` and `cinematic` are scripted
-   views (no user rotation). The board can never be seen from underneath. */
-function Controls({ mode, followRef, currentRef, rollId }) {
+/* Orbit camera with selectable modes.
+   • adaptive: free to orbit/zoom between turns, but auto-LOCKS during the action
+     (dice roll + token move) — framing the dice, then swinging to the active
+     player's side of the board — then hands control back.
+   • follow: keeps your own token centred while you orbit.
+   • free: full manual orbit/zoom.
+   • top / cinematic: scripted views (no manual rotate).
+   The board can never be seen from underneath. */
+function Controls({ mode, followRef, currentRef, rollId, busy }) {
   const { camera, gl } = useThree();
   const ref = useRef();
   const rollAt = useRef(-999);
+  const autoUntil = useRef(0);
   const cine = useRef(Math.PI * 0.25);
   useEffect(() => {
     const c = new ThreeOrbitControls(camera, gl.domElement);
@@ -537,8 +542,12 @@ function Controls({ mode, followRef, currentRef, rollId }) {
     const c = ref.current;
     if (!c) return;
     const tgt = c.target;
-    const auto = mode === "follow" || mode === "adaptive";
-    const watchRoll = auto && (performance.now() - rollAt.current) / 1000 < ROLL_VIEW;
+    const now = performance.now();
+    // Keep the lock alive through the whole action (roll + move) plus a short
+    // grace so it settles on the landed tile, then release control.
+    if (busy) autoUntil.current = now + 1100;
+    const watchRoll = (now - rollAt.current) / 1000 < ROLL_VIEW;
+    const locked = watchRoll || now < autoUntil.current;
 
     const easeTarget = (x, y, z, k = 0.1) => {
       tgt.x += (x - tgt.x) * k; tgt.y += (y - tgt.y) * k; tgt.z += (z - tgt.z) * k;
@@ -554,9 +563,8 @@ function Controls({ mode, followRef, currentRef, rollId }) {
       camera.position.lerp(want, k);
     };
 
-    // Only free orbit and "lock on me" let you rotate; adaptive is a scripted,
-    // fixed-side view (Monopoly-3D style).
-    c.enableRotate = mode === "free" || mode === "follow";
+    // Everything except the scripted views allows manual rotate (+ zoom is always on).
+    c.enableRotate = mode !== "top" && mode !== "cinematic";
 
     if (mode === "top") {
       easeTarget(0, 0, 0, 0.1);
@@ -570,6 +578,7 @@ function Controls({ mode, followRef, currentRef, rollId }) {
       camera.position.z += (Math.sin(cine.current) * 26 - camera.position.z) * 0.05;
       camera.position.y += (18 - camera.position.y) * 0.05;
     } else if (mode === "adaptive") {
+      if (!locked) { c.update(); return; }   // between turns: free orbit + zoom
       if (watchRoll || !currentRef.current) {
         // While the dice juggle, frame them in the centre from the fixed side.
         easeTarget(0, 1.2, 0, 0.12);
@@ -606,7 +615,7 @@ function Controls({ mode, followRef, currentRef, rollId }) {
   return null;
 }
 
-function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, followRef, currentRef }) {
+function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, followRef, currentRef, busy }) {
   const currentId = gameState?.order?.[gameState?.current];
   const allPlayers = gameState?.players;
   const players = allPlayers || [];
@@ -632,7 +641,7 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, f
 
   return (
     <>
-      <Controls mode={camMode} followRef={followRef} currentRef={currentRef} rollId={gameState?.dice_roll_id ?? 0} />
+      <Controls mode={camMode} followRef={followRef} currentRef={currentRef} rollId={gameState?.dice_roll_id ?? 0} busy={busy} />
       <ambientLight intensity={0.9} />
       <directionalLight position={[14, 26, 12]} intensity={1.05} />
       <directionalLight position={[-12, 10, -14]} intensity={0.35} color="#ffffff" />
@@ -692,7 +701,8 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
   // Camera mode + a dropdown to pick it.
-  const [camModeRaw, setCamMode] = useState("adaptive"); // free | follow | adaptive | top | cinematic
+  const [camModeRaw, setCamModeRaw] = useState(() => localStorage.getItem("stonks_cam") || "adaptive"); // free | follow | adaptive | top | cinematic
+  const setCamMode = (m) => { setCamModeRaw(m); try { localStorage.setItem("stonks_cam", m); } catch { /* ignore */ } };
   const [camMenu, setCamMenu] = useState(false);
   const me = gameState?.players?.find((p) => p.id === myPlayerId);
   // "Lock on me" only works if I'm a player; otherwise fall back to free orbit.
@@ -734,7 +744,7 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         gl={{ antialias: true, powerPreference: "high-performance" }}
         style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 30%, #262229 0%, #0e0c10 60%, #050407 100%)" }}
       >
-        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} camMode={camMode} followRef={followRef} currentRef={currentRef} />
+        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} camMode={camMode} followRef={followRef} currentRef={currentRef} busy={animationsBusy} />
       </Canvas>
 
       {/* Camera settings — icon button + dropdown */}
@@ -760,7 +770,7 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
             {[
               { id: "free", label: "Free orbit", desc: "Drag / zoom freely" },
               ...(me ? [{ id: "follow", label: "Lock on me", desc: "Follow your token" }] : []),
-              { id: "adaptive", label: "Adaptive", desc: "Watch the roll, then the active player" },
+              { id: "adaptive", label: "Adaptive", desc: "Locks during play, free to orbit/zoom otherwise" },
               { id: "top", label: "Top-down", desc: "Overhead board view" },
               { id: "cinematic", label: "Cinematic", desc: "Slow auto-orbit" },
             ].map((o) => (

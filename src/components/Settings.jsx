@@ -2,7 +2,7 @@ import { useState } from "react";
 import { setMuted, getMuted } from "../lib/audio";
 import { SettingsIcon, SoundIcon, MuteIcon, PlayIcon } from "../lib/icons";
 
-export default function Settings({ isOpen, onClose, scanlinesActive, setScanlinesActive, bloomSetting, setBloomSetting }) {
+export default function Settings({ isOpen, onClose, bloomSetting, setBloomSetting }) {
   const [muted, setLocalMuted] = useState(getMuted());
 
   const toggleMute = () => {
@@ -16,12 +16,6 @@ export default function Settings({ isOpen, onClose, scanlinesActive, setScanline
     const val = e.target.value;
     setBloomSetting(val);
     localStorage.setItem("stonks_bloom", val);
-  };
-
-  const toggleScanlines = () => {
-    const nextScan = !scanlinesActive;
-    setScanlinesActive(nextScan);
-    localStorage.setItem("stonks_scanlines", nextScan ? "true" : "false");
   };
 
   if (!isOpen) return null;
@@ -44,17 +38,6 @@ export default function Settings({ isOpen, onClose, scanlinesActive, setScanline
               className={`btn-retro ${muted ? "btn-retro-red" : "btn-retro-green"}`}
             >
               {muted ? <MuteIcon size={10} /> : <SoundIcon size={10} />} {muted ? "MUTED" : "ENABLED"}
-            </button>
-          </div>
-
-          {/* CRT Scanline Filter */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>CRT SCANLINES:</span>
-            <button 
-              onClick={toggleScanlines} 
-              className={`btn-retro ${scanlinesActive ? "btn-retro-green" : ""}`}
-            >
-              <SettingsIcon size={10} /> {scanlinesActive ? "ACTIVE" : "INACTIVE"}
             </button>
           </div>
 
