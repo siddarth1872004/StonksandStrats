@@ -727,13 +727,10 @@ export function buyProperty(state, { playerId }) {
   const tile = TILES.find(t => t.id === tileId);
   const p = getPlayer(s, playerId);
 
+  // Can't afford it → reject the buy outright. Buying never triggers an auction;
+  // the player must explicitly choose AUCTION or PASS instead.
   if (p.money < tile.price) {
-    if (hr(s).skip_auction) {
-      addLog(s, `${p.name} can't afford ${tile.name}. Property returned to bank.`);
-      s.can_buy = null; s.phase = 'post_roll';
-      return { state: s };
-    }
-    return startAuction(s, tileId, playerId);
+    return { state, error: `Not enough cash to buy ${tile.name} ($${tile.price.toLocaleString()}).` };
   }
 
   p.money -= tile.price;

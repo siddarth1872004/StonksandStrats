@@ -397,15 +397,21 @@ function Sidebar({
                   </div>
                 )}
 
-                {phase === "buy_decision" && gameState.can_buy !== null && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "14px", padding: "10px" }} onClick={() => onAction("buy_property")}>⌂ BUY</Btn>
-                    <div style={{ display: "flex", gap: "5px" }}>
-                      <Btn variant="amber" style={{ flex: 1, fontWeight: "bold", fontSize: "13px" }} onClick={() => onAction("decline_buy", { auction: true })}>⚖ AUCTION</Btn>
-                      <Btn variant="red" style={{ flex: 1, fontWeight: "bold", fontSize: "13px" }} onClick={() => onAction("decline_buy", { auction: false })}>PASS</Btn>
+                {phase === "buy_decision" && gameState.can_buy !== null && (() => {
+                  const buyPrice = TILES.find(t => t.id === gameState.can_buy)?.price ?? 0;
+                  const canAfford = (myPlayer?.money ?? 0) >= buyPrice;
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                      <Btn variant="green" disabled={!canAfford} style={{ width: "100%", fontWeight: "bold", fontSize: "14px", padding: "10px" }} onClick={() => onAction("buy_property")}>
+                        {canAfford ? "⌂ BUY" : `⌂ CAN'T AFFORD ($${buyPrice.toLocaleString()})`}
+                      </Btn>
+                      <div style={{ display: "flex", gap: "5px" }}>
+                        <Btn variant="amber" style={{ flex: 1, fontWeight: "bold", fontSize: "13px" }} onClick={() => onAction("decline_buy", { auction: true })}>⚖ AUCTION</Btn>
+                        <Btn variant="red" style={{ flex: 1, fontWeight: "bold", fontSize: "13px" }} onClick={() => onAction("decline_buy", { auction: false })}>PASS</Btn>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {phase === "post_roll" && (
                   <Btn variant="green" style={{ width: "100%", fontWeight: "bold", fontSize: "13px", padding: "9px" }} onClick={() => onAction("end_turn")}>
