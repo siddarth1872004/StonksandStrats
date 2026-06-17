@@ -11,6 +11,10 @@ export default defineConfig({
         // initial download is smaller and better cached across deploys.
         manualChunks(id) {
           if (!id.includes('node_modules')) return
+          // three.js + react-three live in their OWN chunk so they stay lazy
+          // (only the dynamically-imported Board3D pulls them in). Must come
+          // before the generic `react` rule, since @react-three matches it.
+          if (id.includes('three') || id.includes('@react-three')) return 'three3d'
           if (id.includes('@supabase')) return 'supabase'
           if (id.includes('react')) return 'react-vendor'
           return 'vendor'

@@ -9,6 +9,7 @@ import { EmoteOverlay } from "./components/Emotes";
 import { useViewport } from "./lib/useViewport";
 
 // Heavy / rarely-mounted UI is code-split so the initial bundle stays small.
+const Board3D = lazy(() => import("./components/Board3D"));
 const Diagnostics = lazy(() => import("./components/Diagnostics"));
 const Auction = lazy(() => import("./components/Auction"));
 const Settings = lazy(() => import("./components/Settings"));
@@ -155,6 +156,20 @@ export default function App() {
   const [bloomSetting, setBloomSetting] = useState(
     () => localStorage.getItem("stonks_bloom") || "low"
   );
+  // 3D board toggle — defaults on for capable devices, off on low-power/mobile.
+  const [use3D, setUse3D] = useState(() => {
+    const saved = localStorage.getItem("stonks_3d");
+    if (saved !== null) return saved === "true";
+    const lowPower =
+      (navigator.hardwareConcurrency || 8) <= 4 ||
+      (navigator.deviceMemory || 8) <= 4 ||
+      window.matchMedia("(max-width: 820px)").matches;
+    return !lowPower;
+  });
+  const toggle3D = useCallback(() => {
+    setUse3D(prev => { const next = !prev; localStorage.setItem("stonks_3d", String(next)); return next; });
+    playClick();
+  }, []);
   const [muted, setMutedState] = useState(() => getMuted());
   const toggleMute = useCallback(() => {
     const next = !muted;
@@ -1016,6 +1031,16 @@ export default function App() {
             </>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+            <button
+              onClick={toggle3D}
+              title={use3D ? "Switch to 2D board" : "Switch to 3D board"}
+              style={{ fontFamily: "var(--font-retro)", fontSize: "11px", fontWeight: "bold", letterSpacing: "0.08em",
+                background: use3D ? "rgba(56,189,248,0.16)" : "transparent", border: "1px solid",
+                borderColor: use3D ? "#38bdf8" : "rgba(100,116,139,0.3)", color: use3D ? "#38bdf8" : "#64748b",
+                padding: "2px 8px", borderRadius: "4px", cursor: "pointer" }}
+            >
+              {use3D ? "3D" : "2D"}
+            </button>
             {roomId && (
               <span title={connected ? "Realtime connected" : "Reconnecting…"} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "12px", color: connected ? "#34d399" : "#fbbf24", whiteSpace: "nowrap" }}>
                 <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: connected ? "#22c55e" : "#fbbf24", boxShadow: connected ? "0 0 5px #22c55e" : "0 0 5px #fbbf24", animation: connected ? "pulse-anim 2s infinite" : "blink-anim 0.8s infinite" }} />
@@ -1072,7 +1097,16 @@ export default function App() {
                 <BankruptcyIcon size={10} color="#EF4444" /> YOU ARE BANKRUPT — SPECTATING
               </div>
             );
-            const board = (
+            const board = use3D ? (
+              <Suspense fallback={<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-retro)", color: "#38bdf8", fontSize: "14px" }}>LOADING 3D BOARD…</div>}>
+                <Board3D
+                  gameState={gameState}
+                  myPlayerId={playerId}
+                  onTileClick={handleTileClick}
+                  renderedPositions={renderedPositions}
+                />
+              </Suspense>
+            ) : (
               <Board
                 gameState={gameState}
                 myPlayerId={playerId}
