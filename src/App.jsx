@@ -1000,15 +1000,15 @@ export default function App() {
         return (
           <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.7)", zIndex: 8600 }}>
             <div className="animate-scale-up text-center" style={{ width: "min(92vw, 360px)", padding: "26px 24px", borderRadius: "12px", background: "#e6dcc2", color: "#1f2430", boxShadow: "0 14px 40px rgba(0,0,0,0.55)", border: "1px solid rgba(0,0,0,0.25)", borderTop: "4px solid #b91c1c" }}>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#b91c1c", letterSpacing: "0.2em", marginBottom: "10px", fontWeight: "bold" }}>⚠ PAYMENT DUE</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "26px", color: "#b91c1c", fontWeight: "bold" }}>${pp.amount.toLocaleString()}</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#5c5232", margin: "10px 0 4px" }}>to {creditor}</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#7c6f4f", marginBottom: "16px" }}>{pp.reason}</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: canAfford ? "#0f766e" : "#b45309", marginBottom: "14px", fontWeight: "bold" }}>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,2.6vw,12px)", color: "#b91c1c", letterSpacing: "0.2em", marginBottom: "10px", fontWeight: "bold" }}>⚠ PAYMENT DUE</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(28px,8vw,38px)", color: "#b91c1c", fontWeight: "bold" }}>${pp.amount.toLocaleString()}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,3vw,13px)", color: "#5c5232", margin: "10px 0 4px" }}>to {creditor}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,2.6vw,12px)", color: "#7c6f4f", marginBottom: "16px" }}>{pp.reason}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(11px,3vw,13px)", color: canAfford ? "#0f766e" : "#b45309", marginBottom: "14px", fontWeight: "bold" }}>
                 YOUR CASH: ${me?.money?.toLocaleString() ?? 0}
                 {!canAfford && <div style={{ color: "#b45309", marginTop: "6px" }}>Short — paying will require raising funds.</div>}
               </div>
-              <button onClick={() => handleAction("confirm_payment")} className="btn-retro btn-retro-red w-full font-bold tracking-wider" style={{ padding: "12px", fontSize: "12px" }}>
+              <button onClick={() => handleAction("confirm_payment")} className="btn-retro btn-retro-red w-full font-bold tracking-wider" style={{ padding: "12px", fontSize: "clamp(13px,3.4vw,16px)" }}>
                 PAY ${pp.amount.toLocaleString()}
               </button>
             </div>

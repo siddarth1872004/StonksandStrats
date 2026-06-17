@@ -20,6 +20,9 @@ const TILE_H = 0.5;
 const REST_Y = TILE_H / 2;          // tokens rest ON the tile, not buried in it
 const DICE_TUMBLE = DICE_ROLL_MS / 1000;                    // how long the dice juggle before settling
 const ROLL_VIEW = DICE_TUMBLE + MOVE_DELAY_MS / 1000 + 0.2; // auto-cams frame the roll until the token actually moves
+// Fixed Monopoly-3D viewing angle — adaptive cam always looks from this one side
+// of the board, slightly elevated, so you never end up under or behind it.
+const AWAY_DIR = new THREE.Vector3(0, 0.95, 1.15).normalize();
 
 function tileTransform(id) {
   const c = getTileGridCoords(id);
@@ -545,8 +548,15 @@ function Controls({ mode, followRef, currentRef, rollId }) {
       off.setLength(off.length() + (d - off.length()) * k);
       camera.position.copy(tgt).add(off);
     };
+    // Pull the camera toward the fixed away-side angle at a given distance.
+    const easeAway = (d, k = 0.06) => {
+      const want = tgt.clone().add(AWAY_DIR.clone().multiplyScalar(d));
+      camera.position.lerp(want, k);
+    };
 
-    c.enableRotate = mode === "free" || auto;
+    // Only free orbit and "lock on me" let you rotate; adaptive is a scripted,
+    // fixed-side view (Monopoly-3D style).
+    c.enableRotate = mode === "free" || mode === "follow";
 
     if (mode === "top") {
       easeTarget(0, 0, 0, 0.1);
@@ -559,18 +569,22 @@ function Controls({ mode, followRef, currentRef, rollId }) {
       camera.position.x += (Math.cos(cine.current) * 26 - camera.position.x) * 0.05;
       camera.position.z += (Math.sin(cine.current) * 26 - camera.position.z) * 0.05;
       camera.position.y += (18 - camera.position.y) * 0.05;
-    } else if (watchRoll) {
-      // Centre on the dice and frame them while they juggle.
-      easeTarget(0, 1.2, 0, 0.12);
-      easeDist(20, 0.07);
-    } else if (mode === "adaptive" && currentRef.current) {
-      easeTarget(currentRef.current.x, 0, currentRef.current.z, 0.1);
-      easeDist(17, 0.06);
+    } else if (mode === "adaptive") {
+      // Frame the dice during the roll, then the active player — always from the
+      // same away side, pulling back a touch for the roll.
+      if (watchRoll || !currentRef.current) easeTarget(0, 1.2, 0, 0.12);
+      else easeTarget(currentRef.current.x, 0, currentRef.current.z, 0.1);
+      easeAway(watchRoll ? 22 : 17, 0.06);
     } else if (mode === "follow" && followRef.current) {
-      const dx = (followRef.current.x - tgt.x) * 0.12;
-      const dz = (followRef.current.z - tgt.z) * 0.12;
-      tgt.x += dx; tgt.z += dz; tgt.y += (0 - tgt.y) * 0.12;
-      camera.position.x += dx; camera.position.z += dz; // pan camera with target → keep angle
+      if (watchRoll) {
+        easeTarget(0, 1.2, 0, 0.12);
+        easeDist(20, 0.07);
+      } else {
+        const dx = (followRef.current.x - tgt.x) * 0.12;
+        const dz = (followRef.current.z - tgt.z) * 0.12;
+        tgt.x += dx; tgt.z += dz; tgt.y += (0 - tgt.y) * 0.12;
+        camera.position.x += dx; camera.position.z += dz; // pan camera with target → keep angle
+      }
     } else {
       easeTarget(0, 0, 0, 0.08); // free
     }
@@ -665,7 +679,7 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
   // Camera mode + a dropdown to pick it.
-  const [camModeRaw, setCamMode] = useState("free"); // free | follow | adaptive | top | cinematic
+  const [camModeRaw, setCamMode] = useState("adaptive"); // free | follow | adaptive | top | cinematic
   const [camMenu, setCamMenu] = useState(false);
   const me = gameState?.players?.find((p) => p.id === myPlayerId);
   // "Lock on me" only works if I'm a player; otherwise fall back to free orbit.
