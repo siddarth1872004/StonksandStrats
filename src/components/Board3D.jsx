@@ -240,6 +240,95 @@ function TokenModel({ shape, color, active }) {
   }
 }
 
+/* ── 3D dice ───────────────────────────────────────────────────────────── */
+// Pip layouts on a 3×3 grid (cols/rows at 0.25/0.5/0.75).
+const PIPS = {
+  1: [[0.5, 0.5]],
+  2: [[0.28, 0.28], [0.72, 0.72]],
+  3: [[0.28, 0.28], [0.5, 0.5], [0.72, 0.72]],
+  4: [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]],
+  5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
+  6: [[0.28, 0.26], [0.72, 0.26], [0.28, 0.5], [0.72, 0.5], [0.28, 0.74], [0.72, 0.74]],
+};
+let DIE_TEX = null;
+function dieTextures() {
+  if (DIE_TEX) return DIE_TEX;
+  DIE_TEX = {};
+  for (let v = 1; v <= 6; v++) {
+    const s = 128;
+    const c = document.createElement("canvas"); c.width = s; c.height = s;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#f4f3ee"; ctx.fillRect(0, 0, s, s);
+    ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth = 6; ctx.strokeRect(3, 3, s - 6, s - 6);
+    ctx.fillStyle = "#15151a";
+    PIPS[v].forEach(([px, py]) => { ctx.beginPath(); ctx.arc(px * s, py * s, s * 0.085, 0, Math.PI * 2); ctx.fill(); });
+    const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4; DIE_TEX[v] = tex;
+  }
+  return DIE_TEX;
+}
+// Euler that puts a given value on the top (+y) face.
+const FACE_EULER = {
+  1: [0, 0, 0], 6: [Math.PI, 0, 0],
+  2: [0, 0, -Math.PI / 2], 5: [0, 0, Math.PI / 2],
+  3: [-Math.PI / 2, 0, 0], 4: [Math.PI / 2, 0, 0],
+};
+const DIE_BASE_Y = 2.3;
+
+function Die({ value, x, rollId }) {
+  const ref = useRef();
+  const tex = dieTextures();
+  // face material order [+x,-x,+y,-y,+z,-z] → values [2,5,1,6,3,4] (opposites = 7)
+  const mats = useMemo(() => [2, 5, 1, 6, 3, 4].map((v) =>
+    new THREE.MeshStandardMaterial({ map: tex[v], flatShading: true, metalness: 0.1, roughness: 0.55 })
+  ), [tex]);
+
+  const startRef = useRef(-999);
+  const spinRef = useRef([0, 0, 0]);
+  const targetRef = useRef(new THREE.Quaternion());
+
+  useEffect(() => {
+    startRef.current = -1; // capture start on next frame
+    spinRef.current = [8 + Math.random() * 8, 8 + Math.random() * 8, 8 + Math.random() * 8].map((s) => s * (Math.random() < 0.5 ? -1 : 1));
+    const e = FACE_EULER[value] || [0, 0, 0];
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
+    const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() - 0.5) * 0.5);
+    targetRef.current = yaw.multiply(q);
+  }, [rollId, value]);
+
+  const TUMBLE = 0.95;
+  useFrame((state, delta) => {
+    const m = ref.current;
+    if (!m) return;
+    if (startRef.current === -1) startRef.current = state.clock.elapsedTime;
+    const t = state.clock.elapsedTime - startRef.current;
+    if (t < TUMBLE) {
+      m.rotation.x += spinRef.current[0] * delta;
+      m.rotation.y += spinRef.current[1] * delta;
+      m.rotation.z += spinRef.current[2] * delta;
+      m.position.y = DIE_BASE_Y + Math.abs(Math.sin(t * 9)) * (1 - t / TUMBLE) * 1.6;
+    } else {
+      m.quaternion.slerp(targetRef.current, 0.18);
+      m.position.y += (DIE_BASE_Y - m.position.y) * 0.18;
+    }
+  });
+
+  return (
+    <mesh ref={ref} position={[x, DIE_BASE_Y, 0]} material={mats}>
+      <boxGeometry args={[0.95, 0.95, 0.95]} />
+    </mesh>
+  );
+}
+
+function Dice({ dice, rollId }) {
+  if (!dice || dice.length < 2) return null;
+  return (
+    <group>
+      <Die value={dice[0]} x={-0.65} rollId={rollId} />
+      <Die value={dice[1]} x={0.65} rollId={rollId} />
+    </group>
+  );
+}
+
 function Tile({ tile, texture, ownerColor, houseCount, mortgaged, onClick }) {
   const t = tileTransform(tile.id);
   const bodyColor = mortgaged ? "#e7b6b6" : ownerColor ? ownerColor : "#f1efe6";
@@ -388,6 +477,10 @@ function Scene({ gameState, onTileClick, renderedPositions, textures }) {
         const pos = renderedPositions[player.id] !== undefined ? renderedPositions[player.id] : player.position;
         return <Pawn key={player.id} player={player} targetId={pos} offset={offset} active={player.id === currentId && gameState?.winner === null} />;
       })}
+
+      {gameState?.phase !== "lobby" && gameState?.phase !== "game_over" && (
+        <Dice dice={gameState?.dice} rollId={gameState?.dice_roll_id ?? 0} />
+      )}
     </>
   );
 }
