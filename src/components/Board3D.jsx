@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls as ThreeOrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -371,14 +371,26 @@ function Pawn({ player, targetId, offset, active }) {
   const tz = t.z + offset[1];
   const col = tokenColor(player);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const g = ref.current;
     if (!g) return;
-    g.position.x += (tx - g.position.x) * 0.2;
-    g.position.z += (tz - g.position.z) * 0.2;
-    const moving = Math.abs(tx - g.position.x) > 0.02 || Math.abs(tz - g.position.z) > 0.02;
-    g.position.y = moving ? Math.abs(Math.sin(state.clock.elapsedTime * 12)) * 0.4 : 0;
-    if (active) g.rotation.y += 0.012;
+    // Constant-speed glide toward the current tile (renderedPositions steps one
+    // tile at a time), so the piece walks the track smoothly instead of easing
+    // in/out at every tile. Speed ≈ tile spacing / hop cadence.
+    const dx = tx - g.position.x;
+    const dz = tz - g.position.z;
+    const dist = Math.hypot(dx, dz);
+    const SPEED = 7.6;
+    if (dist > 0.0006) {
+      const step = Math.min(dist, SPEED * delta);
+      g.position.x += (dx / dist) * step;
+      g.position.z += (dz / dist) * step;
+    }
+    const moving = dist > 0.04;
+    g.position.y = moving
+      ? Math.abs(Math.sin(state.clock.elapsedTime * 13)) * 0.3   // one hop arc per tile
+      : active ? Math.sin(state.clock.elapsedTime * 2.5) * 0.06 + 0.02 : 0;
+    if (active && !moving) g.rotation.y += 0.01;
   });
 
   return (
@@ -395,8 +407,10 @@ function Pawn({ player, targetId, offset, active }) {
   );
 }
 
-/* Orbit camera — drag to rotate, scroll to zoom (clamped). */
-function Controls() {
+/* Orbit camera — drag to rotate, scroll to zoom (clamped). When `follow` is on,
+   the orbit pivot (and camera) glide to keep your own token centred, so the
+   view tracks your piece as it moves while you can still orbit around it. */
+function Controls({ follow, followRef }) {
   const { camera, gl } = useThree();
   const ref = useRef();
   useEffect(() => {
@@ -404,7 +418,7 @@ function Controls() {
     c.enablePan = false;
     c.enableDamping = true;
     c.dampingFactor = 0.08;
-    c.minDistance = 12;
+    c.minDistance = 10;
     c.maxDistance = 46;
     c.maxPolarAngle = Math.PI / 2.15;
     c.minPolarAngle = Math.PI / 8;
@@ -412,11 +426,25 @@ function Controls() {
     ref.current = c;
     return () => c.dispose();
   }, [camera, gl]);
-  useFrame(() => ref.current && ref.current.update());
+  useFrame(() => {
+    const c = ref.current;
+    if (!c) return;
+    if (follow && followRef.current) {
+      const dx = (followRef.current.x - c.target.x) * 0.12;
+      const dz = (followRef.current.z - c.target.z) * 0.12;
+      c.target.x += dx; c.target.z += dz;
+      camera.position.x += dx; camera.position.z += dz; // pan camera with target → keep angle
+    } else {
+      // ease the pivot back to board centre when not following
+      c.target.x += (0 - c.target.x) * 0.08;
+      c.target.z += (0 - c.target.z) * 0.08;
+    }
+    c.update();
+  });
   return null;
 }
 
-function Scene({ gameState, onTileClick, renderedPositions, textures }) {
+function Scene({ gameState, onTileClick, renderedPositions, textures, follow, followRef }) {
   const currentId = gameState?.order?.[gameState?.current];
   const allPlayers = gameState?.players;
   const players = allPlayers || [];
@@ -442,7 +470,7 @@ function Scene({ gameState, onTileClick, renderedPositions, textures }) {
 
   return (
     <>
-      <Controls />
+      <Controls follow={follow} followRef={followRef} />
       <ambientLight intensity={0.9} />
       <directionalLight position={[14, 26, 12]} intensity={1.05} />
       <directionalLight position={[-12, 10, -14]} intensity={0.35} color="#ffffff" />
@@ -485,10 +513,20 @@ function Scene({ gameState, onTileClick, renderedPositions, textures }) {
   );
 }
 
-export default function Board3D({ gameState, onTileClick, renderedPositions = {} }) {
+export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {} }) {
   const latest = (gameState?.log || []).slice(-1)[0];
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
+  const [follow, setFollow] = useState(false);
+
+  // Live world position of the local player's token, read by the follow camera.
+  const followRef = useRef({ x: 0, z: 0 });
+  const me = gameState?.players?.find((p) => p.id === myPlayerId);
+  if (me) {
+    const pos = renderedPositions[myPlayerId] !== undefined ? renderedPositions[myPlayerId] : me.position;
+    const tt = tileTransform(pos);
+    followRef.current = { x: tt.x, z: tt.z };
+  }
 
   // Build the printed tile faces once; dispose on unmount.
   const textures = useMemo(() => {
@@ -506,8 +544,25 @@ export default function Board3D({ gameState, onTileClick, renderedPositions = {}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 35%, #121214 0%, #050506 70%, #000000 100%)" }}
       >
-        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} />
+        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} follow={follow && !!me} followRef={followRef} />
       </Canvas>
+
+      {/* Follow-camera toggle */}
+      {me && (
+        <button
+          onClick={() => setFollow((f) => !f)}
+          style={{
+            position: "absolute", top: "12px", left: "12px", zIndex: 5, cursor: "pointer",
+            fontFamily: "var(--font-retro)", fontSize: "12px", fontWeight: "bold", letterSpacing: "0.06em",
+            padding: "6px 11px", borderRadius: "7px", border: "1px solid",
+            background: follow ? "rgba(52,211,153,0.16)" : "rgba(0,0,0,0.5)",
+            borderColor: follow ? "#34d399" : "rgba(148,163,184,0.4)",
+            color: follow ? "#34d399" : "#cbd5e1",
+          }}
+        >
+          {follow ? "◉ FOLLOWING YOU" : "○ LOCK ON ME"}
+        </button>
+      )}
 
       {latest && (
         <div style={{ position: "absolute", top: "12px", left: "50%", transform: "translateX(-50%)", maxWidth: "86%", pointerEvents: "none", textAlign: "center" }}>

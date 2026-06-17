@@ -73,23 +73,25 @@ export const playClick = () => {
 export const playRoll = () => {
   const ctx = getAudioContext();
   if (!ctx) return;
-  // Make a series of quick low random drum-like roll noises
+  // A run of quick rattly knocks that lasts as long as the dice tumble (~0.95s)
+  // so the sound finishes with the dice, not well before them.
   let time = ctx.currentTime;
-  for (let i = 0; i < 6; i++) {
+  const HITS = 13;
+  const STEP = 0.075;
+  for (let i = 0; i < HITS; i++) {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
     osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(60 + Math.random() * 80, time);
-    
-    gainNode.gain.setValueAtTime(0.2, time);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, time + 0.08);
-    
+    osc.frequency.setValueAtTime(55 + Math.random() * 90, time);
+    // ease the knocks off toward the end as the dice settle
+    const vol = 0.2 * (1 - (i / HITS) * 0.5);
+    gainNode.gain.setValueAtTime(vol, time);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, time + 0.07);
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
-    
     osc.start(time);
-    osc.stop(time + 0.08);
-    time += 0.08;
+    osc.stop(time + 0.07);
+    time += STEP;
   }
 };
 

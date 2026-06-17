@@ -20,17 +20,20 @@ export default function Toast({ message, type = "info", duration = 3000, onClose
 
   const toastStyle = {
     position: "fixed",
-    top: "16px",
-    right: "16px",
+    top: "18px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    maxWidth: "min(92vw, 460px)",
     zIndex: 9999,
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    padding: "12px 16px",
-    background: "rgba(5, 5, 5, 0.95)",
-    borderRadius: "0px",
+    padding: "11px 16px",
+    background: "rgba(5, 5, 5, 0.96)",
+    borderRadius: "10px",
     fontFamily: "var(--font-retro)",
-    fontSize: "8px",
+    fontSize: "13px",
+    animation: "toast-drop 0.25s ease",
     ...activeStyle
   };
 

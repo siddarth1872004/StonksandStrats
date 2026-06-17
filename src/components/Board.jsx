@@ -255,8 +255,8 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle, #0a0a0c 0%, #000000 100%)",
-        border: "1px solid rgba(56,189,248,0.15)",
+        background: "radial-gradient(circle, #101218 0%, #030405 100%)",
+        border: "1px solid rgba(148,163,184,0.12)",
         position: "relative",
         overflow: "hidden",
         containerType: "size",
@@ -286,17 +286,18 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
             ? "1px dashed rgba(239,68,68,0.7)"
             : ownerColor
               ? `1.5px solid ${ownerColor}`
-              : "1px solid rgba(42,50,90,0.4)",
+              : "1px solid rgba(148,163,184,0.16)",
           background: ownerColor
-            ? `${ownerColor}1f`
-            : "#000000",
+            ? `linear-gradient(160deg, ${ownerColor}33 0%, ${ownerColor}14 100%)`
+            : "linear-gradient(160deg, #0e1016 0%, #050608 100%)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
           cursor: "pointer",
           overflow: "hidden",
           padding: "1px",
-          transition: "background 0.15s",
+          transition: "background 0.15s, box-shadow 0.15s",
+          boxShadow: ownerColor ? `inset 0 0 10px ${ownerColor}22` : "inset 0 0 8px rgba(0,0,0,0.6)",
           position: "relative",
         };
 
@@ -307,8 +308,8 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
             key={tid}
             style={cellStyle}
             onClick={() => onTileClick(tid)}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(56,189,248,0.1)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = ownerColor ? `${ownerColor}1f` : "#000000"; }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,179,0,0.12)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = ownerColor ? `linear-gradient(160deg, ${ownerColor}33 0%, ${ownerColor}14 100%)` : "linear-gradient(160deg, #0e1016 0%, #050608 100%)"; }}
           >
             {/* 1. Property group color band */}
             {tile.group && tile.group !== "railroad" && tile.group !== "utility" && (
