@@ -662,8 +662,8 @@ function LandingCard({ tile, gameState }) {
 
   return (
     <div style={{
-      position: "absolute", bottom: "46px", left: "50%", transform: "translateX(-50%)",
-      width: "min(330px, 82%)", pointerEvents: "none",
+      position: "absolute", bottom: "16px", left: "16px",
+      width: "min(300px, 78%)", pointerEvents: "none",
       background: "#e6dcc2", color: "#1f2430", borderRadius: "10px", overflow: "hidden",
       border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 12px 34px rgba(0,0,0,0.55)",
       fontFamily: "var(--font-retro)",
