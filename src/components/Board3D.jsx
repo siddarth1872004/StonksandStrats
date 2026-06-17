@@ -1,19 +1,20 @@
 import { useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Html, Text } from "@react-three/drei";
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords } from "../lib/animation";
+import { TokenIcon } from "../lib/icons";
 
 /* ── Krunker-style low-poly 3D Monopoly board ──────────────────────────────
-   Flat-shaded, unlit-ish, instanced where it matters, no shadow maps — built
-   for speed. Reuses the 13×13 grid math from the 2D board so tile positions
-   stay identical. Game logic / sync are untouched; this is purely a renderer. */
+   Flat-shaded, no shadow maps — built for speed. Reuses the 13×13 grid math
+   from the 2D board so tile positions stay identical. Tokens are the REAL 2D
+   token icons rendered as camera-facing 3D billboards on a low-poly base, so
+   "the 2D object is the 3D object". Engine / sync untouched. */
 
-const U = 1.5;                 // grid unit → world size
-const GRID_CENTER = 7.5;       // centre of the 13-line CSS grid
-const TILE_H = 0.5;            // tile slab thickness
+const U = 1.5;
+const GRID_CENTER = 7.5;
+const TILE_H = 0.5;
 
-// id → world transform, derived from the existing 2D grid coordinates.
 function tileTransform(id) {
   const c = getTileGridCoords(id);
   const colC = c.colStart + c.colSpan / 2;
@@ -31,11 +32,26 @@ const SPECIAL_COLOR = {
   free_parking: "#38bdf8", tax: "#64748b", chance: "#fbbf24", community_chest: "#38bdf8",
 };
 
-function tokenColor(p) {
-  return p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8";
+const tokenColor = (p) => p.token_color || TOKEN_COLORS[p.token_shape || p.token] || "#38bdf8";
+
+// Short label + the flat in-plane rotation so each side reads outward.
+function tileLabel(tile) {
+  if (tile.type === "go") return "GO";
+  if (tile.type === "go_to_jail") return "GO TO JAIL";
+  if (tile.type === "jail") return "JAIL";
+  if (tile.type === "free_parking") return "FREE PARKING";
+  if (tile.type === "chance") return "CHANCE";
+  if (tile.type === "community_chest") return "CHEST";
+  return tile.name.replace(" Station", " Stn").replace(" Street", " St").replace(" Avenue", " Ave");
+}
+function sideAngle(id) {
+  if (id > 0 && id < 10) return 0;          // bottom
+  if (id > 10 && id < 20) return Math.PI / 2;   // left
+  if (id > 20 && id < 30) return Math.PI;       // top
+  if (id > 30 && id < 40) return -Math.PI / 2;  // right
+  return 0;                                  // corners
 }
 
-/* A single board tile: slab + (for properties) a coloured group band on top. */
 function Tile({ tile, ownerColor, houseCount, mortgaged, onClick }) {
   const t = tileTransform(tile.id);
   const band = tile.group && GROUP_COLORS[tile.group]
@@ -62,44 +78,79 @@ function Tile({ tile, ownerColor, houseCount, mortgaged, onClick }) {
           <meshBasicMaterial color={SPECIAL_COLOR[tile.type]} />
         </mesh>
       )}
-      {/* Houses / hotel as little blocks standing on the tile */}
+
+      {/* Tile name, lying flat on the surface, reading outward per side */}
+      <Text
+        position={[0, TILE_H / 2 + 0.06, 0]}
+        rotation={[-Math.PI / 2, 0, sideAngle(tile.id)]}
+        fontSize={0.26}
+        maxWidth={t.w * 0.92}
+        textAlign="center"
+        anchorX="center"
+        anchorY="middle"
+        color={mortgaged ? "#f87171" : "#e8eefc"}
+        outlineWidth={0.012}
+        outlineColor="#000000"
+      >
+        {tileLabel(tile)}
+      </Text>
+
+      {/* Houses (green blocks) / hotel (red block) standing on the tile */}
       {houseCount > 0 && !mortgaged && Array.from({ length: Math.min(houseCount, 5) }).map((_, i) => (
-        <mesh key={i} position={[(i - (Math.min(houseCount, 5) - 1) / 2) * 0.32, TILE_H / 2 + 0.22, t.d * 0.28]}>
-          <boxGeometry args={[0.22, 0.35, 0.22]} />
-          <meshStandardMaterial color={houseCount === 5 ? "#EF4444" : "#10B981"} flatShading />
+        <mesh key={i} position={[(i - (Math.min(houseCount, 5) - 1) / 2) * 0.32, TILE_H / 2 + 0.22, t.d * 0.3]}>
+          <boxGeometry args={houseCount === 5 ? [0.5, 0.42, 0.34] : [0.22, 0.34, 0.22]} />
+          <meshStandardMaterial color={houseCount === 5 ? "#EF4444" : "#10B981"} flatShading emissive={houseCount === 5 ? "#EF4444" : "#10B981"} emissiveIntensity={0.25} />
         </mesh>
       ))}
+
+      {/* Mortgage marker — a red flag standing on the tile */}
+      {mortgaged && (
+        <group position={[0, TILE_H / 2, -t.d * 0.25]}>
+          <mesh position={[0, 0.35, 0]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.7, 5]} />
+            <meshStandardMaterial color="#7f1d1d" flatShading />
+          </mesh>
+          <mesh position={[0.16, 0.55, 0]}>
+            <boxGeometry args={[0.3, 0.2, 0.02]} />
+            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.4} flatShading />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
 
-/* A player pawn — low-poly hex prism that smoothly lerps between tiles and
-   bobs/spins when it's the active player. */
+/* A pawn: a low-poly colour base that lerps/bobs between tiles, topped with the
+   real 2D TokenIcon as a camera-facing billboard. */
 function Pawn({ player, targetId, offset, active }) {
   const ref = useRef();
   const t = tileTransform(targetId);
   const tx = t.x + offset[0];
   const tz = t.z + offset[1];
-  const baseY = 0.7;
 
   useFrame((state) => {
-    const m = ref.current;
-    if (!m) return;
-    m.position.x += (tx - m.position.x) * 0.2;
-    m.position.z += (tz - m.position.z) * 0.2;
-    const moving = Math.abs(tx - m.position.x) > 0.02 || Math.abs(tz - m.position.z) > 0.02;
-    // hop while travelling, gentle bob + spin while it's your turn
-    m.position.y = baseY + (moving ? Math.abs(Math.sin(state.clock.elapsedTime * 12)) * 0.45
-      : active ? Math.sin(state.clock.elapsedTime * 2.5) * 0.12 + 0.05 : 0);
-    if (active) m.rotation.y += 0.03;
+    const g = ref.current;
+    if (!g) return;
+    g.position.x += (tx - g.position.x) * 0.2;
+    g.position.z += (tz - g.position.z) * 0.2;
+    const moving = Math.abs(tx - g.position.x) > 0.02 || Math.abs(tz - g.position.z) > 0.02;
+    g.position.y = moving ? Math.abs(Math.sin(state.clock.elapsedTime * 12)) * 0.4
+      : active ? Math.sin(state.clock.elapsedTime * 2.5) * 0.1 + 0.04 : 0;
   });
 
   const col = tokenColor(player);
   return (
-    <mesh ref={ref} position={[tx, baseY, tz]}>
-      <cylinderGeometry args={[0.3, 0.4, 0.85, 6]} />
-      <meshStandardMaterial color={col} flatShading emissive={col} emissiveIntensity={active ? 0.55 : 0.12} metalness={0.3} roughness={0.5} />
-    </mesh>
+    <group ref={ref} position={[tx, 0, tz]}>
+      <mesh position={[0, 0.2, 0]}>
+        <cylinderGeometry args={[0.3, 0.42, 0.4, 8]} />
+        <meshStandardMaterial color={col} flatShading emissive={col} emissiveIntensity={active ? 0.55 : 0.18} metalness={0.3} roughness={0.5} />
+      </mesh>
+      <Html position={[0, 1.05, 0]} center transform sprite distanceFactor={7} style={{ pointerEvents: "none" }}>
+        <div style={{ width: 38, height: 38, filter: active ? `drop-shadow(0 0 8px ${col})` : `drop-shadow(0 1px 2px #000)` }}>
+          <TokenIcon name={player.token_shape || player.token} color={col} size="100%" />
+        </div>
+      </Html>
+    </group>
   );
 }
 
@@ -108,7 +159,6 @@ function Scene({ gameState, onTileClick, renderedPositions }) {
   const allPlayers = gameState?.players;
   const players = allPlayers || [];
 
-  // Group living pawns by the tile they're (visually) on so we can fan them out.
   const pawnLayout = useMemo(() => {
     const byTile = {};
     (allPlayers || []).forEach((p) => {
@@ -121,7 +171,7 @@ function Scene({ gameState, onTileClick, renderedPositions }) {
       group.forEach((p, i) => {
         const n = group.length;
         const ang = (i / n) * Math.PI * 2;
-        const r = n > 1 ? 0.42 : 0;
+        const r = n > 1 ? 0.45 : 0;
         out.push({ player: p, offset: [Math.cos(ang) * r, Math.sin(ang) * r] });
       });
     });
@@ -130,16 +180,14 @@ function Scene({ gameState, onTileClick, renderedPositions }) {
 
   return (
     <>
-      <ambientLight intensity={0.7} />
+      <ambientLight intensity={0.75} />
       <directionalLight position={[12, 24, 10]} intensity={1.15} />
       <directionalLight position={[-10, 8, -12]} intensity={0.35} color="#38bdf8" />
 
-      {/* Board base slab */}
       <mesh position={[0, -0.4, 0]} onClick={() => onTileClick(null)}>
         <boxGeometry args={[U * 13.4, 0.5, U * 13.4]} />
         <meshStandardMaterial color="#070a12" flatShading metalness={0.2} roughness={0.9} />
       </mesh>
-      {/* Inner recessed playfield */}
       <mesh position={[0, -0.12, 0]}>
         <boxGeometry args={[U * 9, 0.3, U * 9]} />
         <meshStandardMaterial color="#0a0f1c" flatShading />
@@ -192,7 +240,6 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         />
       </Canvas>
 
-      {/* Live-news overlay (big bold, every event) floating over the 3D board */}
       {latest && (
         <div style={{ position: "absolute", top: "12px", left: "50%", transform: "translateX(-50%)", maxWidth: "86%", pointerEvents: "none", textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4vw,13px)", color: "#FFB300", letterSpacing: "0.22em", fontWeight: "bold", marginBottom: "4px" }}>● LIVE NEWS</div>

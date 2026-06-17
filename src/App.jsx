@@ -1154,8 +1154,12 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", overflow: "hidden" }}>
                 <div style={{ flex: 1, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   {spectatorBanner}
-                  <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-                    {board}
+                  {/* Square-fit the board so cells stay square and tokens never
+                      clip on a stretched axis (containerType enables cqw/cqh). */}
+                  <div style={{ flex: 1, minHeight: 0, overflow: "hidden", containerType: "size", display: "flex", alignItems: "center", justifyContent: "center", padding: "6px" }}>
+                    <div style={{ width: use3D ? "100%" : "min(100cqw, 100cqh)", height: use3D ? "100%" : "min(100cqw, 100cqh)" }}>
+                      {board}
+                    </div>
                   </div>
                 </div>
                 {/* Drag handle — resizes the sidebar; the board reflows to fill */}
