@@ -662,7 +662,7 @@ function LandingCard({ tile, gameState }) {
 
   return (
     <div style={{
-      position: "absolute", bottom: "46px", left: "50%", transform: "translateX(-50%)",
+      position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
       width: "min(330px, 82%)", pointerEvents: "none",
       background: "#e6dcc2", color: "#1f2430", borderRadius: "10px", overflow: "hidden",
       border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 12px 34px rgba(0,0,0,0.55)",
@@ -780,8 +780,9 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         )}
       </div>
 
-      {/* LIVE NEWS — rich one-liner, centred banner */}
-      {news && (
+      {/* LIVE NEWS — rich one-liner, centred banner (hidden while your own
+          landing card is up, since the card shows the same place in detail) */}
+      {news && !landTile && (
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", maxWidth: "70%", pointerEvents: "none", textAlign: "center",
           background: "rgba(4,6,11,0.66)", padding: "12px 22px", borderRadius: "12px", border: "1px solid rgba(255,179,0,0.22)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
           <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4vw,13px)", color: "#FFB300", letterSpacing: "0.22em", fontWeight: "bold", marginBottom: "5px" }}>● LIVE NEWS</div>
