@@ -619,6 +619,17 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, follow, fo
   );
 }
 
+/* DOM die face (HUD) — reuses the PIPS layout so the result is always readable. */
+function DiceFace({ v, size = 34 }) {
+  return (
+    <div style={{ position: "relative", width: size, height: size, background: "#f4f3ee", borderRadius: "7px", border: "1px solid rgba(0,0,0,0.35)", boxShadow: "0 2px 6px rgba(0,0,0,0.5)" }}>
+      {(PIPS[v] || []).map(([px, py], i) => (
+        <span key={i} style={{ position: "absolute", left: `${px * 100}%`, top: `${py * 100}%`, transform: "translate(-50%,-50%)", width: size * 0.17, height: size * 0.17, borderRadius: "50%", background: "#15151a" }} />
+      ))}
+    </div>
+  );
+}
+
 /* Tan landing card (matches the board) shown to the player who just landed. */
 const LAND_DESC = {
   go: "Collect $200 salary.",
@@ -769,15 +780,36 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         )}
       </div>
 
-      {/* LIVE NEWS — rich one-liner */}
+      {/* LIVE NEWS — rich one-liner, centred banner */}
       {news && (
-        <div style={{ position: "absolute", top: "12px", left: "50%", transform: "translateX(-50%)", maxWidth: "78%", pointerEvents: "none", textAlign: "center" }}>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4vw,13px)", color: "#FFB300", letterSpacing: "0.22em", fontWeight: "bold", marginBottom: "4px" }}>● LIVE NEWS</div>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", maxWidth: "70%", pointerEvents: "none", textAlign: "center",
+          background: "rgba(4,6,11,0.66)", padding: "12px 22px", borderRadius: "12px", border: "1px solid rgba(255,179,0,0.22)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(10px,1.4vw,13px)", color: "#FFB300", letterSpacing: "0.22em", fontWeight: "bold", marginBottom: "5px" }}>● LIVE NEWS</div>
           <div key={news} className="feed-in" style={{
             fontFamily: "var(--font-retro)", fontSize: "clamp(15px,2.2vw,26px)", fontWeight: "bold",
             color: "#e2e8f0", textShadow: "0 0 14px rgba(56,189,248,0.5), 0 2px 6px #000", lineHeight: 1.3,
             display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
           }}>{news}</div>
+        </div>
+      )}
+
+      {/* Always-visible dice readout (the 3D dice can be off-screen when the
+          camera follows a player) */}
+      {gameState?.dice && gameState?.phase !== "lobby" && gameState?.phase !== "game_over" && (
+        <div style={{ position: "absolute", bottom: "12px", right: "12px", display: "flex", alignItems: "center", gap: "7px", pointerEvents: "none" }}>
+          <DiceFace v={gameState.dice[0]} />
+          <DiceFace v={gameState.dice[1]} />
+          {gameState.speed_die && (
+            <div style={{ width: "34px", height: "34px", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center",
+              background: gameState.speed_die.type === "mr_monopoly" ? "#f59e0b" : gameState.speed_die.type === "bus" ? "#8b5cf6" : "#38bdf8",
+              color: "#0a0a0a", fontFamily: "var(--font-retro)", fontWeight: "bold", fontSize: gameState.speed_die.type === "move" ? "18px" : "9px",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.5)" }}>
+              {gameState.speed_die.type === "move" ? gameState.speed_die.face : gameState.speed_die.type === "bus" ? "BUS" : "MR.M"}
+            </div>
+          )}
+          <div style={{ fontFamily: "var(--font-retro)", fontWeight: "bold", fontSize: "16px", color: "#FFB300", marginLeft: "3px", textShadow: "0 2px 4px #000" }}>
+            ={gameState.dice[0] + gameState.dice[1]}
+          </div>
         </div>
       )}
 
