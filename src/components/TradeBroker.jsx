@@ -80,7 +80,7 @@ function OfferSide({ title, color, money, cards, props }) {
       {cards > 0 && <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#fbbf24", marginBottom: "4px" }}>{cards}× Jail card</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
         {(props || []).length ? props.map(tid => (
-          <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "13px", color: "#cbd5e1" }}>
+          <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "var(--font-retro)", fontSize: "13px", color: "#2a2410" }}>
             <span style={{ width: "5px", height: "10px", background: tileColor(tid) }} /> {tileName(tid)}
           </div>
         )) : <span style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>nothing</span>}

@@ -14,7 +14,7 @@ export function PropertyDetailModal({ tileId, gameState, onClose }) {
       <div
         className="glass-card w-full max-w-sm p-5 border animate-scale-up text-left"
         onClick={e => e.stopPropagation()}
-        style={{ borderColor: tile.group && GROUP_COLORS[tile.group] ? GROUP_COLORS[tile.group] : "rgba(56, 189, 248, 0.3)", maxHeight: "88vh", overflowY: "auto" }}
+        style={{ borderColor: tile.group && GROUP_COLORS[tile.group] ? GROUP_COLORS[tile.group] : "rgba(0,0,0,0.25)", maxHeight: "88vh", overflowY: "auto" }}
       >
         <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-900">
           <span className="font-mono text-[9px] text-slate-500 uppercase">INSPECT TILE</span>

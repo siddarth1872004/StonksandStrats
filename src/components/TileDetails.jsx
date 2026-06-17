@@ -6,13 +6,13 @@ const UTILITY_IDS = [12, 28];
 
 // Plain-English explanations for non-deed squares so every tile is informative.
 const SPECIAL_INFO = {
-  go: { color: "#34d399", text: "Collect $200 salary as you pass or land here. The starting square of the board." },
-  tax: { color: "#f87171", text: null }, // handled inline (uses tile.price)
-  chance: { color: "#fbbf24", text: "Draw a Chance card — movement, cash swings, repairs, or a Get Out of Jail Free card." },
-  community_chest: { color: "#38bdf8", text: "Draw a Community Chest card — usually bank payouts, fees, or a Get Out of Jail Free card." },
-  jail: { color: "#F59E0B", text: "Just visiting? No effect. Sent here? Roll doubles, pay $50, or use a Get Out of Jail Free card to leave." },
-  free_parking: { color: "#fbbf24", text: "A safe resting square. No rent, no fee — unless a house rule puts a cash pot here." },
-  go_to_jail: { color: "#ef4444", text: "Go directly to Jail. Do not pass GO, do not collect $200." },
+  go: { color: "#0f766e", text: "Collect $200 salary as you pass or land here. The starting square of the board." },
+  tax: { color: "#b91c1c", text: null }, // handled inline (uses tile.price)
+  chance: { color: "#b45309", text: "Draw a Chance card — movement, cash swings, repairs, or a Get Out of Jail Free card." },
+  community_chest: { color: "#0369a1", text: "Draw a Community Chest card — usually bank payouts, fees, or a Get Out of Jail Free card." },
+  jail: { color: "#b45309", text: "Just visiting? No effect. Sent here? Roll doubles, pay $50, or use a Get Out of Jail Free card to leave." },
+  free_parking: { color: "#b45309", text: "A safe resting square. No rent, no fee — unless a house rule puts a cash pot here." },
+  go_to_jail: { color: "#b91c1c", text: "Go directly to Jail. Do not pass GO, do not collect $200." },
 };
 
 // Rent that would currently be owed if an opponent landed here.
@@ -70,14 +70,14 @@ export function TileDetails({ tileId, gameState }) {
       )}
 
       {(tile.type === "railroad" || tile.type === "utility") && (
-        <h3 className="font-mono text-sm font-bold mb-4 uppercase" style={{ color: tile.type === "railroad" ? "#cbd5e1" : "#94a3b8" }}>
-          {tile.type === "utility" && <UtilityIcon type={tile.id === 12 ? "electric" : "water"} size={14} color="#94a3b8" />}
-          {tile.type === "railroad" && <RailroadIcon size={14} color="#cbd5e1" />} {tile.name}
+        <h3 className="font-mono text-sm font-bold mb-4 uppercase" style={{ color: "#1f2430" }}>
+          {tile.type === "utility" && <UtilityIcon type={tile.id === 12 ? "electric" : "water"} size={14} color="#5c5232" />}
+          {tile.type === "railroad" && <RailroadIcon size={14} color="#5c5232" />} {tile.name}
         </h3>
       )}
 
       {!tile.group && (
-        <h3 className="font-mono text-sm font-bold mb-2 uppercase" style={{ color: special?.color || "#38bdf8" }}>
+        <h3 className="font-mono text-sm font-bold mb-2 uppercase" style={{ color: special?.color || "#1f2430" }}>
           {tile.name}
         </h3>
       )}
@@ -97,9 +97,9 @@ export function TileDetails({ tileId, gameState }) {
 
       {/* LIVE rent due */}
       {liveRent && (
-        <div className="mb-4 p-3 rounded border" style={{ borderColor: `${ownerColor || "#38bdf8"}55`, background: `${ownerColor || "#38bdf8"}10` }}>
+        <div className="mb-4 p-3 rounded border" style={{ borderColor: `${ownerColor || "#0f766e"}66`, background: `${ownerColor || "#0f766e"}1a` }}>
           <div className="font-mono text-[8px] text-slate-400 uppercase tracking-wider mb-1">Rent Due Now</div>
-          <div className="font-mono text-lg font-bold" style={{ color: liveRent.amount === 0 ? "#64748b" : "#34d399" }}>
+          <div className="font-mono text-lg font-bold" style={{ color: liveRent.amount === 0 ? "#7c6f4f" : "#0f766e" }}>
             {liveRent.amount === null ? "Dice-based" : `$${liveRent.amount.toLocaleString()}`}
           </div>
           <div className="font-mono text-[8px] text-slate-500 mt-0.5">{liveRent.note}</div>
@@ -181,7 +181,7 @@ export function TileDetails({ tileId, gameState }) {
             <span>CURRENT HOLDER:</span>
             <span className="font-bold">
               {ownerObj
-                ? <span style={{ color: ownerColor || "#38bdf8" }}>{ownerObj.name}</span>
+                ? <span style={{ color: ownerColor || "#0f766e" }}>{ownerObj.name}</span>
                 : <span className="text-slate-500">None (Bank)</span>}
             </span>
           </div>

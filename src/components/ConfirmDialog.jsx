@@ -9,7 +9,7 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
         <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#EF4444", fontWeight: "bold", marginBottom: "12px", letterSpacing: "1px", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
           <AlertIcon size={12} color="#EF4444" /> {title}
         </h2>
-        <p style={{ fontFamily: "var(--font-sans)", fontSize: "11px", color: "#CBD5E1", lineHeight: "1.5", marginBottom: "20px" }}>
+        <p style={{ fontFamily: "var(--font-sans)", fontSize: "11px", color: "#2a2410", lineHeight: "1.5", marginBottom: "20px" }}>
           {message}
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: "16px" }}>

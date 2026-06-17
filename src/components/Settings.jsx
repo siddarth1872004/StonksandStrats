@@ -28,14 +28,14 @@ export default function Settings({ isOpen, onClose, scanlinesActive, setScanline
 
   return (
     <div className="dialog-overlay">
-      <div className="glass-card dialog-box animate-scale-up" style={{ borderTop: "4px solid #38BDF8" }}>
+      <div className="glass-card dialog-box animate-scale-up" style={{ borderTop: "4px solid #b45309" }}>
         {/* Title */}
-        <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#38BDF8", fontWeight: "bold", marginBottom: "20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+        <h2 style={{ fontFamily: "var(--font-retro)", fontSize: "10px", color: "#b45309", fontWeight: "bold", marginBottom: "20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
           <SettingsIcon size={12} /> SYSTEM SETTINGS
         </h2>
 
         {/* Options */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#CBD5E1", textAlign: "left" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", fontFamily: "var(--font-retro)", fontSize: "8px", color: "#2a2410", textAlign: "left" }}>
           {/* Mute Setting */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>CHIPTUNE AUDIO FX:</span>
@@ -62,13 +62,13 @@ export default function Settings({ isOpen, onClose, scanlinesActive, setScanline
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>GLOW BLOOM INTENSITY:</span>
-              <span style={{ fontWeight: "bold", color: "#38BDF8", textTransform: "uppercase" }}>{bloomSetting}</span>
+              <span style={{ fontWeight: "bold", color: "#b45309", textTransform: "uppercase" }}>{bloomSetting}</span>
             </div>
             <select
               value={bloomSetting}
               onChange={handleBloomChange}
               className="retro-input"
-              style={{ width: "100%", background: "#020617", border: "1px solid rgba(56, 189, 248, 0.2)", color: "#38BDF8", fontSize: "8px", fontFamily: "var(--font-retro)", borderRadius: "0px" }}
+              style={{ width: "100%", background: "#f3ead4", border: "1px solid rgba(0,0,0,0.25)", color: "#1f2430", fontSize: "8px", fontFamily: "var(--font-retro)", borderRadius: "0px" }}
             >
               <option value="low">LOW (RECOMMENDED)</option>
               <option value="high">HIGH (BLOOM STRENGTH)</option>
