@@ -959,9 +959,7 @@ export default function App() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className={`crt-screen select-none ${scanlinesActive ? "scanlines" : ""} ${scanlinesActive ? "flicker" : ""}`}>
-      <div className="crt-bg" />
-      <div className="crt-vignette" />
+    <div className="crt-screen select-none">
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 

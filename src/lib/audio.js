@@ -1,17 +1,37 @@
-// audio.js - Dynamic Web Audio API synthesizer for retro chiptune effects
+// audio.js - low-latency Web Audio synth for UI/game SFX
 
 let audioCtx = null;
 let isMuted = false;
 
+function createCtx() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    // latencyHint:"interactive" asks the browser for the smallest safe buffer so
+    // clicks/sfx fire with minimal delay.
+    audioCtx = new AC({ latencyHint: "interactive" });
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
 function getAudioContext() {
   if (isMuted) return null;
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-  return audioCtx;
+  return createCtx();
+}
+
+// Warm up + unlock the AudioContext on the very first user gesture so the first
+// sound isn't swallowed by the browser's autoplay suspension (the classic
+// "first click is silent / laggy" problem).
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    try { createCtx(); } catch { /* ignore */ }
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+    window.removeEventListener("touchstart", unlock);
+  };
+  window.addEventListener("pointerdown", unlock);
+  window.addEventListener("keydown", unlock);
+  window.addEventListener("touchstart", unlock);
 }
 
 export const setMuted = (muted) => {

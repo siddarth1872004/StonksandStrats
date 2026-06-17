@@ -99,9 +99,9 @@ function makeTileTexture(tile) {
   canvas.width = cw; canvas.height = ch;
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = "#f6f4ec";
+  ctx.fillStyle = "#e6dcc2";
   ctx.fillRect(0, 0, cw, ch);
-  ctx.strokeStyle = "rgba(0,0,0,0.22)";
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
   ctx.lineWidth = 3;
   ctx.strokeRect(1.5, 1.5, cw - 3, ch - 3);
 
@@ -331,7 +331,7 @@ function Dice({ dice, rollId }) {
 
 function Tile({ tile, texture, ownerColor, houseCount, mortgaged, onClick }) {
   const t = tileTransform(tile.id);
-  const bodyColor = mortgaged ? "#e7b6b6" : ownerColor ? ownerColor : "#f1efe6";
+  const bodyColor = mortgaged ? "#d9a3a3" : ownerColor ? ownerColor : "#ddd0b2";
   return (
     <group position={[t.x, 0, t.z]}>
       {/* body */}
