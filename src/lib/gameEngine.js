@@ -78,8 +78,20 @@ function shuffle(arr) {
   return a;
 }
 
-function roll() { return Math.floor(Math.random() * 6) + 1; }
-function rollSpeedDie() { return Math.floor(Math.random() * 6) + 1; }
+// Unbiased 1–6 from crypto when available (rejection sampling), else Math.random.
+function d6() {
+  const g = (typeof globalThis !== 'undefined') ? globalThis : {};
+  const c = g.crypto;
+  if (c && c.getRandomValues) {
+    const buf = new Uint8Array(1);
+    let v;
+    do { c.getRandomValues(buf); v = buf[0]; } while (v >= 252); // 252 = 6*42, drop bias
+    return (v % 6) + 1;
+  }
+  return Math.floor(Math.random() * 6) + 1;
+}
+function roll() { return d6(); }
+function rollSpeedDie() { return d6(); }
 
 // structuredClone is ~2-4x faster than JSON round-tripping and is called on nearly
 // every action; fall back to JSON for very old runtimes.

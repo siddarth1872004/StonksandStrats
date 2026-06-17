@@ -47,6 +47,91 @@ function bandColor(tile) {
   return null;
 }
 
+const ICON_TYPES = new Set(["railroad", "utility", "chance", "community_chest", "tax", "go", "jail", "go_to_jail", "free_parking"]);
+
+// Draw a simple vector icon (no emoji) centred at (cx,cy) with half-extent s.
+function drawTileIcon(ctx, tile, cx, cy, s) {
+  const t = tile.type;
+  const ink = "#1f2430";
+  ctx.save();
+  ctx.fillStyle = ink;
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = Math.max(2, s * 0.14);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  if (t === "railroad") {
+    ctx.fillRect(cx - s * 0.78, cy - s * 0.2, s * 1.3, s * 0.55);     // body
+    ctx.fillRect(cx + s * 0.12, cy - s * 0.62, s * 0.55, s * 0.45);   // cabin
+    ctx.fillRect(cx - s * 0.62, cy - s * 0.55, s * 0.16, s * 0.35);   // chimney
+    ctx.beginPath();
+    ctx.arc(cx - s * 0.38, cy + s * 0.5, s * 0.16, 0, 7);
+    ctx.arc(cx + s * 0.34, cy + s * 0.5, s * 0.16, 0, 7);
+    ctx.fill();
+  } else if (t === "utility" && tile.id === 12) {            // lightning bolt
+    ctx.fillStyle = "#eab308";
+    ctx.beginPath();
+    ctx.moveTo(cx + s * 0.25, cy - s * 0.8);
+    ctx.lineTo(cx - s * 0.42, cy + s * 0.12);
+    ctx.lineTo(cx - s * 0.02, cy + s * 0.12);
+    ctx.lineTo(cx - s * 0.22, cy + s * 0.82);
+    ctx.lineTo(cx + s * 0.48, cy - s * 0.18);
+    ctx.lineTo(cx + s * 0.08, cy - s * 0.18);
+    ctx.closePath();
+    ctx.fill();
+  } else if (t === "utility") {                              // water droplet
+    ctx.fillStyle = "#0ea5e9";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - s * 0.82);
+    ctx.quadraticCurveTo(cx + s * 0.7, cy + s * 0.22, cx, cy + s * 0.72);
+    ctx.quadraticCurveTo(cx - s * 0.7, cy + s * 0.22, cx, cy - s * 0.82);
+    ctx.fill();
+  } else if (t === "chance") {
+    ctx.fillStyle = "#e08a00";
+    ctx.font = `900 ${s * 1.9}px "Chakra Petch", system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("?", cx, cy + s * 0.05);
+  } else if (t === "community_chest") {
+    ctx.fillRect(cx - s * 0.7, cy - s * 0.15, s * 1.4, s * 0.7);      // body
+    ctx.beginPath();                                                   // lid
+    ctx.moveTo(cx - s * 0.7, cy - s * 0.15);
+    ctx.lineTo(cx - s * 0.7, cy - s * 0.32);
+    ctx.quadraticCurveTo(cx, cy - s * 0.85, cx + s * 0.7, cy - s * 0.32);
+    ctx.lineTo(cx + s * 0.7, cy - s * 0.15);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#e6dcc2"; ctx.fillRect(cx - s * 0.1, cy - s * 0.02, s * 0.2, s * 0.28); // lock
+  } else if (t === "tax" && tile.id === 4) {                 // income tax → $
+    ctx.font = `900 ${s * 1.7}px "Chakra Petch", system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("$", cx, cy + s * 0.05);
+  } else if (t === "tax") {                                  // luxury tax → diamond
+    ctx.fillStyle = "#22d3ee";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - s * 0.7); ctx.lineTo(cx + s * 0.62, cy - s * 0.1);
+    ctx.lineTo(cx, cy + s * 0.72); ctx.lineTo(cx - s * 0.62, cy - s * 0.1);
+    ctx.closePath(); ctx.fill();
+  } else if (t === "go") {                                   // arrow
+    ctx.fillStyle = "#10b981";
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.62, cy - s * 0.3); ctx.lineTo(cx + s * 0.15, cy - s * 0.3);
+    ctx.lineTo(cx + s * 0.15, cy - s * 0.6); ctx.lineTo(cx + s * 0.72, cy);
+    ctx.lineTo(cx + s * 0.15, cy + s * 0.6); ctx.lineTo(cx + s * 0.15, cy + s * 0.3);
+    ctx.lineTo(cx - s * 0.62, cy + s * 0.3); ctx.closePath(); ctx.fill();
+  } else if (t === "jail" || t === "go_to_jail") {           // prison bars
+    const col = t === "go_to_jail" ? "#ef4444" : ink;
+    ctx.strokeStyle = col;
+    ctx.strokeRect(cx - s * 0.6, cy - s * 0.6, s * 1.2, s * 1.2);
+    ctx.beginPath();
+    for (let i = -1; i <= 1; i++) { ctx.moveTo(cx + i * s * 0.3, cy - s * 0.55); ctx.lineTo(cx + i * s * 0.3, cy + s * 0.55); }
+    ctx.stroke();
+  } else if (t === "free_parking") {                         // "P"
+    ctx.font = `900 ${s * 1.7}px "Chakra Petch", system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("P", cx, cy + s * 0.05);
+  }
+  ctx.restore();
+}
+
 // side → how many quarter-turns to rotate the printed text so it reads outward.
 function sideRot(id) {
   if (id > 0 && id < 10) return 0;          // bottom → read from south
@@ -122,14 +207,22 @@ function makeTileTexture(tile) {
     ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(0, bandH - 2, lw, 2);
   }
 
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Vector icon for stations, utilities, taxes, chance/chest and the corners.
+  let top = bandH + 4;
+  const bottom = tile.price ? lh - 24 : lh - 4;
+  if (ICON_TYPES.has(tile.type)) {
+    const isz = Math.min(lw * 0.34, (bottom - top) * 0.34, 26);
+    drawTileIcon(ctx, tile, lw / 2, top + isz, isz);
+    top += isz * 2 + 3;
+  }
+
   const special = SPECIAL_LABEL[tile.type];
   const raw = special ? special : tile.name.toUpperCase();
   ctx.fillStyle = special ? (band || "#1f2430") : "#1f2430";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const top = bandH + 4;
-  const bottom = tile.price ? lh - 24 : lh - 4;
-  drawFittedText(ctx, raw, lw / 2, (top + bottom) / 2, lw * 0.86, bottom - top, special ? 24 : 18);
+  drawFittedText(ctx, raw, lw / 2, (top + bottom) / 2, lw * 0.86, bottom - top, special ? 22 : 17);
 
   if (tile.price) {
     ctx.fillStyle = "#0f766e";
@@ -407,79 +500,46 @@ function Pawn({ player, targetId, offset, active }) {
   );
 }
 
-/* Low-poly neon city sitting in the empty centre of the board. Deterministic
-   layout (seeded) so it never reshuffles; buildings glow faintly at night. */
-function CityCenter() {
-  const buildings = useMemo(() => {
-    const COLORS = ["#0ea5e9", "#f59e0b", "#34d399", "#a855f7", "#ef4444", "#e2e8f0"];
-    let seed = 1337;
-    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
-    const arr = [];
-    for (let i = 0; i < 22; i++) {
-      const r = 0.6 + rnd() * 3.4;
-      const a = rnd() * Math.PI * 2;
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
-      // taller toward the centre for a skyline silhouette
-      const h = (0.7 + rnd() * 2.4) * (1.6 - r / 4.5);
-      const w = 0.45 + rnd() * 0.55;
-      const d = 0.45 + rnd() * 0.55;
-      arr.push({ x, z, w, h: Math.max(0.5, h), d, col: COLORS[i % COLORS.length] });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <group position={[0, 0.1, 0]}>
-      {/* city ground plate */}
-      <mesh position={[0, -0.02, 0]}>
-        <cylinderGeometry args={[4.3, 4.3, 0.12, 32]} />
-        <meshStandardMaterial color="#0b0f18" flatShading metalness={0.3} roughness={0.8} />
-      </mesh>
-      {buildings.map((b, i) => (
-        <mesh key={i} position={[b.x, b.h / 2, b.z]}>
-          <boxGeometry args={[b.w, b.h, b.d]} />
-          <meshStandardMaterial color="#121823" flatShading emissive={b.col} emissiveIntensity={0.35} metalness={0.2} roughness={0.6} />
-        </mesh>
-      ))}
-      {/* faint glow disc under the skyline */}
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[4.2, 32]} />
-        <meshBasicMaterial color="#0a1a2e" transparent opacity={0.5} />
-      </mesh>
-    </group>
-  );
-}
-
 /* Orbit camera — drag to rotate, scroll to zoom (clamped). When `follow` is on,
    the orbit pivot (and camera) glide to keep your own token centred, so the
    view tracks your piece as it moves while you can still orbit around it. */
-function Controls({ follow, followRef }) {
+function Controls({ follow, followRef, adaptive, currentRef, rollId }) {
   const { camera, gl } = useThree();
   const ref = useRef();
+  const zoomStart = useRef(-1);
   useEffect(() => {
     const c = new ThreeOrbitControls(camera, gl.domElement);
     c.enablePan = false;
     c.enableDamping = true;
     c.dampingFactor = 0.08;
     c.minDistance = 10;
-    c.maxDistance = 46;
+    c.maxDistance = 48;
     c.maxPolarAngle = Math.PI / 2.6;   // stay well above the horizon — never see under the board
     c.minPolarAngle = Math.PI / 8;
     c.target.set(0, 0, 0);
     ref.current = c;
     return () => c.dispose();
   }, [camera, gl]);
+  // On each roll (adaptive mode), play a quick zoom-out → zoom-in.
+  useEffect(() => { if (adaptive) zoomStart.current = performance.now(); }, [rollId, adaptive]);
   useFrame(() => {
     const c = ref.current;
     if (!c) return;
-    if (follow && followRef.current) {
+    if (adaptive && currentRef.current) {
+      const tgt = c.target;
+      tgt.x += (currentRef.current.x - tgt.x) * 0.1;
+      tgt.z += (currentRef.current.z - tgt.z) * 0.1;
+      const el = zoomStart.current < 0 ? 999 : (performance.now() - zoomStart.current) / 1000;
+      const desired = el < 0.8 ? 42 : 17;     // pull back to show the roll, then push in on the player
+      const offset = camera.position.clone().sub(tgt);
+      offset.setLength(offset.length() + (desired - offset.length()) * 0.06);
+      camera.position.copy(tgt).add(offset);
+    } else if (follow && followRef.current) {
       const dx = (followRef.current.x - c.target.x) * 0.12;
       const dz = (followRef.current.z - c.target.z) * 0.12;
       c.target.x += dx; c.target.z += dz;
       camera.position.x += dx; camera.position.z += dz; // pan camera with target → keep angle
     } else {
-      // ease the pivot back to board centre when not following
       c.target.x += (0 - c.target.x) * 0.08;
       c.target.z += (0 - c.target.z) * 0.08;
     }
@@ -488,7 +548,7 @@ function Controls({ follow, followRef }) {
   return null;
 }
 
-function Scene({ gameState, onTileClick, renderedPositions, textures, follow, followRef }) {
+function Scene({ gameState, onTileClick, renderedPositions, textures, follow, followRef, adaptive, currentRef }) {
   const currentId = gameState?.order?.[gameState?.current];
   const allPlayers = gameState?.players;
   const players = allPlayers || [];
@@ -514,7 +574,7 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, follow, fo
 
   return (
     <>
-      <Controls follow={follow} followRef={followRef} />
+      <Controls follow={follow} followRef={followRef} adaptive={adaptive} currentRef={currentRef} rollId={gameState?.dice_roll_id ?? 0} />
       <ambientLight intensity={0.9} />
       <directionalLight position={[14, 26, 12]} intensity={1.05} />
       <directionalLight position={[-12, 10, -14]} intensity={0.35} color="#ffffff" />
@@ -528,8 +588,6 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, follow, fo
         <boxGeometry args={[U * 8.4, 0.3, U * 8.4]} />
         <meshStandardMaterial color="#111116" flatShading />
       </mesh>
-
-      <CityCenter />
 
 
       {TILES.map((tile) => {
@@ -565,14 +623,24 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
   const [follow, setFollow] = useState(false);
+  const [adaptive, setAdaptive] = useState(false);
 
-  // Live world position of the local player's token, read by the follow camera.
+  // Live world position of the local player's token (follow cam).
   const followRef = useRef({ x: 0, z: 0 });
   const me = gameState?.players?.find((p) => p.id === myPlayerId);
   if (me) {
     const pos = renderedPositions[myPlayerId] !== undefined ? renderedPositions[myPlayerId] : me.position;
     const tt = tileTransform(pos);
     followRef.current = { x: tt.x, z: tt.z };
+  }
+
+  // Live world position of the CURRENT-turn player's token (adaptive cam).
+  const currentRef = useRef({ x: 0, z: 0 });
+  const curP = gameState?.players?.find((p) => p.id === currentId);
+  if (curP) {
+    const pos = renderedPositions[curP.id] !== undefined ? renderedPositions[curP.id] : curP.position;
+    const tt = tileTransform(pos);
+    currentRef.current = { x: tt.x, z: tt.z };
   }
 
   // Build the printed tile faces once; dispose on unmount.
@@ -591,25 +659,40 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         gl={{ antialias: true, powerPreference: "high-performance" }}
         style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 35%, #121214 0%, #050506 70%, #000000 100%)" }}
       >
-        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} follow={follow && !!me} followRef={followRef} />
+        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} follow={follow && !!me} followRef={followRef} adaptive={adaptive} currentRef={currentRef} />
       </Canvas>
 
-      {/* Follow-camera toggle */}
-      {me && (
+      {/* Camera mode toggles */}
+      <div style={{ position: "absolute", top: "12px", left: "12px", zIndex: 5, display: "flex", flexDirection: "column", gap: "6px" }}>
+        {me && (
+          <button
+            onClick={() => { setFollow((f) => !f); setAdaptive(false); }}
+            style={{
+              cursor: "pointer", textAlign: "left",
+              fontFamily: "var(--font-retro)", fontSize: "12px", fontWeight: "bold", letterSpacing: "0.06em",
+              padding: "6px 11px", borderRadius: "7px", border: "1px solid",
+              background: follow ? "rgba(52,211,153,0.16)" : "rgba(0,0,0,0.5)",
+              borderColor: follow ? "#34d399" : "rgba(148,163,184,0.4)",
+              color: follow ? "#34d399" : "#cbd5e1",
+            }}
+          >
+            {follow ? "◉ FOLLOWING YOU" : "○ LOCK ON ME"}
+          </button>
+        )}
         <button
-          onClick={() => setFollow((f) => !f)}
+          onClick={() => { setAdaptive((a) => !a); setFollow(false); }}
           style={{
-            position: "absolute", top: "12px", left: "12px", zIndex: 5, cursor: "pointer",
+            cursor: "pointer", textAlign: "left",
             fontFamily: "var(--font-retro)", fontSize: "12px", fontWeight: "bold", letterSpacing: "0.06em",
             padding: "6px 11px", borderRadius: "7px", border: "1px solid",
-            background: follow ? "rgba(52,211,153,0.16)" : "rgba(0,0,0,0.5)",
-            borderColor: follow ? "#34d399" : "rgba(148,163,184,0.4)",
-            color: follow ? "#34d399" : "#cbd5e1",
+            background: adaptive ? "rgba(56,189,248,0.16)" : "rgba(0,0,0,0.5)",
+            borderColor: adaptive ? "#38bdf8" : "rgba(148,163,184,0.4)",
+            color: adaptive ? "#38bdf8" : "#cbd5e1",
           }}
         >
-          {follow ? "◉ FOLLOWING YOU" : "○ LOCK ON ME"}
+          {adaptive ? "◉ ADAPTIVE CAM" : "○ ADAPTIVE CAM"}
         </button>
-      )}
+      </div>
 
       {latest && (
         <div style={{ position: "absolute", top: "12px", left: "50%", transform: "translateX(-50%)", maxWidth: "86%", pointerEvents: "none", textAlign: "center" }}>
