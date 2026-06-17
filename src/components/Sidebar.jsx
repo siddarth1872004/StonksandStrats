@@ -255,6 +255,7 @@ function Sidebar({
   const isMyTurn = currPlayerId === myPlayerId;
   const inDebt = phase === "debt";
   const myPlayer = players.find(p => p.id === myPlayerId);
+  const jailFine = gameState?.house_rules?.jail_fine ?? 50;
   const isBankrupt = myPlayer?.bankrupt || false;
   const activeOpponents = players.filter(p => p.id !== myPlayerId && !p.bankrupt);
 
@@ -368,7 +369,7 @@ function Sidebar({
                         ⚂ ROLL FOR DOUBLES
                       </Btn>
                       <div style={{ display: "flex", gap: "5px" }}>
-                        <Btn style={{ flex: 1, fontSize: "13px" }} disabled={myPlayer?.money < 50} onClick={() => onAction("pay_jail_fine")}>PAY $50</Btn>
+                        <Btn style={{ flex: 1, fontSize: "13px" }} disabled={myPlayer?.money < jailFine} onClick={() => onAction("pay_jail_fine")}>PAY ${jailFine}</Btn>
                         <Btn style={{ flex: 1, fontSize: "13px" }} disabled={!myPlayer?.jail_cards} onClick={() => onAction("use_jail_card")}>
                           GET OUT CARD ({myPlayer?.jail_cards})
                         </Btn>

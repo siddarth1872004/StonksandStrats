@@ -9,14 +9,9 @@ export default function Toast({ message, type = "info", duration = 3000, onClose
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  const colors = {
-    info: { border: "2px solid #38BDF8", color: "#38BDF8", boxShadow: "3px 3px 0px rgba(56, 189, 248, 0.4)" },
-    error: { border: "2px solid #EF4444", color: "#EF4444", boxShadow: "3px 3px 0px rgba(239, 68, 68, 0.4)" },
-    success: { border: "2px solid #10B981", color: "#10B981", boxShadow: "3px 3px 0px rgba(16, 185, 129, 0.4)" },
-    warning: { border: "2px solid #F59E0B", color: "#F59E0B", boxShadow: "3px 3px 0px rgba(245, 158, 11, 0.4)" }
-  };
-
-  const activeStyle = colors[type] || colors.info;
+  // Tan board card with a type-coloured accent (no dark/blue surfaces).
+  const accents = { info: "#b45309", error: "#b91c1c", success: "#0f766e", warning: "#b45309" };
+  const accent = accents[type] || accents.info;
 
   const toastStyle = {
     position: "fixed",
@@ -29,19 +24,22 @@ export default function Toast({ message, type = "info", duration = 3000, onClose
     alignItems: "center",
     gap: "10px",
     padding: "11px 16px",
-    background: "rgba(5, 5, 5, 0.96)",
+    background: "#e6dcc2",
+    color: "#1f2430",
     borderRadius: "10px",
+    border: "1px solid rgba(0,0,0,0.25)",
+    borderLeft: `4px solid ${accent}`,
     fontFamily: "var(--font-retro)",
     fontSize: "13px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
     animation: "toast-drop 0.25s ease",
-    ...activeStyle
   };
 
   return (
     <div style={toastStyle}>
-      <AlertIcon size={11} color="currentColor" />
-      <span style={{ fontWeight: "bold" }}>[{type.toUpperCase()}]</span>
-      <span style={{ color: "#E2E8F0" }}>{message}</span>
+      <AlertIcon size={11} color={accent} />
+      <span style={{ fontWeight: "bold", color: accent }}>[{type.toUpperCase()}]</span>
+      <span style={{ color: "#3a3320" }}>{message}</span>
       <button 
         onClick={onClose} 
         style={{

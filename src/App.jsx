@@ -983,11 +983,11 @@ export default function App() {
 
       {cardOverlay && !use3D && (
         <div className="fixed inset-0 z-[8500] flex items-center justify-center pointer-events-none">
-          <div className={`glass-card px-8 py-6 border-t-4 animate-scale-up text-center max-w-xs ${cardOverlay.isChance ? "border-amber-500" : "border-sky-400"}`}>
-            <div className={`font-mono text-[8px] font-bold tracking-widest mb-2 ${cardOverlay.isChance ? "text-amber-400" : "text-sky-400"}`}>
+          <div className="px-8 py-6 animate-scale-up text-center max-w-xs" style={{ background: "#e6dcc2", color: "#1f2430", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.25)", borderTop: `4px solid ${cardOverlay.isChance ? "#f59e0b" : "#0ea5e9"}`, boxShadow: "0 14px 40px rgba(0,0,0,0.55)" }}>
+            <div className="font-mono text-[8px] font-bold tracking-widest mb-2" style={{ color: cardOverlay.isChance ? "#b45309" : "#0369a1" }}>
               {cardOverlay.isChance ? "✦ CHANCE ✦" : "✦ COMMUNITY CHEST ✦"}
             </div>
-            <div className="font-mono text-[10px] text-slate-200 leading-relaxed">{cardOverlay.text}</div>
+            <div className="font-mono text-[10px] leading-relaxed" style={{ color: "#3a3320" }}>{cardOverlay.text}</div>
           </div>
         </div>
       )}
@@ -1003,14 +1003,14 @@ export default function App() {
         const canAfford = (me?.money ?? 0) >= pp.amount;
         return (
           <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.7)", zIndex: 8600 }}>
-            <div className="glass-card animate-scale-up text-center" style={{ width: "min(92vw, 360px)", padding: "26px 24px", borderTop: "4px solid #f87171" }}>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#f87171", letterSpacing: "0.2em", marginBottom: "10px" }}>⚠ PAYMENT DUE</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "26px", color: "#fca5a5", fontWeight: "bold", textShadow: "0 0 12px rgba(248,113,113,0.5)" }}>${pp.amount.toLocaleString()}</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#94a3b8", margin: "10px 0 4px" }}>to {creditor}</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#64748b", marginBottom: "16px" }}>{pp.reason}</div>
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: canAfford ? "#34d399" : "#fbbf24", marginBottom: "14px" }}>
+            <div className="animate-scale-up text-center" style={{ width: "min(92vw, 360px)", padding: "26px 24px", borderRadius: "12px", background: "#e6dcc2", color: "#1f2430", boxShadow: "0 14px 40px rgba(0,0,0,0.55)", border: "1px solid rgba(0,0,0,0.25)", borderTop: "4px solid #b91c1c" }}>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#b91c1c", letterSpacing: "0.2em", marginBottom: "10px", fontWeight: "bold" }}>⚠ PAYMENT DUE</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "26px", color: "#b91c1c", fontWeight: "bold" }}>${pp.amount.toLocaleString()}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#5c5232", margin: "10px 0 4px" }}>to {creditor}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "8px", color: "#7c6f4f", marginBottom: "16px" }}>{pp.reason}</div>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: canAfford ? "#0f766e" : "#b45309", marginBottom: "14px", fontWeight: "bold" }}>
                 YOUR CASH: ${me?.money?.toLocaleString() ?? 0}
-                {!canAfford && <div style={{ color: "#fbbf24", marginTop: "6px" }}>Short — paying will require raising funds.</div>}
+                {!canAfford && <div style={{ color: "#b45309", marginTop: "6px" }}>Short — paying will require raising funds.</div>}
               </div>
               <button onClick={() => handleAction("confirm_payment")} className="btn-retro btn-retro-red w-full font-bold tracking-wider" style={{ padding: "12px", fontSize: "12px" }}>
                 PAY ${pp.amount.toLocaleString()}

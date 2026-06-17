@@ -118,10 +118,15 @@ export function diffStates(prev, next) {
 
 // Returns a Promise that resolves after rapidly cycling dice faces.
 // Caller supplies a setState setter that accepts [d1, d2].
+// How long the dice "roll" blocks the queue. Kept in sync with the 3D dice
+// tumble (Board3D DICE_TUMBLE) so the token never starts moving before the
+// dice have settled and the result is revealed.
+export const DICE_ROLL_MS = 1700;
+
 export function animateDice(finalD1, finalD2, setDiceDisplay, queueInstance) {
   return new Promise(resolve => {
     const FRAME_MS = 80;
-    const TOTAL_MS = 500;
+    const TOTAL_MS = DICE_ROLL_MS;
     const frames = Math.floor(TOTAL_MS / FRAME_MS);
     let count = 0;
 
