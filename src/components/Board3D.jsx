@@ -99,9 +99,9 @@ function makeTileTexture(tile) {
   canvas.width = cw; canvas.height = ch;
   const ctx = canvas.getContext("2d");
 
-  ctx.fillStyle = "#0d121d";
+  ctx.fillStyle = "#f6f4ec";
   ctx.fillRect(0, 0, cw, ch);
-  ctx.strokeStyle = "rgba(255,255,255,0.10)";
+  ctx.strokeStyle = "rgba(0,0,0,0.22)";
   ctx.lineWidth = 3;
   ctx.strokeRect(1.5, 1.5, cw - 3, ch - 3);
 
@@ -124,7 +124,7 @@ function makeTileTexture(tile) {
 
   const special = SPECIAL_LABEL[tile.type];
   const raw = special ? special : tile.name.toUpperCase();
-  ctx.fillStyle = special ? (band || "#eef3ff") : "#eef3ff";
+  ctx.fillStyle = special ? (band || "#1f2430") : "#1f2430";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const top = bandH + 4;
@@ -132,7 +132,7 @@ function makeTileTexture(tile) {
   drawFittedText(ctx, raw, lw / 2, (top + bottom) / 2, lw * 0.86, bottom - top, special ? 24 : 18);
 
   if (tile.price) {
-    ctx.fillStyle = "#7dd3fc";
+    ctx.fillStyle = "#0f766e";
     ctx.font = `700 15px "Chakra Petch", system-ui, sans-serif`;
     ctx.fillText(`$${tile.price}`, lw / 2, lh - 12);
   }
@@ -242,13 +242,13 @@ function TokenModel({ shape, color, active }) {
 
 function Tile({ tile, texture, ownerColor, houseCount, mortgaged, onClick }) {
   const t = tileTransform(tile.id);
-  const bodyColor = mortgaged ? "#3a1414" : ownerColor ? ownerColor : "#10151f";
+  const bodyColor = mortgaged ? "#e7b6b6" : ownerColor ? ownerColor : "#f1efe6";
   return (
     <group position={[t.x, 0, t.z]}>
       {/* body */}
       <mesh onClick={(e) => { e.stopPropagation(); onClick(tile.id); }}>
         <boxGeometry args={[t.w * 0.96, TILE_H, t.d * 0.96]} />
-        <meshStandardMaterial color={bodyColor} flatShading metalness={0.15} roughness={0.85} emissive={ownerColor || "#000"} emissiveIntensity={ownerColor ? 0.18 : 0} />
+        <meshStandardMaterial color={bodyColor} flatShading metalness={0.05} roughness={0.9} emissive={ownerColor || "#000"} emissiveIntensity={ownerColor ? 0.12 : 0} />
       </mesh>
       {/* printed face */}
       <mesh position={[0, TILE_H / 2 + 0.011, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -354,18 +354,18 @@ function Scene({ gameState, onTileClick, renderedPositions, textures }) {
   return (
     <>
       <Controls />
-      <ambientLight intensity={0.78} />
-      <directionalLight position={[14, 26, 12]} intensity={1.1} />
-      <directionalLight position={[-12, 10, -14]} intensity={0.4} color="#38bdf8" />
+      <ambientLight intensity={0.9} />
+      <directionalLight position={[14, 26, 12]} intensity={1.05} />
+      <directionalLight position={[-12, 10, -14]} intensity={0.35} color="#ffffff" />
 
-      {/* board frame */}
+      {/* board frame (dark charcoal) + soft inner playfield */}
       <mesh position={[0, -0.35, 0]} onClick={() => onTileClick(null)}>
         <boxGeometry args={[U * 12.4, 0.6, U * 12.4]} />
-        <meshStandardMaterial color="#05070d" flatShading metalness={0.25} roughness={0.9} />
+        <meshStandardMaterial color="#1b1b20" flatShading metalness={0.2} roughness={0.9} />
       </mesh>
       <mesh position={[0, -0.06, 0]}>
         <boxGeometry args={[U * 8.4, 0.3, U * 8.4]} />
-        <meshStandardMaterial color="#0a1120" flatShading emissive="#0a1a33" emissiveIntensity={0.25} />
+        <meshStandardMaterial color="#111116" flatShading />
       </mesh>
 
       {TILES.map((tile) => {
@@ -411,7 +411,7 @@ export default function Board3D({ gameState, onTileClick, renderedPositions = {}
         dpr={[1, 1.75]}
         camera={{ position: [0, 21, 17], fov: 46 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
-        style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 30%, #0b1020 0%, #03050a 100%)" }}
+        style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 35%, #121214 0%, #050506 70%, #000000 100%)" }}
       >
         <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} />
       </Canvas>

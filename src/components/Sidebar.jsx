@@ -280,7 +280,7 @@ function Sidebar({
       height: stacked ? "auto" : "100%",
       display: "flex",
       flexDirection: "column",
-      background: "linear-gradient(180deg, #07090f 0%, #020308 100%)",
+      background: "#000000",
       borderLeft: stacked ? "none" : "1px solid rgba(255,179,0,0.22)",
       borderTop: stacked ? "1px solid rgba(255,179,0,0.22)" : "none",
       overflowX: "hidden",
