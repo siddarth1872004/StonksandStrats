@@ -408,8 +408,13 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
               )}
             </div>
 
-            {/* 4. Player tokens */}
-            {playersHere.length > 0 && (
+            {/* 4. Player tokens — adaptively shrink as more pieces share a tile
+                 so they never clip past the cell. */}
+            {playersHere.length > 0 && (() => {
+              const n = playersHere.length;
+              const tScale = n >= 4 ? 0.52 : n === 3 ? 0.66 : n === 2 ? 0.82 : 1;
+              const tSize = `clamp(${(9 * tScale).toFixed(1)}px, ${(2.5 * tScale).toFixed(2)}cqw, ${(20 * tScale).toFixed(1)}px)`;
+              return (
               <div style={{
                 display: "flex",
                 flexWrap: "wrap",
@@ -419,6 +424,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                 background: "rgba(0,0,0,0.5)",
                 padding: "1px",
                 flexShrink: 0,
+                maxWidth: "100%",
               }}>
                 {playersHere.map(p => {
                   const isActive = p.id === currentTurnPlayerId && gameState?.winner === null;
@@ -445,7 +451,7 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                       className={"token-piece" + ringClass}
                       title={`${p.name} · $${(p.money ?? 0).toLocaleString()}`}
                       style={{
-                        width: "clamp(11px, 2.9cqw, 22px)", height: "clamp(11px, 2.9cqw, 22px)", flexShrink: 0,
+                        width: tSize, height: tSize, flexShrink: 0,
                         color: col,
                       }}
                     >
@@ -456,7 +462,8 @@ function Board({ gameState, myPlayerId, onTileClick, renderedPositions, animDice
                   );
                 })}
               </div>
-            )}
+              );
+            })()}
           </div>
         );
       })}
