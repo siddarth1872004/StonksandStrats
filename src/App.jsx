@@ -981,7 +981,7 @@ export default function App() {
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {cardOverlay && (
+      {cardOverlay && !use3D && (
         <div className="fixed inset-0 z-[8500] flex items-center justify-center pointer-events-none">
           <div className={`glass-card px-8 py-6 border-t-4 animate-scale-up text-center max-w-xs ${cardOverlay.isChance ? "border-amber-500" : "border-sky-400"}`}>
             <div className={`font-mono text-[8px] font-bold tracking-widest mb-2 ${cardOverlay.isChance ? "text-amber-400" : "text-sky-400"}`}>
@@ -1122,6 +1122,7 @@ export default function App() {
                   renderedPositions={renderedPositions}
                   animationsBusy={animationsBusy}
                   landing={landing}
+                  card={cardOverlay}
                 />
               </Suspense>
             ) : (

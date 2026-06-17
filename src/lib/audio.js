@@ -73,11 +73,11 @@ export const playClick = () => {
 export const playRoll = () => {
   const ctx = getAudioContext();
   if (!ctx) return;
-  // A run of quick rattly knocks that lasts as long as the dice tumble (~0.95s)
+  // A run of quick rattly knocks that lasts as long as the dice tumble (~1.7s)
   // so the sound finishes with the dice, not well before them.
   let time = ctx.currentTime;
-  const HITS = 13;
-  const STEP = 0.075;
+  const HITS = 21;
+  const STEP = 0.082;
   for (let i = 0; i < HITS; i++) {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();

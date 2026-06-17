@@ -16,6 +16,9 @@ import { liveNewsLine } from "../lib/liveNews";
 const U = 1.6;
 const GRID_CENTER = 7.5;
 const TILE_H = 0.5;
+const REST_Y = TILE_H / 2;          // tokens rest ON the tile, not buried in it
+const DICE_TUMBLE = 1.7;            // how long the dice juggle before settling
+const ROLL_VIEW = 2.0;              // auto-cams frame the roll this long before tracking the token
 
 function tileTransform(id) {
   const c = getTileGridCoords(id);
@@ -389,7 +392,7 @@ function Die({ value, x, rollId }) {
     targetRef.current = yaw.multiply(q);
   }, [rollId, value]);
 
-  const TUMBLE = 0.95;
+  const TUMBLE = DICE_TUMBLE;
   useFrame((state, delta) => {
     const m = ref.current;
     if (!m) return;
@@ -481,14 +484,15 @@ function Pawn({ player, targetId, offset, active }) {
       g.position.z += (dz / dist) * step;
     }
     const moving = dist > 0.04;
+    // Sit on the tile surface (REST_Y) so the piece never sinks into the board.
     g.position.y = moving
-      ? Math.abs(Math.sin(state.clock.elapsedTime * 13)) * 0.3   // one hop arc per tile
-      : active ? Math.sin(state.clock.elapsedTime * 2.5) * 0.06 + 0.02 : 0;
+      ? REST_Y + Math.abs(Math.sin(state.clock.elapsedTime * 13)) * 0.32   // one hop arc per tile
+      : active ? REST_Y + Math.sin(state.clock.elapsedTime * 2.5) * 0.06 + 0.04 : REST_Y;
     if (active && !moving) g.rotation.y += 0.01;
   });
 
   return (
-    <group ref={ref} position={[tx, 0, tz]}>
+    <group ref={ref} position={[tx, REST_Y, tz]}>
       {/* base disc */}
       <mesh position={[0, 0.04, 0]}><cylinderGeometry args={[0.34, 0.4, 0.08, 16]} /><meshStandardMaterial color={col} flatShading emissive={col} emissiveIntensity={active ? 0.6 : 0.2} metalness={0.4} roughness={0.4} /></mesh>
       {active && (
@@ -501,55 +505,80 @@ function Pawn({ player, targetId, offset, active }) {
   );
 }
 
-/* Orbit camera — drag to rotate, scroll to zoom (clamped). When `follow` is on,
-   the orbit pivot (and camera) glide to keep your own token centred, so the
-   view tracks your piece as it moves while you can still orbit around it. */
-function Controls({ follow, followRef, adaptive, currentRef, rollId }) {
+/* Orbit camera with selectable modes. The two "auto" modes (follow / adaptive)
+   first frame the dice in the centre while they tumble, then glide to track the
+   relevant token once the roll has been shown. `top` and `cinematic` are scripted
+   views (no user rotation). The board can never be seen from underneath. */
+function Controls({ mode, followRef, currentRef, rollId }) {
   const { camera, gl } = useThree();
   const ref = useRef();
-  const zoomStart = useRef(-1);
+  const rollAt = useRef(-999);
+  const cine = useRef(Math.PI * 0.25);
   useEffect(() => {
     const c = new ThreeOrbitControls(camera, gl.domElement);
     c.enablePan = false;
     c.enableDamping = true;
     c.dampingFactor = 0.08;
-    c.minDistance = 10;
-    c.maxDistance = 48;
+    c.minDistance = 9;
+    c.maxDistance = 52;
     c.maxPolarAngle = Math.PI / 2.6;   // stay well above the horizon — never see under the board
-    c.minPolarAngle = Math.PI / 8;
+    c.minPolarAngle = Math.PI / 10;
     c.target.set(0, 0, 0);
     ref.current = c;
     return () => c.dispose();
   }, [camera, gl]);
-  // On each roll (adaptive mode), play a quick zoom-out → zoom-in.
-  useEffect(() => { if (adaptive) zoomStart.current = performance.now(); }, [rollId, adaptive]);
-  useFrame(() => {
+  useEffect(() => { rollAt.current = performance.now(); }, [rollId]);
+
+  useFrame((_, delta) => {
     const c = ref.current;
     if (!c) return;
-    if (adaptive && currentRef.current) {
-      const tgt = c.target;
-      tgt.x += (currentRef.current.x - tgt.x) * 0.1;
-      tgt.z += (currentRef.current.z - tgt.z) * 0.1;
-      const el = zoomStart.current < 0 ? 999 : (performance.now() - zoomStart.current) / 1000;
-      const desired = el < 0.8 ? 42 : 17;     // pull back to show the roll, then push in on the player
-      const offset = camera.position.clone().sub(tgt);
-      offset.setLength(offset.length() + (desired - offset.length()) * 0.06);
-      camera.position.copy(tgt).add(offset);
-    } else if (follow && followRef.current) {
-      const dx = (followRef.current.x - c.target.x) * 0.12;
-      const dz = (followRef.current.z - c.target.z) * 0.12;
-      c.target.x += dx; c.target.z += dz;
+    const tgt = c.target;
+    const auto = mode === "follow" || mode === "adaptive";
+    const watchRoll = auto && (performance.now() - rollAt.current) / 1000 < ROLL_VIEW;
+
+    const easeTarget = (x, y, z, k = 0.1) => {
+      tgt.x += (x - tgt.x) * k; tgt.y += (y - tgt.y) * k; tgt.z += (z - tgt.z) * k;
+    };
+    const easeDist = (d, k = 0.06) => {
+      const off = camera.position.clone().sub(tgt);
+      off.setLength(off.length() + (d - off.length()) * k);
+      camera.position.copy(tgt).add(off);
+    };
+
+    c.enableRotate = mode === "free" || auto;
+
+    if (mode === "top") {
+      easeTarget(0, 0, 0, 0.1);
+      camera.position.x += (0 - camera.position.x) * 0.08;
+      camera.position.z += (0.01 - camera.position.z) * 0.08;
+      camera.position.y += (34 - camera.position.y) * 0.08;
+    } else if (mode === "cinematic") {
+      cine.current += delta * 0.12;
+      easeTarget(0, 0, 0, 0.1);
+      camera.position.x += (Math.cos(cine.current) * 26 - camera.position.x) * 0.05;
+      camera.position.z += (Math.sin(cine.current) * 26 - camera.position.z) * 0.05;
+      camera.position.y += (18 - camera.position.y) * 0.05;
+    } else if (watchRoll) {
+      // Centre on the dice and frame them while they juggle.
+      easeTarget(0, 1.2, 0, 0.12);
+      easeDist(20, 0.07);
+    } else if (mode === "adaptive" && currentRef.current) {
+      easeTarget(currentRef.current.x, 0, currentRef.current.z, 0.1);
+      easeDist(17, 0.06);
+    } else if (mode === "follow" && followRef.current) {
+      const dx = (followRef.current.x - tgt.x) * 0.12;
+      const dz = (followRef.current.z - tgt.z) * 0.12;
+      tgt.x += dx; tgt.z += dz; tgt.y += (0 - tgt.y) * 0.12;
       camera.position.x += dx; camera.position.z += dz; // pan camera with target → keep angle
     } else {
-      c.target.x += (0 - c.target.x) * 0.08;
-      c.target.z += (0 - c.target.z) * 0.08;
+      easeTarget(0, 0, 0, 0.08); // free
     }
     c.update();
   });
   return null;
 }
 
-function Scene({ gameState, onTileClick, renderedPositions, textures, follow, followRef, adaptive, currentRef }) {
+function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, followRef, currentRef }) {
   const currentId = gameState?.order?.[gameState?.current];
   const allPlayers = gameState?.players;
   const players = allPlayers || [];
@@ -575,19 +604,19 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, follow, fo
 
   return (
     <>
-      <Controls follow={follow} followRef={followRef} adaptive={adaptive} currentRef={currentRef} rollId={gameState?.dice_roll_id ?? 0} />
+      <Controls mode={camMode} followRef={followRef} currentRef={currentRef} rollId={gameState?.dice_roll_id ?? 0} />
       <ambientLight intensity={0.9} />
       <directionalLight position={[14, 26, 12]} intensity={1.05} />
       <directionalLight position={[-12, 10, -14]} intensity={0.35} color="#ffffff" />
 
-      {/* board frame (dark charcoal) + soft inner playfield */}
+      {/* espresso-wood frame + green felt playfield (classic tabletop look) */}
       <mesh position={[0, -0.35, 0]} onClick={() => onTileClick(null)}>
         <boxGeometry args={[U * 12.4, 0.6, U * 12.4]} />
-        <meshStandardMaterial color="#1b1b20" flatShading metalness={0.2} roughness={0.9} />
+        <meshStandardMaterial color="#2a241d" flatShading metalness={0.15} roughness={0.85} />
       </mesh>
       <mesh position={[0, -0.06, 0]}>
         <boxGeometry args={[U * 8.4, 0.3, U * 8.4]} />
-        <meshStandardMaterial color="#111116" flatShading />
+        <meshStandardMaterial color="#173d2c" flatShading roughness={0.95} />
       </mesh>
 
 
@@ -687,16 +716,39 @@ function LandingCard({ tile, gameState }) {
   );
 }
 
-export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {}, animationsBusy = false, landing = null }) {
+/* Chance / Community-Chest card shown in the same bottom-left slot as the
+   landing card, so all draws read from one consistent place. */
+function CardNotif({ card }) {
+  const accent = card.isChance ? "#f59e0b" : "#38bdf8";
+  return (
+    <div style={{
+      position: "absolute", bottom: "16px", left: "16px",
+      width: "min(300px, 78%)", pointerEvents: "none",
+      background: "#e6dcc2", color: "#1f2430", borderRadius: "10px", overflow: "hidden",
+      border: "1px solid rgba(0,0,0,0.25)", boxShadow: "0 12px 34px rgba(0,0,0,0.55)",
+      fontFamily: "var(--font-retro)",
+    }} className="animate-scale-up">
+      <div style={{ height: "8px", background: accent }} />
+      <div style={{ padding: "10px 14px 12px" }}>
+        <div style={{ fontSize: "10px", letterSpacing: "0.18em", fontWeight: "bold", color: card.isChance ? "#b45309" : "#0369a1" }}>
+          {card.isChance ? "✦ CHANCE" : "✦ COMMUNITY CHEST"}
+        </div>
+        <div style={{ fontSize: "13px", color: "#3a3320", marginTop: "5px", lineHeight: 1.4 }}>{card.text}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {}, animationsBusy = false, landing = null, card = null }) {
   const news = liveNewsLine(gameState, animationsBusy);
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
-  // Single camera mode + a dropdown to pick it.
-  const [camMode, setCamMode] = useState("free"); // free | follow | adaptive
+  // Camera mode + a dropdown to pick it.
+  const [camModeRaw, setCamMode] = useState("free"); // free | follow | adaptive | top | cinematic
   const [camMenu, setCamMenu] = useState(false);
   const me = gameState?.players?.find((p) => p.id === myPlayerId);
-  const follow = camMode === "follow" && !!me;
-  const adaptive = camMode === "adaptive";
+  // "Lock on me" only works if I'm a player; otherwise fall back to free orbit.
+  const camMode = camModeRaw === "follow" && !me ? "free" : camModeRaw;
 
   // Show the landing detail card to the player who just landed (until they move on).
   const landTile = landing && landing.pid === myPlayerId ? TILES.find((t) => t.id === landing.tileId) : null;
@@ -732,9 +784,9 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         dpr={[1, 1.75]}
         camera={{ position: [0, 21, 17], fov: 46 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
-        style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 35%, #121214 0%, #050506 70%, #000000 100%)" }}
+        style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 30%, #262229 0%, #0e0c10 60%, #050407 100%)" }}
       >
-        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} follow={follow} followRef={followRef} adaptive={adaptive} currentRef={currentRef} />
+        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} camMode={camMode} followRef={followRef} currentRef={currentRef} />
       </Canvas>
 
       {/* Camera settings — icon button + dropdown */}
@@ -760,7 +812,9 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
             {[
               { id: "free", label: "Free orbit", desc: "Drag / zoom freely" },
               ...(me ? [{ id: "follow", label: "Lock on me", desc: "Follow your token" }] : []),
-              { id: "adaptive", label: "Adaptive", desc: "Zoom to active player" },
+              { id: "adaptive", label: "Adaptive", desc: "Watch the roll, then the active player" },
+              { id: "top", label: "Top-down", desc: "Overhead board view" },
+              { id: "cinematic", label: "Cinematic", desc: "Slow auto-orbit" },
             ].map((o) => (
               <button
                 key={o.id}
@@ -813,8 +867,9 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         </div>
       )}
 
-      {/* Landing detail card (tan, matches the board) for the player who landed */}
-      {landTile && <LandingCard tile={landTile} gameState={gameState} />}
+      {/* Bottom-left notification slot: a drawn Chance/Chest card takes priority,
+          otherwise the tan landing-detail card for the player who landed. */}
+      {card ? <CardNotif card={card} /> : landTile && <LandingCard tile={landTile} gameState={gameState} />}
 
       {currentName && (
         <div style={{ position: "absolute", bottom: "10px", left: "50%", transform: "translateX(-50%)", pointerEvents: "none",
