@@ -570,11 +570,24 @@ function Controls({ mode, followRef, currentRef, rollId }) {
       camera.position.z += (Math.sin(cine.current) * 26 - camera.position.z) * 0.05;
       camera.position.y += (18 - camera.position.y) * 0.05;
     } else if (mode === "adaptive") {
-      // Frame the dice during the roll, then the active player — always from the
-      // same away side, pulling back a touch for the roll.
-      if (watchRoll || !currentRef.current) easeTarget(0, 1.2, 0, 0.12);
-      else easeTarget(currentRef.current.x, 0, currentRef.current.z, 0.1);
-      easeAway(watchRoll ? 22 : 17, 0.06);
+      if (watchRoll || !currentRef.current) {
+        // While the dice juggle, frame them in the centre from the fixed side.
+        easeTarget(0, 1.2, 0, 0.12);
+        easeAway(22, 0.06);
+      } else {
+        // Track the active token, viewing it from the SAME side of the board it
+        // sits on — camera sits just outside the board near the token, looking in
+        // (token on the left → camera on the left). Monopoly-3D style.
+        const cx = currentRef.current.x, cz = currentRef.current.z;
+        easeTarget(cx, 0, cz, 0.1);
+        const horiz = Math.hypot(cx, cz) || 1;
+        const BACK = 13, HEIGHT = 11;          // distance beyond the token + elevation
+        const wantX = cx + (cx / horiz) * BACK;
+        const wantZ = cz + (cz / horiz) * BACK;
+        camera.position.x += (wantX - camera.position.x) * 0.06;
+        camera.position.z += (wantZ - camera.position.z) * 0.06;
+        camera.position.y += (HEIGHT - camera.position.y) * 0.06;
+      }
     } else if (mode === "follow" && followRef.current) {
       if (watchRoll) {
         easeTarget(0, 1.2, 0, 0.12);
