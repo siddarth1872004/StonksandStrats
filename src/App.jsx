@@ -693,7 +693,9 @@ export default function App() {
     // (e.g. a roll), let the animation finish — the effect (keyed on
     // animationsBusy) re-schedules the next decision once the token has landed.
     if (sameBot && !animationsBusyRef.current && ns.phase !== "game_over" && getAIDecision(ns, botId)) {
-      aiTimerRef.current = setTimeout(processAITurn, Math.floor(Math.random() * 400) + 350);
+      // A touch slower than instant so chained steps (e.g. building several
+      // houses, auction bids) are readable rather than a blur.
+      aiTimerRef.current = setTimeout(processAITurn, Math.floor(Math.random() * 500) + 650);
     }
   }, [commitState]);
 
