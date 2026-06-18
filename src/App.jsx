@@ -217,20 +217,6 @@ export default function App() {
     document.body.className = `bloom-${bloomSetting === "high" ? "high" : "low"}${lowPower ? " low-power" : ""}`;
   }, [bloomSetting]);
 
-  // QoL: a subtle "Your turn!" nudge when it becomes the local player's turn, so
-  // you never miss it (fires only on the turn transition, not every state echo).
-  const prevTurnIdRef = useRef(null);
-  useEffect(() => {
-    if (screen !== "GAME" || !gameState) return;
-    const curId = gameState.order?.[gameState.current];
-    if (curId === prevTurnIdRef.current) return;
-    prevTurnIdRef.current = curId;
-    const me = gameState.players?.find(p => p.id === playerId);
-    if (curId === playerId && me && !me.bankrupt && gameState.winner == null) {
-      setToast({ message: "Your turn!", type: "success" });
-      playClick();
-    }
-  }, [gameState, screen, playerId]);
 
   useEffect(() => {
     const q = new AnimationQueue();
