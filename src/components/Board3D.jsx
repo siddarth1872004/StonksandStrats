@@ -397,10 +397,10 @@ function Die({ value, x, rollId, charging }) {
   const target = useRef(new THREE.Quaternion());
 
   useEffect(() => {
-    // Throw: drop from a height with an upward pop and a strong random spin.
-    posY.current = DIE_BASE_Y + 3.4;
-    velY.current = 1.5 + Math.random() * 2.5;
-    const r = () => (7 + Math.random() * 13) * (Math.random() < 0.5 ? -1 : 1);
+    // Throw: toss UP from wherever the die currently is (in-hand / at rest) so the
+    // shuffle→throw hand-off is seamless — no teleport to a launch height.
+    velY.current = 10 + Math.random() * 4;
+    const r = () => (8 + Math.random() * 12) * (Math.random() < 0.5 ? -1 : 1);
     spin.current = [r(), r(), r()];
     phase.current = "tumble";
     t0.current = -1;
@@ -416,11 +416,13 @@ function Die({ value, x, rollId, charging }) {
     const dt = Math.min(delta, 0.05);   // clamp for stable integration
 
     if (charging) {                     // shuffling in hand before the throw
-      m.rotation.x += (Math.random() - 0.5) * 0.7;
-      m.rotation.y += (Math.random() - 0.5) * 0.7;
-      m.rotation.z += (Math.random() - 0.5) * 0.7;
-      posY.current = DIE_BASE_Y + 0.45 + Math.sin(state.clock.elapsedTime * 26 + x) * 0.18;
+      // Smooth fast spin + a quick bob reads as "winding up" (no jittery glitch).
+      m.rotation.x += 0.28;
+      m.rotation.y += 0.34;
+      m.rotation.z += 0.2;
+      posY.current = DIE_BASE_Y + 0.5 + Math.sin(state.clock.elapsedTime * 22 + x) * 0.16;
       m.position.y = posY.current;
+      phase.current = "idle";           // park physics until the throw fires
       return;
     }
 
@@ -434,7 +436,7 @@ function Die({ value, x, rollId, charging }) {
       m.rotation.x += spin.current[0] * dt;
       m.rotation.y += spin.current[1] * dt;
       m.rotation.z += spin.current[2] * dt;
-      if (posY.current <= DIE_BASE_Y) {       // floor impact
+      if (posY.current <= DIE_BASE_Y && velY.current < 0) {  // floor impact (falling)
         posY.current = DIE_BASE_Y;
         if (Math.abs(velY.current) > 1.4 && t < 2.2) {
           velY.current = -velY.current * DIE_E;          // bounce
