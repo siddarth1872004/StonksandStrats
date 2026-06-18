@@ -182,6 +182,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showConfirmBankruptcy, setShowConfirmBankruptcy] = useState(false);
+  const [diceCharging, setDiceCharging] = useState(false); // hold-to-throw: shuffle the 3D dice
 
   const confettiCanvasRef = useRef(null);
   const confettiEngineRef = useRef(null);
@@ -1119,6 +1120,7 @@ export default function App() {
                   animationsBusy={animationsBusy}
                   landing={landing}
                   card={cardOverlay}
+                  charging={diceCharging}
                 />
               </Suspense>
             ) : (
@@ -1148,6 +1150,7 @@ export default function App() {
                 onEmote={sendEmote}
                 onAction={handleSidebarAction}
                 onOpenSettings={openSettings}
+                onDiceCharging={setDiceCharging}
               />
             );
 

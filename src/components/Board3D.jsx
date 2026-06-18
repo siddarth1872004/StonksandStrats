@@ -373,9 +373,15 @@ const FACE_EULER = {
   2: [0, 0, -Math.PI / 2], 5: [0, 0, Math.PI / 2],
   3: [-Math.PI / 2, 0, 0], 4: [Math.PI / 2, 0, 0],
 };
-const DIE_BASE_Y = 2.3;
+const DIE_BASE_Y = 2.3;     // resting centre height (sits on the playfield)
+const DIE_G = 26;           // gravity (units/s²)
+const DIE_E = 0.42;         // restitution (bounciness on impact)
 
-function Die({ value, x, rollId }) {
+/* A physics-thrown die: dropped from a height with a pop and heavy random spin,
+   it falls under gravity and bounces off the board, energy bleeding off each
+   impact, then settles to show the rolled value. Holding the roll button puts it
+   in "shuffle" mode (jittering in hand) until you release to throw. */
+function Die({ value, x, rollId, charging }) {
   const ref = useRef();
   const tex = dieTextures();
   // face material order [+x,-x,+y,-y,+z,-z] → values [2,5,1,6,3,4] (opposites = 7)
@@ -383,33 +389,67 @@ function Die({ value, x, rollId }) {
     new THREE.MeshStandardMaterial({ map: tex[v], flatShading: true, metalness: 0.1, roughness: 0.55 })
   ), [tex]);
 
-  const startRef = useRef(-999);
-  const spinRef = useRef([0, 0, 0]);
-  const targetRef = useRef(new THREE.Quaternion());
+  const posY = useRef(DIE_BASE_Y);
+  const velY = useRef(0);
+  const spin = useRef([0, 0, 0]);
+  const phase = useRef("idle");   // "tumble" | "settle" | "idle"
+  const t0 = useRef(-1);
+  const target = useRef(new THREE.Quaternion());
 
   useEffect(() => {
-    startRef.current = -1; // capture start on next frame
-    spinRef.current = [8 + Math.random() * 8, 8 + Math.random() * 8, 8 + Math.random() * 8].map((s) => s * (Math.random() < 0.5 ? -1 : 1));
+    // Throw: drop from a height with an upward pop and a strong random spin.
+    posY.current = DIE_BASE_Y + 3.4;
+    velY.current = 1.5 + Math.random() * 2.5;
+    const r = () => (7 + Math.random() * 13) * (Math.random() < 0.5 ? -1 : 1);
+    spin.current = [r(), r(), r()];
+    phase.current = "tumble";
+    t0.current = -1;
     const e = FACE_EULER[value] || [0, 0, 0];
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
-    const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() - 0.5) * 0.5);
-    targetRef.current = yaw.multiply(q);
+    const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() - 0.5) * Math.PI * 0.4);
+    target.current = yaw.multiply(q);
   }, [rollId, value]);
 
-  const TUMBLE = DICE_TUMBLE;
   useFrame((state, delta) => {
     const m = ref.current;
     if (!m) return;
-    if (startRef.current === -1) startRef.current = state.clock.elapsedTime;
-    const t = state.clock.elapsedTime - startRef.current;
-    if (t < TUMBLE) {
-      m.rotation.x += spinRef.current[0] * delta;
-      m.rotation.y += spinRef.current[1] * delta;
-      m.rotation.z += spinRef.current[2] * delta;
-      m.position.y = DIE_BASE_Y + Math.abs(Math.sin(t * 9)) * (1 - t / TUMBLE) * 1.6;
-    } else {
-      m.quaternion.slerp(targetRef.current, 0.18);
-      m.position.y += (DIE_BASE_Y - m.position.y) * 0.18;
+    const dt = Math.min(delta, 0.05);   // clamp for stable integration
+
+    if (charging) {                     // shuffling in hand before the throw
+      m.rotation.x += (Math.random() - 0.5) * 0.7;
+      m.rotation.y += (Math.random() - 0.5) * 0.7;
+      m.rotation.z += (Math.random() - 0.5) * 0.7;
+      posY.current = DIE_BASE_Y + 0.45 + Math.sin(state.clock.elapsedTime * 26 + x) * 0.18;
+      m.position.y = posY.current;
+      return;
+    }
+
+    if (phase.current === "idle") { m.position.y = posY.current; return; }
+    if (t0.current === -1) t0.current = state.clock.elapsedTime;
+    const t = state.clock.elapsedTime - t0.current;
+
+    if (phase.current === "tumble") {
+      velY.current -= DIE_G * dt;
+      posY.current += velY.current * dt;
+      m.rotation.x += spin.current[0] * dt;
+      m.rotation.y += spin.current[1] * dt;
+      m.rotation.z += spin.current[2] * dt;
+      if (posY.current <= DIE_BASE_Y) {       // floor impact
+        posY.current = DIE_BASE_Y;
+        if (Math.abs(velY.current) > 1.4 && t < 2.2) {
+          velY.current = -velY.current * DIE_E;          // bounce
+          spin.current = spin.current.map((a) => a * 0.62); // friction bleeds spin
+        } else {
+          phase.current = "settle";
+        }
+      }
+      if (t > 2.4) phase.current = "settle";   // safety
+      m.position.y = posY.current;
+    } else {                                  // settle: snap to the rolled face, rest
+      m.quaternion.slerp(target.current, 0.22);
+      posY.current += (DIE_BASE_Y - posY.current) * 0.3;
+      m.position.y = posY.current;
+      if (m.quaternion.angleTo(target.current) < 0.01) phase.current = "idle";
     }
   });
 
@@ -420,12 +460,12 @@ function Die({ value, x, rollId }) {
   );
 }
 
-function Dice({ dice, rollId }) {
+function Dice({ dice, rollId, charging }) {
   if (!dice || dice.length < 2) return null;
   return (
     <group>
-      <Die value={dice[0]} x={-0.65} rollId={rollId} />
-      <Die value={dice[1]} x={0.65} rollId={rollId} />
+      <Die value={dice[0]} x={-0.65} rollId={rollId} charging={charging} />
+      <Die value={dice[1]} x={0.65} rollId={rollId} charging={charging} />
     </group>
   );
 }
@@ -615,7 +655,7 @@ function Controls({ mode, followRef, currentRef, rollId, busy }) {
   return null;
 }
 
-function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, followRef, currentRef, busy }) {
+function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, followRef, currentRef, busy, charging }) {
   const currentId = gameState?.order?.[gameState?.current];
   const allPlayers = gameState?.players;
   const players = allPlayers || [];
@@ -679,7 +719,7 @@ function Scene({ gameState, onTileClick, renderedPositions, textures, camMode, f
       })}
 
       {gameState?.phase !== "lobby" && gameState?.phase !== "game_over" && (
-        <Dice dice={gameState?.dice} rollId={gameState?.dice_roll_id ?? 0} />
+        <Dice dice={gameState?.dice} rollId={gameState?.dice_roll_id ?? 0} charging={charging} />
       )}
     </>
   );
@@ -696,7 +736,7 @@ function DiceFace({ v, size = 34 }) {
   );
 }
 
-export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {}, animationsBusy = false, landing = null, card = null }) {
+export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPositions = {}, animationsBusy = false, landing = null, card = null, charging = false }) {
   const news = liveNewsLine(gameState, animationsBusy);
   const currentId = gameState?.order?.[gameState?.current];
   const currentName = gameState?.players?.find((p) => p.id === currentId)?.name;
@@ -744,7 +784,7 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
         gl={{ antialias: true, powerPreference: "high-performance" }}
         style={{ width: "100%", height: "100%", background: "radial-gradient(circle at 50% 30%, #262229 0%, #0e0c10 60%, #050407 100%)" }}
       >
-        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} camMode={camMode} followRef={followRef} currentRef={currentRef} busy={animationsBusy} />
+        <Scene gameState={gameState} onTileClick={onTileClick} renderedPositions={renderedPositions} textures={textures} camMode={camMode} followRef={followRef} currentRef={currentRef} busy={animationsBusy} charging={charging} />
       </Canvas>
 
       {/* Camera settings — icon button + dropdown */}

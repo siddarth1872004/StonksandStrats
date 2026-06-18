@@ -49,7 +49,7 @@ function Section({ label, right }) {
   );
 }
 
-function Btn({ children, onClick, disabled, style, variant }) {
+function Btn({ children, onClick, disabled, style, variant, ...rest }) {
   const base = {
     fontFamily: "var(--font-retro)",
     fontSize: "clamp(14px, 1.8vw, 17px)",
@@ -72,7 +72,7 @@ function Btn({ children, onClick, disabled, style, variant }) {
   if (variant === "green") { base.border = "1px solid rgba(52,211,153,0.55)"; base.color = "#34d399"; base.background = "rgba(5,46,22,0.35)"; }
   if (variant === "red")   { base.border = "1px solid rgba(239,68,68,0.5)"; base.color = "#f87171"; base.background = "rgba(69,10,10,0.35)"; }
   if (variant === "amber") { base.border = "1px solid rgba(255,179,0,0.5)"; base.color = "#FFB300"; base.background = "rgba(30,20,0,0.45)"; }
-  return <button style={base} onClick={onClick} disabled={disabled}>{children}</button>;
+  return <button style={base} onClick={onClick} disabled={disabled} {...rest}>{children}</button>;
 }
 
 // Live countdown driven by game_state.turn_deadline (set by the host). All clients
@@ -223,7 +223,18 @@ function Sidebar({
   onAction,
   onEmote,
   onOpenSettings,
+  onDiceCharging,
 }) {
+  // Hold-to-throw: press and hold a roll button to shuffle the dice, release to
+  // throw. A quick tap still rolls instantly. onDiceCharging drives the 3D shake.
+  const [rollCharging, setRollCharging] = useState(false);
+  const rollHoldRef = useRef(false);
+  const rollHold = {
+    onPointerDown: (e) => { try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* ignore */ } rollHoldRef.current = true; setRollCharging(true); onDiceCharging?.(true); },
+    onPointerUp: () => { if (!rollHoldRef.current) return; rollHoldRef.current = false; setRollCharging(false); onDiceCharging?.(false); playClick(); onAction("roll_dice"); },
+    onPointerCancel: () => { rollHoldRef.current = false; setRollCharging(false); onDiceCharging?.(false); },
+    onLostPointerCapture: () => { rollHoldRef.current = false; setRollCharging(false); onDiceCharging?.(false); },
+  };
   const [chatInput, setChatInput] = useState("");
   const [confirmEnd, setConfirmEnd] = useState(false);
   // Which collapsible dropdown is open (only one at a time). null = all closed.
@@ -365,8 +376,8 @@ function Sidebar({
                 {phase === "turn" && (
                   myPlayer?.in_jail ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <Btn variant="green" style={{ width: "100%", fontSize: "13px", fontWeight: "bold", padding: "9px" }} onClick={() => onAction("roll_dice")}>
-                        ⚂ ROLL FOR DOUBLES
+                      <Btn variant="green" {...rollHold} style={{ width: "100%", fontSize: "13px", fontWeight: "bold", padding: "9px" }}>
+                        {rollCharging ? "⚂ RELEASE TO THROW" : "⚂ HOLD TO ROLL FOR DOUBLES"}
                       </Btn>
                       <div style={{ display: "flex", gap: "5px" }}>
                         <Btn style={{ flex: 1, fontSize: "13px" }} disabled={myPlayer?.money < jailFine} onClick={() => onAction("pay_jail_fine")}>PAY ${jailFine}</Btn>
@@ -376,8 +387,8 @@ function Sidebar({
                       </div>
                     </div>
                   ) : (
-                    <Btn variant="green" style={{ width: "100%", fontWeight: "bold", padding: "12px", fontSize: "clamp(15px,2vw,18px)" }} onClick={() => onAction("roll_dice")}>
-                      ⚂ ROLL DICE
+                    <Btn variant="green" {...rollHold} style={{ width: "100%", fontWeight: "bold", padding: "12px", fontSize: "clamp(15px,2vw,18px)" }}>
+                      {rollCharging ? "⚂ RELEASE TO THROW" : "⚂ HOLD & ROLL"}
                     </Btn>
                   )
                 )}
