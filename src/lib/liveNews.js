@@ -61,7 +61,9 @@ export function liveNewsLine(s, busy) {
       // Doubles take priority — make the bonus roll (and the 3-in-a-row danger)
       // obvious so the mechanic clearly reads on the board.
       if (s.phase === "post_roll" && s.extra_roll) {
-        return `Doubles! ${name} rolls again — streak ${s.doubles_streak}/3${s.doubles_streak === 2 ? " (one more = Jail!)" : ""}`;
+        return s.doubles_streak === 2
+          ? `Doubles #2! ${name} rolls again — a 3rd sends you to JAIL`
+          : `Doubles #1! ${name} rolls again`;
       }
       // Prefer the freshest event; fall back to a turn/jail prompt.
       if (latest) return latest;

@@ -5,7 +5,7 @@ import { OrbitControls as ThreeOrbitControls } from "three/examples/jsm/controls
 import { TILES, GROUP_COLORS, TOKEN_COLORS } from "../boardData";
 import { getTileGridCoords, DICE_ROLL_MS, MOVE_DELAY_MS } from "../lib/animation";
 import { liveNewsLine } from "../lib/liveNews";
-import { LandingCard, CardNotif } from "./NotifCards";
+import { LandingCard, CardNotif, DoublesPips } from "./NotifCards";
 
 /* ── Full 3D Monopoly board (low-poly, Krunker-style) ──────────────────────
    • Printed tile faces (group band + name + price) baked to a canvas texture,
@@ -842,6 +842,13 @@ export default function Board3D({ gameState, myPlayerId, onTileClick, renderedPo
             color: "#1f2430", lineHeight: 1.25,
             display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
           }}>{news}</div>
+        </div>
+      )}
+
+      {/* Doubles streak pips — unambiguous 1st / 2nd / 3rd indicator */}
+      {gameState?.doubles_streak > 0 && !animationsBusy && gameState?.phase !== "lobby" && gameState?.phase !== "game_over" && (
+        <div style={{ position: "absolute", bottom: "54px", right: "12px", pointerEvents: "none" }}>
+          <DoublesPips streak={gameState.doubles_streak} />
         </div>
       )}
 

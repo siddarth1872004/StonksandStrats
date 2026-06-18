@@ -4,7 +4,7 @@ import { getTileGridCoords } from "../lib/animation";
 import { TokenIcon, HouseIcon, HotelIcon, UtilityIcon, RailroadIcon, DiceIcon, ChestIcon, JailIcon, GoToJailIcon } from "../lib/icons";
 import { playClick } from "../lib/audio";
 import { liveNewsLine } from "../lib/liveNews";
-import { LandingCard, CardNotif } from "./NotifCards";
+import { LandingCard, CardNotif, DoublesPips } from "./NotifCards";
 
 /* ── Center status card (replaces the brand logo) ─────────────────── */
 function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
@@ -81,6 +81,7 @@ function BoardLogo({ gameState, animDice, animationsBusy, onSkipAnimations }) {
               SKIP ▶▶
             </button>
           )}
+          {!animationsBusy && gameState?.doubles_streak > 0 && <DoublesPips streak={gameState.doubles_streak} />}
         </div>
       )}
 

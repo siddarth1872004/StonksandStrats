@@ -110,6 +110,32 @@ export function LandingCard({ tile, gameState }) {
   );
 }
 
+/* Doubles streak indicator: three pips showing how many doubles in a row this
+   turn (the current one glowing), so it's unambiguous whether you're on your
+   1st, 2nd, or about-to-be-jailed 3rd double. */
+export function DoublesPips({ streak }) {
+  if (!streak) return null;
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: "6px",
+      background: "#e6dcc2", border: "1px solid rgba(0,0,0,0.25)", borderRadius: "7px",
+      padding: "4px 9px", fontFamily: "var(--font-retro)", boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+    }}>
+      <span style={{ fontSize: "10px", fontWeight: "bold", color: "#b45309", letterSpacing: "0.14em" }}>DOUBLES</span>
+      {[0, 1, 2].map((i) => (
+        <span key={i} style={{
+          width: "9px", height: "9px", borderRadius: "50%",
+          background: i < streak ? "#b45309" : "rgba(0,0,0,0.18)",
+          boxShadow: i === streak - 1 ? "0 0 6px #f59e0b" : "none",
+        }} />
+      ))}
+      <span style={{ fontSize: "9px", fontWeight: "bold", color: streak === 2 ? "#b91c1c" : "#7c6f4f" }}>
+        {streak === 2 ? "3rd = JAIL" : `${streak}/3`}
+      </span>
+    </div>
+  );
+}
+
 /* Chance / Community-Chest card — same bottom-left slot, so all draws read from
    one consistent place. */
 export function CardNotif({ card }) {

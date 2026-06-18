@@ -671,15 +671,17 @@ export function rollDice(state, { playerId }) {
   } else {
     if (isDouble) {
       s.doubles_streak = (s.doubles_streak || 0) + 1;
-      addLog(s, `Doubles! Streak: ${s.doubles_streak}/3`);
       if (s.doubles_streak === 3) {
-        addLog(s, `${p.name} rolled 3 doubles in a row — Jail!`);
+        addLog(s, `Doubles #3 in a row — ${p.name} is sent to Jail!`);
         getPlayer(s, playerId).position = 10;
         getPlayer(s, playerId).in_jail = true;
         getPlayer(s, playerId).jail_turns = 0;
         s.doubles_streak = 0; s.extra_roll = false; s.phase = 'post_roll';
         return { state: s };
       } else {
+        addLog(s, s.doubles_streak === 1
+          ? `Doubles #1! ${p.name} rolls again.`
+          : `Doubles #2! ${p.name} rolls again — a 3rd means Jail!`);
         s.extra_roll = true;
       }
     } else {
