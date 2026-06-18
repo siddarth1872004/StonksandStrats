@@ -145,7 +145,7 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
       <div key={tid} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 5px", background: isMort ? "rgba(69,10,10,0.18)" : "rgba(0,0,0,0.3)", borderLeft: `3px solid ${isMort ? "#ef4444" : gColor}` }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.5vw,14px)", color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tile.name}</div>
-          <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: isMort ? "#ef4444" : "#475569" }}>
+          <div style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: isMort ? "#ef4444" : "#94a3b8" }}>
             {isMort ? "MORTGAGED" : h === 5 ? "★ HOTEL" : h > 0 ? `${h} house${h > 1 ? "s" : ""}` : "unimproved"}
           </div>
         </div>
@@ -185,7 +185,7 @@ function PortfolioPanel({ gameState, myPlayerId, onAction }) {
         <span style={{ color: "#34d399" }}>CASH ${cash.toLocaleString()}</span>
       </div>
       {myProps.length === 0 ? (
-        <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#334155", textAlign: "center", padding: "20px 0" }}>
+        <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#94a3b8", textAlign: "center", padding: "20px 0" }}>
           No deeds yet — buy properties to build your portfolio.
         </div>
       ) : (
@@ -340,13 +340,13 @@ function Sidebar({
                   fontFamily: "var(--font-retro)",
                   fontSize: "clamp(13px, 1.7vw, 16px)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  color: p.bankrupt ? "#475569" : isCurrent ? "#f8fafc" : "#cbd5e1",
+                  color: p.bankrupt ? "#64748b" : isCurrent ? "#f8fafc" : "#cbd5e1",
                   textDecoration: p.bankrupt ? "line-through" : "none",
                 }}>
                   {p.name}{isMe ? " ★" : ""}{p.is_bot ? ` [${(p.difficulty || "ai").slice(0,1).toUpperCase()}]` : ""}
                 </span>
                 {!p.bankrupt && (
-                  <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#475569" }}>
+                  <span style={{ fontFamily: "var(--font-retro)", fontSize: "11px", color: "#94a3b8" }}>
                     {netWorthPropCount}⌂ · NW ${netWorth.toLocaleString()}
                   </span>
                 )}
@@ -440,7 +440,7 @@ function Sidebar({
 
             {/* Waiting states */}
             {!isMyTurn && !inDebt && phase !== "lobby" && (
-              <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#475569", padding: "7px 8px", border: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-retro)", fontSize: "13px", color: "#94a3b8", padding: "7px 8px", border: "1px solid rgba(255,255,255,0.04)", textAlign: "center" }}>
                 WAITING FOR {players.find(p => p.id === currPlayerId)?.name?.toUpperCase() || "TURN"}…
               </div>
             )}
@@ -489,7 +489,7 @@ function Sidebar({
             )}
 
             {/* Settings */}
-            <Btn style={{ width: "100%", fontSize: "13px", color: "#475569", borderColor: "rgba(255,255,255,0.06)", padding: "5px" }} onClick={() => { playClick(); onOpenSettings(); }}>
+            <Btn style={{ width: "100%", fontSize: "13px", color: "#94a3b8", borderColor: "rgba(255,255,255,0.06)", padding: "5px" }} onClick={() => { playClick(); onOpenSettings(); }}>
               <SettingsIcon size={9} /><span>SETTINGS</span>
             </Btn>
           </div>
@@ -555,7 +555,7 @@ function Sidebar({
                 return (
                   <div key={g.key} className="feed-in" style={{
                     fontFamily: "var(--font-retro)", fontSize: "clamp(12px,1.5vw,14px)",
-                    color: isLatest ? "#e5e7eb" : i < 4 ? "#6b7280" : "#374151", lineHeight: "1.6",
+                    color: isLatest ? "#e5e7eb" : i < 4 ? "#9ca3af" : "#6b7280", lineHeight: "1.6",
                     borderLeft: `2px solid ${isLatest ? color : i < 4 ? `${color}40` : "rgba(255,255,255,0.03)"}`,
                     paddingLeft: "6px", display: "flex", gap: "4px", alignItems: "flex-start",
                   }}>
@@ -569,7 +569,7 @@ function Sidebar({
             {/* Chat stream */}
             <div style={{ flexShrink: 0, maxHeight: "96px", overflowY: "auto", padding: "4px 10px", borderTop: "1px solid rgba(255,179,0,0.08)", background: "rgba(0,0,0,0.2)", scrollbarWidth: "thin" }}>
               {chatLog.length === 0 && (
-                <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#475569", fontStyle: "italic" }}>Say something…</div>
+                <div style={{ fontFamily: "var(--font-retro)", fontSize: "12px", color: "#94a3b8", fontStyle: "italic" }}>Say something…</div>
               )}
               {chatLog.slice(-60).map((c, i) => (
                 <div key={i} style={{ fontFamily: "var(--font-retro)", fontSize: "clamp(13px,1.6vw,15px)", lineHeight: 1.7, color: "#cbd5e1", wordBreak: "break-word" }}>

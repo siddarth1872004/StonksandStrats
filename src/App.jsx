@@ -158,11 +158,12 @@ export default function App() {
   const [use3D, setUse3D] = useState(() => {
     const saved = localStorage.getItem("stonks_3d");
     if (saved !== null) return saved === "true";
-    const lowPower =
-      (navigator.hardwareConcurrency || 8) <= 4 ||
-      (navigator.deviceMemory || 8) <= 4 ||
-      window.matchMedia("(max-width: 820px)").matches;
-    return !lowPower;
+    // Default to the 3D board everywhere; only the weakest devices fall back to
+    // 2D automatically. Anyone can toggle in the header.
+    const veryLowPower =
+      (navigator.hardwareConcurrency || 8) <= 2 ||
+      (navigator.deviceMemory || 8) <= 2;
+    return !veryLowPower;
   });
   const toggle3D = useCallback(() => {
     setUse3D(prev => { const next = !prev; localStorage.setItem("stonks_3d", String(next)); return next; });
@@ -298,6 +299,10 @@ export default function App() {
     if (!prev || !animQueueRef.current) return;
     const q = animQueueRef.current;
     const events = diffStates(prev, newState);
+    // Reveal order = suspense order: dice → move → card → money/flash. Keeps the
+    // outcome (cash, rent, card) hidden until the token has actually arrived.
+    const REVEAL = { [ANIM.DICE]: 0, [ANIM.MOVE_HOP]: 1, [ANIM.MOVE_WARP]: 1, [ANIM.CARD_DRAW]: 2, [ANIM.MONEY_DELTA]: 3, [ANIM.BANKRUPT]: 4 };
+    events.sort((a, b) => (REVEAL[a.type] ?? 9) - (REVEAL[b.type] ?? 9));
     for (const ev of events) {
       switch (ev.type) {
         case ANIM.DICE:
@@ -338,20 +343,24 @@ export default function App() {
             });
           });
           break;
-        case ANIM.MONEY_DELTA: {
-          const deltaId = `${Date.now()}-${ev.pid}`;
-          setMoneyDeltas(d => [...d, { id: deltaId, pid: ev.pid, delta: ev.delta }]);
-          setTimeout(() => setMoneyDeltas(d => d.filter(x => x.id !== deltaId)), 1200);
-          // Flash the token green (gained) or red+shake (paid).
-          const fx = ev.delta >= 0 ? "gain" : "loss";
-          setTokenFx(m => ({ ...m, [ev.pid]: fx }));
-          setTimeout(() => setTokenFx(m => {
-            if (m[ev.pid] !== fx) return m;
-            const n = { ...m }; delete n[ev.pid]; return n;
-          }), 1000);
-          if (ev.delta < 0) playRent();
+        case ANIM.MONEY_DELTA:
+          // Sequenced through the queue so the cash swing + token flash + rent
+          // sound only happen AFTER the token has moved (and any card resolved),
+          // preserving the surprise. With no move queued, it fires right away.
+          q.enqueue(() => new Promise(res => {
+            const deltaId = `${Date.now()}-${ev.pid}`;
+            setMoneyDeltas(d => [...d, { id: deltaId, pid: ev.pid, delta: ev.delta }]);
+            setTimeout(() => setMoneyDeltas(d => d.filter(x => x.id !== deltaId)), 1200);
+            const fx = ev.delta >= 0 ? "gain" : "loss";
+            setTokenFx(m => ({ ...m, [ev.pid]: fx }));
+            setTimeout(() => setTokenFx(m => {
+              if (m[ev.pid] !== fx) return m;
+              const n = { ...m }; delete n[ev.pid]; return n;
+            }), 1000);
+            if (ev.delta < 0) playRent();
+            setTimeout(res, 250);   // brief beat before the next queued reveal
+          }));
           break;
-        }
         case ANIM.CARD_DRAW:
           // Sequence the card through the queue so it appears AFTER the token
           // lands on the Chance/Chest tile (not mid-hop), holds, then clears.

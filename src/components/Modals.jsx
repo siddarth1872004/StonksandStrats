@@ -99,7 +99,7 @@ export function ManageModal({ gameState, myPlayerId, onAction, onClose }) {
       padding: "8px 14px", borderRight: "1px solid rgba(255,255,255,0.05)",
       display: "flex", flexDirection: "column", gap: "2px",
     }),
-    nwLabel: { fontFamily: "var(--font-retro)", fontSize: "6px", color: "#334155", letterSpacing: "0.15em" },
+    nwLabel: { fontFamily: "var(--font-retro)", fontSize: "6px", color: "#94a3b8", letterSpacing: "0.15em" },
     nwValue: (color) => ({ fontFamily: "var(--font-retro)", fontSize: "13px", fontWeight: "bold", color }),
     scroll: { flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" },
     groupHeader: (color) => ({
@@ -130,7 +130,7 @@ export function ManageModal({ gameState, myPlayerId, onAction, onClose }) {
     houseDots: { display: "flex", gap: "2px", alignItems: "center" },
     deedStatus: (mortgaged) => ({
       fontFamily: "var(--font-retro)", fontSize: "7px",
-      color: mortgaged ? "#ef4444" : "#334155",
+      color: mortgaged ? "#ef4444" : "#94a3b8",
       fontWeight: mortgaged ? "bold" : "normal",
     }),
     actionRow: { display: "flex", gap: "4px", flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" },
@@ -192,7 +192,7 @@ export function ManageModal({ gameState, myPlayerId, onAction, onClose }) {
                 </div>
               )}
               {tile.price && (
-                <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#1e293b" }}>
+                <span style={{ fontFamily: "var(--font-retro)", fontSize: "7px", color: "#94a3b8" }}>
                   ${tile.price}
                 </span>
               )}
@@ -256,7 +256,7 @@ export function ManageModal({ gameState, myPlayerId, onAction, onClose }) {
         {/* Property list */}
         <div style={S.scroll}>
           {myProps.length === 0 ? (
-            <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#334155", textAlign: "center", padding: "32px 0" }}>
+            <div style={{ fontFamily: "var(--font-retro)", fontSize: "9px", color: "#94a3b8", textAlign: "center", padding: "32px 0" }}>
               NO TITLE DEEDS — BUY PROPERTIES TO POPULATE PORTFOLIO
             </div>
           ) : (
