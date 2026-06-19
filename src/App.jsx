@@ -185,6 +185,14 @@ export default function App() {
   const [showConfirmBankruptcy, setShowConfirmBankruptcy] = useState(false);
   const [diceCharging, setDiceCharging] = useState(false); // hold-to-throw: shuffle the 3D dice
 
+  // Feed/terminal is frozen while animations play, so log lines ("rolled 5+3",
+  // "bought Mayfair", "paid rent") don't spoil the result before the dice and
+  // token finish. It catches up the moment the animation queue goes idle.
+  const [feedLog, setFeedLog] = useState([]);
+  useEffect(() => {
+    if (!animationsBusy) setFeedLog(gameState?.log || []);
+  }, [animationsBusy, gameState?.log]);
+
   const confettiCanvasRef = useRef(null);
   const confettiEngineRef = useRef(null);
 
@@ -1160,6 +1168,7 @@ export default function App() {
                 onAction={handleSidebarAction}
                 onOpenSettings={openSettings}
                 onDiceCharging={setDiceCharging}
+                feedLog={feedLog}
               />
             );
 

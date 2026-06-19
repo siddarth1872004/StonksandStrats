@@ -224,6 +224,7 @@ function Sidebar({
   onEmote,
   onOpenSettings,
   onDiceCharging,
+  feedLog,
 }) {
   // Hold-to-throw: press and hold a roll button to shuffle the dice, release to
   // throw. A quick tap still rolls instantly. onDiceCharging drives the 3D shake.
@@ -549,7 +550,7 @@ function Sidebar({
             </div>
             {/* Activity log (events) */}
             <div style={{ flex: 1, overflowY: "auto", padding: "5px 10px", scrollbarWidth: "thin", scrollbarColor: "rgba(255,179,0,0.12) transparent", minHeight: "50px" }}>
-              {abstractFeed(log).map((g, i) => {
+              {abstractFeed(feedLog ?? log).map((g, i) => {
                 const { icon: fIcon, color } = feedCategory(g.text);
                 const isLatest = i === 0;
                 return (
