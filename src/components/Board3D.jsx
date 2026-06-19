@@ -400,23 +400,22 @@ function Die({ value, x, rollId, charging }) {
 
   const pos = useRef({ x, y: DIE_BASE_Y, z: 0 });
   const vel = useRef({ x: 0, y: 0, z: 0 });
-  const spin = useRef([0, 0, 0]);
-  const phase = useRef("idle");   // "tumble" | "settle" | "idle"
-  const t0 = useRef(-1);
-  const settleFrom = useRef(new THREE.Quaternion());
-  const settleTo = useRef(new THREE.Quaternion());
-  const settleAt = useRef(0);
-  const settleDur = useRef(0.3);
+  const qStart = useRef(new THREE.Quaternion());
+  const qEnd = useRef(new THREE.Quaternion());
+  const tumbleAxis = useRef(new THREE.Vector3(1, 0, 0));
+  const turns = useRef(3);
+  const phase = useRef("idle");   // "roll" | "idle"
+  const rollAt = useRef(-1);
+  const rollDur = useRef(1.6);
 
   useEffect(() => {
-    // Throw: a real toss — up + sideways across the board, with heavy spin. The
-    // die travels, bounces and skids before it settles (vertical pop keeps the
-    // shuffle→throw hand-off seamless; horizontal carries it off the hand).
-    vel.current = { x: (Math.random() - 0.5) * 3.4, y: 9 + Math.random() * 3, z: (Math.random() - 0.5) * 3.4 };
-    const r = () => (9 + Math.random() * 12) * (Math.random() < 0.5 ? -1 : 1);
-    spin.current = [r(), r(), r()];
-    phase.current = "tumble";
-    t0.current = -1;
+    // Throw it up + sideways with a little drift; the orientation is handled by a
+    // single continuous tumble (below), not a snap-to-face at the end.
+    vel.current = { x: (Math.random() - 0.5) * 2.6, y: 9 + Math.random() * 2.5, z: (Math.random() - 0.5) * 2.6 };
+    turns.current = 3 + Math.floor(Math.random() * 2);   // 3–4 full tumbles
+    phase.current = "roll";
+    rollAt.current = -1;   // capture start orientation on the first frame
+    rollDur.current = 1.55 + Math.random() * 0.4;
   }, [rollId, value]);
 
   useFrame((state, delta) => {
@@ -426,80 +425,57 @@ function Die({ value, x, rollId, charging }) {
     const P = pos.current, V = vel.current;
 
     if (charging) {                     // shuffling in hand before the throw
-      // Smooth fast spin + a quick bob reads as "winding up" (no jittery glitch).
       m.rotation.x += 0.28;
       m.rotation.y += 0.34;
       m.rotation.z += 0.2;
       P.x = x; P.z = 0;
       P.y = DIE_BASE_Y + 0.5 + Math.sin(state.clock.elapsedTime * 22 + x) * 0.16;
       m.position.set(P.x, P.y, P.z);
-      phase.current = "idle";           // park physics until the throw fires
+      phase.current = "idle";
       return;
     }
 
     if (phase.current === "idle") { m.position.set(P.x, P.y, P.z); return; }
-    if (t0.current === -1) t0.current = state.clock.elapsedTime;
-    const t = state.clock.elapsedTime - t0.current;
 
-    // Begin the settle: roll to the NEAREST orientation that shows the value on
-    // top, eased over a time scaled to the rotation distance — so the die rocks
-    // naturally into place instead of snapping to a fixed pose.
-    const beginSettle = () => {
-      const from = m.quaternion.clone();
-      let best = FACE_REST[value][0], bestA = Infinity;
-      for (const cand of FACE_REST[value]) {
-        const a = from.angleTo(cand);
-        if (a < bestA) { bestA = a; best = cand; }
-      }
-      settleFrom.current = from;
-      settleTo.current = best;
-      settleAt.current = state.clock.elapsedTime;
-      settleDur.current = Math.min(0.45, Math.max(0.16, bestA / 8));
-      phase.current = "settle";
-    };
-
-    if (phase.current === "tumble") {
-      V.y -= DIE_G * dt;
-      P.x += V.x * dt; P.y += V.y * dt; P.z += V.z * dt;
-      m.rotation.x += spin.current[0] * dt;
-      m.rotation.y += spin.current[1] * dt;
-      m.rotation.z += spin.current[2] * dt;
-
-      if (P.y <= DIE_BASE_Y && V.y < 0) {        // floor impact
-        P.y = DIE_BASE_Y;
-        if (Math.abs(V.y) > 1.2 && t < 2.4) {
-          V.y = -V.y * DIE_E;                     // bounce
-          V.x *= 0.72; V.z *= 0.72;              // impact scrubs horizontal speed
-          spin.current = spin.current.map((a) => a * 0.6);
-        }
-      }
-      // Rolling friction while skidding along the surface — bleeds horizontal
-      // speed and spin so it slows and comes to rest naturally.
-      if (P.y <= DIE_BASE_Y + 0.04) {
-        const g = Math.max(0, 1 - 4.5 * dt);
-        V.x *= g; V.z *= g;
-        spin.current = spin.current.map((a) => a * Math.max(0, 1 - 2.6 * dt));
-      }
-      // Keep each die in its own lane so they stay in frame and don't overlap.
-      const laneMin = x < 0 ? -2.0 : 0.55, laneMax = x < 0 ? -0.55 : 2.0;
-      if (P.x < laneMin) { P.x = laneMin; V.x = -V.x * 0.4; }
-      if (P.x > laneMax) { P.x = laneMax; V.x = -V.x * 0.4; }
-      if (P.z < -1.5) { P.z = -1.5; V.z = -V.z * 0.4; }
-      if (P.z > 1.5) { P.z = 1.5; V.z = -V.z * 0.4; }
-
-      const spinMag = Math.hypot(spin.current[0], spin.current[1], spin.current[2]);
-      const atRest = P.y <= DIE_BASE_Y + 0.02 && Math.abs(V.y) < 0.9
-        && Math.hypot(V.x, V.z) < 0.5 && spinMag < 3.2;
-      m.position.set(P.x, P.y, P.z);
-      if (atRest || t > 2.8) beginSettle();
-    } else {                                     // settle: eased rock into the resting face
-      const u = Math.min(1, (state.clock.elapsedTime - settleAt.current) / settleDur.current);
-      const e = u * u * (3 - 2 * u);             // smoothstep
-      m.quaternion.slerpQuaternions(settleFrom.current, settleTo.current, e);
-      P.y += (DIE_BASE_Y - P.y) * 0.35;
-      m.position.set(P.x, P.y, P.z);
-      if (u >= 1) phase.current = "idle";
+    // On the first frame of a throw, lock in the start orientation, the exact
+    // resting orientation (value on top, random yaw), and a horizontal tumble axis.
+    if (rollAt.current === -1) {
+      rollAt.current = state.clock.elapsedTime;
+      qStart.current.copy(m.quaternion);
+      qEnd.current.copy(FACE_REST[value][Math.floor(Math.random() * 4)]);
+      const ang = Math.random() * Math.PI * 2;
+      tumbleAxis.current.set(Math.cos(ang), 0, Math.sin(ang)).normalize();
     }
+
+    const t = state.clock.elapsedTime - rollAt.current;
+    const u = Math.min(1, t / rollDur.current);
+    const rot = 1 - Math.pow(1 - u, 4);   // easeOutQuart — fast tumble that decays to rest
+
+    // Orientation = shortest reorientation to the face (eased) PLUS several full
+    // horizontal tumbles that wind down to zero. Both are identity at u=1, so the
+    // die lands EXACTLY on the value with no snap/correction — the slowdown is the
+    // settle.
+    const base = qStart.current.clone().slerp(qEnd.current, rot);
+    const tumble = new THREE.Quaternion().setFromAxisAngle(
+      tumbleAxis.current, Math.PI * 2 * turns.current * (1 - rot));
+    m.quaternion.copy(tumble.multiply(base));
+
+    // Position: real vertical bounce + horizontal drift with friction (no hard
+    // walls — friction brings it to rest, soft-clamped to stay in frame).
+    V.y -= DIE_G * dt;
+    P.x += V.x * dt; P.y += V.y * dt; P.z += V.z * dt;
+    if (P.y <= DIE_BASE_Y && V.y < 0) {
+      P.y = DIE_BASE_Y;
+      V.y = Math.abs(V.y) > 1.0 ? -V.y * DIE_E : 0;   // bounce, then rest
+      V.x *= 0.7; V.z *= 0.7;
+    }
+    const fr = Math.max(0, 1 - 3 * dt);
+    V.x *= fr; V.z *= fr;
+    P.x = Math.max(x < 0 ? -1.9 : 0.5, Math.min(x < 0 ? -0.5 : 1.9, P.x));
+    P.z = Math.max(-1.4, Math.min(1.4, P.z));
+    m.position.set(P.x, P.y, P.z);
+
+    if (u >= 1) phase.current = "idle";   // m.quaternion already equals qEnd exactly
   });
 
   return (
