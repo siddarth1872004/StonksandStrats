@@ -20,7 +20,7 @@ export const DEFAULT_HOUSE_RULES = {
   go_salary:             200,    // GO bonus amount
   starting_cash:         1500,   // starting money
   income_tax_choice:     false,  // income tax = player chooses $200 flat or 10% net worth
-  luxury_tax:            75,     // luxury tax tile amount (tile 38)
+  luxury_tax:            100,    // luxury/super tax tile amount (tile 38) — matches the $100 printed on the tile
   unlimited_buildings:   false,  // ignore house/hotel supply limits
   auction_minimum:       1,      // minimum bid at auction
   jail_fine:             50,     // fine to pay out of jail
@@ -65,7 +65,7 @@ const COMMUNITY_CHEST_CARDS = [
   { text: "Receive $25 consultancy fee.", action: "collect", value: 25 },
   { text: "You are assessed for street repairs. Pay $40 per house, $115 per hotel.", action: "pay_per_house", value: [40, 115] },
   { text: "You have won second prize in a beauty contest. Collect $10.", action: "collect", value: 10 },
-  { text: "You inherit $100.", action: "collect", value: 100 },
+  { text: "Grand Opera Night. Collect $50 from every player for opening night seats.", action: "collect_from_each_player", value: 50 },
 ];
 
 // ── Utility helpers ───────────────────────────────────────────────────────────
