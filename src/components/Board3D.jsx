@@ -398,8 +398,8 @@ function Die({ value, x, rollId, charging }) {
     new THREE.MeshStandardMaterial({ map: tex[v], flatShading: true, metalness: 0.1, roughness: 0.55 })
   ), [tex]);
 
-  const posY = useRef(DIE_BASE_Y);
-  const velY = useRef(0);
+  const pos = useRef({ x, y: DIE_BASE_Y, z: 0 });
+  const vel = useRef({ x: 0, y: 0, z: 0 });
   const spin = useRef([0, 0, 0]);
   const phase = useRef("idle");   // "tumble" | "settle" | "idle"
   const t0 = useRef(-1);
@@ -409,10 +409,11 @@ function Die({ value, x, rollId, charging }) {
   const settleDur = useRef(0.3);
 
   useEffect(() => {
-    // Throw: toss UP from wherever the die currently is (in-hand / at rest) so the
-    // shuffle→throw hand-off is seamless — no teleport to a launch height.
-    velY.current = 10 + Math.random() * 4;
-    const r = () => (8 + Math.random() * 12) * (Math.random() < 0.5 ? -1 : 1);
+    // Throw: a real toss — up + sideways across the board, with heavy spin. The
+    // die travels, bounces and skids before it settles (vertical pop keeps the
+    // shuffle→throw hand-off seamless; horizontal carries it off the hand).
+    vel.current = { x: (Math.random() - 0.5) * 3.4, y: 9 + Math.random() * 3, z: (Math.random() - 0.5) * 3.4 };
+    const r = () => (9 + Math.random() * 12) * (Math.random() < 0.5 ? -1 : 1);
     spin.current = [r(), r(), r()];
     phase.current = "tumble";
     t0.current = -1;
@@ -421,20 +422,22 @@ function Die({ value, x, rollId, charging }) {
   useFrame((state, delta) => {
     const m = ref.current;
     if (!m) return;
-    const dt = Math.min(delta, 0.05);   // clamp for stable integration
+    const dt = Math.min(delta, 0.04);   // clamp for stable integration
+    const P = pos.current, V = vel.current;
 
     if (charging) {                     // shuffling in hand before the throw
       // Smooth fast spin + a quick bob reads as "winding up" (no jittery glitch).
       m.rotation.x += 0.28;
       m.rotation.y += 0.34;
       m.rotation.z += 0.2;
-      posY.current = DIE_BASE_Y + 0.5 + Math.sin(state.clock.elapsedTime * 22 + x) * 0.16;
-      m.position.y = posY.current;
+      P.x = x; P.z = 0;
+      P.y = DIE_BASE_Y + 0.5 + Math.sin(state.clock.elapsedTime * 22 + x) * 0.16;
+      m.position.set(P.x, P.y, P.z);
       phase.current = "idle";           // park physics until the throw fires
       return;
     }
 
-    if (phase.current === "idle") { m.position.y = posY.current; return; }
+    if (phase.current === "idle") { m.position.set(P.x, P.y, P.z); return; }
     if (t0.current === -1) t0.current = state.clock.elapsedTime;
     const t = state.clock.elapsedTime - t0.current;
 
@@ -451,35 +454,50 @@ function Die({ value, x, rollId, charging }) {
       settleFrom.current = from;
       settleTo.current = best;
       settleAt.current = state.clock.elapsedTime;
-      settleDur.current = Math.min(0.5, Math.max(0.18, bestA / 7));
+      settleDur.current = Math.min(0.45, Math.max(0.16, bestA / 8));
       phase.current = "settle";
     };
 
     if (phase.current === "tumble") {
-      velY.current -= DIE_G * dt;
-      posY.current += velY.current * dt;
+      V.y -= DIE_G * dt;
+      P.x += V.x * dt; P.y += V.y * dt; P.z += V.z * dt;
       m.rotation.x += spin.current[0] * dt;
       m.rotation.y += spin.current[1] * dt;
       m.rotation.z += spin.current[2] * dt;
-      let enter = false;
-      if (posY.current <= DIE_BASE_Y && velY.current < 0) {  // floor impact (falling)
-        posY.current = DIE_BASE_Y;
-        if (Math.abs(velY.current) > 1.4 && t < 2.2) {
-          velY.current = -velY.current * DIE_E;          // bounce
-          spin.current = spin.current.map((a) => a * 0.62); // friction bleeds spin
-        } else {
-          enter = true;
+
+      if (P.y <= DIE_BASE_Y && V.y < 0) {        // floor impact
+        P.y = DIE_BASE_Y;
+        if (Math.abs(V.y) > 1.2 && t < 2.4) {
+          V.y = -V.y * DIE_E;                     // bounce
+          V.x *= 0.72; V.z *= 0.72;              // impact scrubs horizontal speed
+          spin.current = spin.current.map((a) => a * 0.6);
         }
       }
-      if (t > 2.4) enter = true;   // safety
-      m.position.y = posY.current;
-      if (enter) beginSettle();
-    } else {                       // settle: eased rock into the resting face
+      // Rolling friction while skidding along the surface — bleeds horizontal
+      // speed and spin so it slows and comes to rest naturally.
+      if (P.y <= DIE_BASE_Y + 0.04) {
+        const g = Math.max(0, 1 - 4.5 * dt);
+        V.x *= g; V.z *= g;
+        spin.current = spin.current.map((a) => a * Math.max(0, 1 - 2.6 * dt));
+      }
+      // Keep each die in its own lane so they stay in frame and don't overlap.
+      const laneMin = x < 0 ? -2.0 : 0.55, laneMax = x < 0 ? -0.55 : 2.0;
+      if (P.x < laneMin) { P.x = laneMin; V.x = -V.x * 0.4; }
+      if (P.x > laneMax) { P.x = laneMax; V.x = -V.x * 0.4; }
+      if (P.z < -1.5) { P.z = -1.5; V.z = -V.z * 0.4; }
+      if (P.z > 1.5) { P.z = 1.5; V.z = -V.z * 0.4; }
+
+      const spinMag = Math.hypot(spin.current[0], spin.current[1], spin.current[2]);
+      const atRest = P.y <= DIE_BASE_Y + 0.02 && Math.abs(V.y) < 0.9
+        && Math.hypot(V.x, V.z) < 0.5 && spinMag < 3.2;
+      m.position.set(P.x, P.y, P.z);
+      if (atRest || t > 2.8) beginSettle();
+    } else {                                     // settle: eased rock into the resting face
       const u = Math.min(1, (state.clock.elapsedTime - settleAt.current) / settleDur.current);
-      const e = u * u * (3 - 2 * u);   // smoothstep
+      const e = u * u * (3 - 2 * u);             // smoothstep
       m.quaternion.slerpQuaternions(settleFrom.current, settleTo.current, e);
-      posY.current += (DIE_BASE_Y - posY.current) * 0.35;
-      m.position.y = posY.current;
+      P.y += (DIE_BASE_Y - P.y) * 0.35;
+      m.position.set(P.x, P.y, P.z);
       if (u >= 1) phase.current = "idle";
     }
   });
