@@ -376,6 +376,15 @@ const FACE_EULER = {
 const DIE_BASE_Y = 2.3;     // resting centre height (sits on the playfield)
 const DIE_G = 26;           // gravity (units/s²)
 const DIE_E = 0.42;         // restitution (bounciness on impact)
+const DIE_UP = new THREE.Vector3(0, 1, 0);
+// The four resting orientations (yaw variants) that show a given value on top.
+const FACE_REST = {};
+for (let v = 1; v <= 6; v++) {
+  const e = FACE_EULER[v] || [0, 0, 0];
+  const base = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
+  FACE_REST[v] = [0, 1, 2, 3].map((k) =>
+    new THREE.Quaternion().setFromAxisAngle(DIE_UP, (k * Math.PI) / 2).multiply(base));
+}
 
 /* A physics-thrown die: dropped from a height with a pop and heavy random spin,
    it falls under gravity and bounces off the board, energy bleeding off each
@@ -394,7 +403,10 @@ function Die({ value, x, rollId, charging }) {
   const spin = useRef([0, 0, 0]);
   const phase = useRef("idle");   // "tumble" | "settle" | "idle"
   const t0 = useRef(-1);
-  const target = useRef(new THREE.Quaternion());
+  const settleFrom = useRef(new THREE.Quaternion());
+  const settleTo = useRef(new THREE.Quaternion());
+  const settleAt = useRef(0);
+  const settleDur = useRef(0.3);
 
   useEffect(() => {
     // Throw: toss UP from wherever the die currently is (in-hand / at rest) so the
@@ -404,10 +416,6 @@ function Die({ value, x, rollId, charging }) {
     spin.current = [r(), r(), r()];
     phase.current = "tumble";
     t0.current = -1;
-    const e = FACE_EULER[value] || [0, 0, 0];
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2]));
-    const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() - 0.5) * Math.PI * 0.4);
-    target.current = yaw.multiply(q);
   }, [rollId, value]);
 
   useFrame((state, delta) => {
@@ -430,28 +438,49 @@ function Die({ value, x, rollId, charging }) {
     if (t0.current === -1) t0.current = state.clock.elapsedTime;
     const t = state.clock.elapsedTime - t0.current;
 
+    // Begin the settle: roll to the NEAREST orientation that shows the value on
+    // top, eased over a time scaled to the rotation distance — so the die rocks
+    // naturally into place instead of snapping to a fixed pose.
+    const beginSettle = () => {
+      const from = m.quaternion.clone();
+      let best = FACE_REST[value][0], bestA = Infinity;
+      for (const cand of FACE_REST[value]) {
+        const a = from.angleTo(cand);
+        if (a < bestA) { bestA = a; best = cand; }
+      }
+      settleFrom.current = from;
+      settleTo.current = best;
+      settleAt.current = state.clock.elapsedTime;
+      settleDur.current = Math.min(0.5, Math.max(0.18, bestA / 7));
+      phase.current = "settle";
+    };
+
     if (phase.current === "tumble") {
       velY.current -= DIE_G * dt;
       posY.current += velY.current * dt;
       m.rotation.x += spin.current[0] * dt;
       m.rotation.y += spin.current[1] * dt;
       m.rotation.z += spin.current[2] * dt;
+      let enter = false;
       if (posY.current <= DIE_BASE_Y && velY.current < 0) {  // floor impact (falling)
         posY.current = DIE_BASE_Y;
         if (Math.abs(velY.current) > 1.4 && t < 2.2) {
           velY.current = -velY.current * DIE_E;          // bounce
           spin.current = spin.current.map((a) => a * 0.62); // friction bleeds spin
         } else {
-          phase.current = "settle";
+          enter = true;
         }
       }
-      if (t > 2.4) phase.current = "settle";   // safety
+      if (t > 2.4) enter = true;   // safety
       m.position.y = posY.current;
-    } else {                                  // settle: snap to the rolled face, rest
-      m.quaternion.slerp(target.current, 0.22);
-      posY.current += (DIE_BASE_Y - posY.current) * 0.3;
+      if (enter) beginSettle();
+    } else {                       // settle: eased rock into the resting face
+      const u = Math.min(1, (state.clock.elapsedTime - settleAt.current) / settleDur.current);
+      const e = u * u * (3 - 2 * u);   // smoothstep
+      m.quaternion.slerpQuaternions(settleFrom.current, settleTo.current, e);
+      posY.current += (DIE_BASE_Y - posY.current) * 0.35;
       m.position.y = posY.current;
-      if (m.quaternion.angleTo(target.current) < 0.01) phase.current = "idle";
+      if (u >= 1) phase.current = "idle";
     }
   });
 
