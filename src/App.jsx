@@ -32,7 +32,7 @@ import {
 } from "./lib/gameEngine";
 
 import {
-  playClick, playRoll, playMove, playBuy, playRent, playWin, playJail,
+  playClick, playRoll, playMove, playBuy, playRent, playWin, playJail, playNotify,
   setMuted, getMuted,
 } from "./lib/audio";
 import {
@@ -192,6 +192,21 @@ export default function App() {
   useEffect(() => {
     if (!animationsBusy) setFeedLog(gameState?.log || []);
   }, [animationsBusy, gameState?.log]);
+
+  // Loud, clear alert when a NEW trade offer lands on the local player (the
+  // recipient): chime + toast, not just the sidebar quietly opening the panel.
+  const lastTradeKeyRef = useRef("");
+  useEffect(() => {
+    const pt = gameState?.pending_trade;
+    const key = pt ? `${pt.from}->${pt.to}` : "";
+    if (key === lastTradeKeyRef.current) return;
+    lastTradeKeyRef.current = key;
+    if (pt && pt.to === playerId && pt.from !== playerId) {
+      const fromName = gameState?.players?.find(p => p.id === pt.from)?.name || "A player";
+      setToast({ message: `${fromName} sent you a trade offer — review it in TRADE.`, type: "info" });
+      playNotify();
+    }
+  }, [gameState?.pending_trade, playerId, gameState?.players]);
 
   const confettiCanvasRef = useRef(null);
   const confettiEngineRef = useRef(null);

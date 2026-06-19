@@ -252,6 +252,7 @@ function Sidebar({
   const pending = gameState?.pending_trade;
   const pendingKey = pending ? `${pending.from}->${pending.to}` : "";
   const pendingInvolvesMe = pending && (pending.to === myPlayerId || pending.from === myPlayerId);
+  const pendingForMe = pending && pending.to === myPlayerId;
   useEffect(() => {
     if (pendingInvolvesMe) { setOpenPanel("trade"); setCounterPrefill(null); }
   }, [pendingKey, pendingInvolvesMe]);
@@ -464,11 +465,14 @@ function Sidebar({
                 </Btn>
                 <Btn
                   style={{ flex: 1, fontSize: "13px", padding: "8px 4px",
-                    ...(openPanel === "trade" ? { background: "rgba(34,211,238,0.16)", borderColor: "#22d3ee", color: "#22d3ee" } : {}) }}
+                    ...(openPanel === "trade" ? { background: "rgba(34,211,238,0.16)", borderColor: "#22d3ee", color: "#22d3ee" } : {}),
+                    ...(pendingForMe && openPanel !== "trade"
+                      ? { background: "rgba(52,211,153,0.2)", borderColor: "#34d399", color: "#34d399", animation: "timer-pulse 1s infinite" }
+                      : {}) }}
                   onClick={() => { playClick(); setCounterPrefill(null); setOpenPanel(openPanel === "trade" ? "terminal" : "trade"); }}
                   disabled={activeOpponents.length === 0 || inDebt}
                 >
-                  <TradeIcon size={10} /><span>TRADE{pendingInvolvesMe ? " ●" : ""}</span>
+                  <TradeIcon size={10} /><span>{pendingForMe ? "TRADE OFFER!" : pendingInvolvesMe ? "TRADE ●" : "TRADE"}</span>
                 </Btn>
               </div>
             )}

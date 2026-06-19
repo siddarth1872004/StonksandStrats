@@ -121,6 +121,26 @@ export const playBuy = () => {
   });
 };
 
+export const playNotify = () => {
+  // Two-tone "ding-dong" — an attention-getting alert for incoming trade offers.
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  let time = ctx.currentTime;
+  [[880, 0.0], [1174.66, 0.13]].forEach(([freq, offset]) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, time + offset);
+    gainNode.gain.setValueAtTime(0.0001, time + offset);
+    gainNode.gain.exponentialRampToValueAtTime(0.18, time + offset + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, time + offset + 0.28);
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    osc.start(time + offset);
+    osc.stop(time + offset + 0.3);
+  });
+};
+
 export const playRent = () => {
   // Downward slide (sad buzz)
   playTone({ freq: 220, duration: 0.4, type: "sawtooth", volume: 0.15, slides: [[0.35, 110]] });
